@@ -1,0 +1,25 @@
+
+import { Modal } from 'antd';
+import styled from 'styled-components';
+
+
+export const StyledModal = styled(Modal)`
+  .ant-modal-content {
+    background-color: #202020;
+    color: white;
+  }
+
+  .ant-modal-header {
+    background-color: #202020;
+    border-bottom: 1px solid #333;
+  }
+
+  .ant-modal-title {
+    color: white;
+  }
+
+  .ant-modal-footer {
+    background-color: #202020;
+    border-top: 1px solid #333;
+  }
+`;
