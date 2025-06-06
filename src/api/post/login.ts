@@ -5,6 +5,8 @@ import type { MutationFunction } from 'react-query';
 // Mutation function to login
 const loginUser: MutationFunction<any, any> = async (body: any) => {
   const response = await axiosInstance.post(`/users/login`, body);
+    // const response = await axiosInstance.get(`/hello`)
+
   return response.data;
 };
 

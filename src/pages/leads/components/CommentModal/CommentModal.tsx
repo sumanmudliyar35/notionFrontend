@@ -28,6 +28,7 @@ const CommentModal: React.FC<CommentModalProps> = ({
   leadId,
   refetch,
 }) => {
+  const userid = localStorage.getItem('userid');
   const { data: comments, refetch: refetchComments } = useGetCommentsByLead(leadId);
   const createCommentMutate = useCreateComment();
 
@@ -45,7 +46,7 @@ const CommentModal: React.FC<CommentModalProps> = ({
     onSubmit: async (values, { resetForm }) => {
       const payload = {
         comment: values.comment,
-        givenBy: 1, // You can dynamically pass user ID here
+        givenBy: userid, // You can dynamically pass user ID here
         leadId,
       };
 

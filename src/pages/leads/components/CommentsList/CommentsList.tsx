@@ -25,7 +25,7 @@ const CommentsList: React.FC<CommentsListProps> = ({ comments }) => {
           <li key={comment.id} style={{ color: '#ddd', marginBottom: 10 }}>
             <strong>Comment:</strong> {comment.comment} <br />
             <small style={{ color: '#aaa' }}>
-              On {new Date(comment.createdAt).toLocaleString()}
+              By {comment.givenBy ?? "Unknown"} on {new Date(comment.createdAt).toLocaleString()}
             </small>
           </li>
         ))}

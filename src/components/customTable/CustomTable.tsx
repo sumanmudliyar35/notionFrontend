@@ -46,8 +46,7 @@ export function CustomTable<T extends object>({
   isWithNewRow
 }: EditableTableProps<T>) {
 
-  console.log("data", data);;
-  console.log("columns", columns);
+
   const [hasAdded, setHasAdded] = useState(false);
   const [currentlyEditing, setCurrentlyEditing] = useState<{
     rowIndex: number;
@@ -61,19 +60,15 @@ export function CustomTable<T extends object>({
   const [columnVisibility, setColumnVisibility] = useState<VisibilityState>({});
   const [menuOpenCell, setMenuOpenCell] = useState<{ rowIndex: number; columnId: keyof T } | null>(null);
 
-  const handleEdit = (rowIndex: number, columnId: keyof T, value: string) => {
-
-
-    console.log("handleEdit", rowIndex, columnId, value)
-    const updated = [...data];
-    updated[rowIndex] = {
-      ...updated[rowIndex],
-      [columnId]: value,
-    };
-    onDataChange(updated);
-      onRowEdit?.(updated[rowIndex], rowIndex); // ✅ notify parent of the edited row
-
+  const handleEdit = (rowIndex: number, columnId: keyof T, value: any) => {
+  const updated = [...data];
+  updated[rowIndex] = {
+    ...updated[rowIndex],
+    [columnId]: value,
   };
+  onDataChange(updated);
+  onRowEdit?.(updated[rowIndex], rowIndex);
+};
 
 
   const handleAddEmptyRow = () => {
@@ -200,11 +195,16 @@ export function CustomTable<T extends object>({
                   >
                     {isEditable && isCurrentlyEditing ? (
                       editorType === 'date' ? (
-                        <DatePicker
+                        <Input
+                          type="date"
                           autoFocus
-                          value={cell.getValue() ? dayjs(cell.getValue()) : null}
-                          onChange={(date, dateString) => {
-                            handleEdit(row.index, columnId, dateString);
+                          value={
+                            cell.getValue()
+                              ? dayjs(cell.getValue() as string | number | Date).format("YYYY-MM-DD")
+                              : ''
+                          }
+                          onChange={(e) => {
+                            handleEdit(row.index, columnId, e.target.value);
                             setCurrentlyEditing(null);
                           }}
                           onBlur={() => setCurrentlyEditing(null)}
@@ -214,8 +214,9 @@ export function CustomTable<T extends object>({
                             top: 0,
                             left: 0,
                             zIndex: 2,
+                            background: '#202020',
+                            color: 'white',
                           }}
-                          format="YYYY-MM-DD"
                         />
                       ) : editorType === 'select' ? (
                         <CustomSelect
@@ -247,6 +248,7 @@ export function CustomTable<T extends object>({
                             menuOpenCell.rowIndex === row.index &&
                             menuOpenCell.columnId === columnId
                           }
+                           
                         />
                       ) : (
                         <Input
@@ -254,7 +256,6 @@ export function CustomTable<T extends object>({
                           autoFocus
                           onChange={(val: any) => {
                             handleEdit(row.index, columnId, val.target.value);
-                            // Do NOT call setCurrentlyEditing(null) here!
                           }}
                           onBlur={() => setCurrentlyEditing(null)}
                           style={{

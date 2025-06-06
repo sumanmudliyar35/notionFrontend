@@ -67,7 +67,7 @@ const Login = () => {
 
       <styled.Card>
         {/* <styled.Logo src={rylogo} alt="RY Logo" /> Add the logo here */}
-        <styled.Title>Welcome Back</styled.Title>
+        <styled.Title>Welcome Backkk</styled.Title>
         <styled.Subtitle>Login to your account</styled.Subtitle>
 
         <styled.Form onSubmit={formik.handleSubmit}>

@@ -44,6 +44,8 @@ interface Doc {
   shoot?: string; // <-- Add this line
   referenceId?: number | null; // Ensure this matches your API
   shootId?: number | null; // <-- Add this line
+  comments?: any[]; // Assuming comments is an array of objects
+  
 }
 
 
@@ -200,6 +202,11 @@ const columns: ColumnDef<Doc>[] = [
   {
     header: 'Event',
     accessorKey: 'event',
+     meta: {
+    editable: true,
+    editorType: 'eventData', // custom type for your filter UI
+  },
+
     cell: ({ row }) => (
       <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
         <span>{row.original.eventCount + " Events" || 'No Event'}</span>
@@ -230,8 +237,8 @@ const columns: ColumnDef<Doc>[] = [
       },
       cell: ({ getValue }) => {
         const value = getValue();
-        const option = assigneeOptions.find(opt => opt.value === value);
-        console.log("Assignee Value:", value, option);
+    
+        const option = assigneeOptions.find(opt => opt.value == value);
         return option ? option.label : '';
       },
     },
@@ -258,16 +265,46 @@ const columns: ColumnDef<Doc>[] = [
  },
  },
       { header: 'Reminder', accessorKey: 'reminder' },
-        { header: 'Comments', accessorKey: 'comment',  cell: ({ row }) => (
-      <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-        <span>{row.original.commentCount + " comments" || 'No comment'}</span>
-        <Button
-          size="small"
-          icon={<PlusOutlined />}
-          onClick={() => openCommentModal(row.original)} // pass row data if needed
-        />
+        { header: 'Comments', accessorKey: 'comment',  cell: ({ row }) => {
+    const comments = row.original.comments || [];
+    if (!comments.length) {
+      return (
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+          <span>No comment</span>
+          <Button
+            size="small"
+            icon={<PlusOutlined />}
+            onClick={() => openCommentModal(row.original)}
+          />
+        </div>
+      );
+    }
+    // Show the latest comment
+    const latest = comments[0]; // or sort by givenAt if needed
+    const givenBy = latest.givenBy || "Unknown";
+    const givenAtIST = latest.givenAt
+      ? new Date(latest.givenAt).toLocaleString("en-IN", { timeZone: "Asia/Kolkata" })
+      : "";
+
+    return (
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+        <div>
+          <strong>{latest.comment}</strong>
+        </div>
+        <div style={{ fontSize: 12, color: "#aaa" }}>
+          By: {givenBy} | At: {givenAtIST}
+        </div>
+        <div>
+          <Button
+            size="small"
+            icon={<PlusOutlined />}
+            onClick={() => openCommentModal(row.original)}
+          />
+        </div>
       </div>
-    ), },
+    );
+  },
+},
           {
   header: 'Mention',
   accessorKey: 'mentions',
@@ -403,7 +440,6 @@ const createEmptyDoc = (): Doc => {
     const updateLeadMutate = useUpdateLead()
 
     const handleRowEdit=async(updatedRow: Doc, rowIndex: number)=>{
-      console.log("Updated Row:", updatedRow);
       const body={
                name: updatedRow?.name,
                contact:updatedRow.contact,
@@ -455,11 +491,34 @@ const handleRemoveFilter = (key: string) => {
   setActiveFilters((prev: string[]) => prev.filter((k) => k !== key));
 };
 // Filter tableData based on filters
-const filteredData = tableData?.filter((row) =>
-  Object.entries(filters).every(([key, val]) =>
-    val ? String(row[key as keyof Doc] || '').toLowerCase().includes(val.toLowerCase()) : true
-  )
-);
+const filteredData = tableData?.filter((row) => {
+  // Get event filter values outside the loop
+  const eventDateFilter = filters['event'];
+  const eventTypeFilter = filters['eventType'] || 'before';
+
+  return Object.entries(filters).every(([key, val]) => {
+    if (key === 'event' && eventDateFilter) {
+      const filterDate = eventDateFilter;
+      const eventDates = (row.eventData || []).map((e: any) => e.eventDate?.slice(0, 10));
+      if (!eventDates.length) return false;
+
+      if (eventTypeFilter === 'before') {
+        return eventDates.some((d: any) => d && d < filterDate);
+      }
+      if (eventTypeFilter === 'after') {
+        return eventDates.some((d: any) => d && d > filterDate);
+      }
+      if (eventTypeFilter === 'on') {
+        return eventDates.some((d: any) => d && d === filterDate);
+      }
+      return true;
+    }
+    // Don't filter on eventType key itself
+    if (key === 'eventType') return true;
+    // Default filter for other columns
+    return val ? String(row[key as keyof Doc] || '').toLowerCase().includes(val.toLowerCase()) : true;
+  });
+});
 
 
   return (
@@ -470,7 +529,48 @@ const filteredData = tableData?.filter((row) =>
     const col = columns.find((c: any) => c.accessorKey === key);
     if (!col) return null;
 
-    const meta = col.meta || {};
+    const meta: { editorType?: string; selectOptions?: Array<{ label: string; value: any }> } = col.meta || {};
+
+    if (key === 'event') {
+      return (
+        <styled.FilterTag key={key} active={!!filters[key]} style={{ background: 'rgb(25, 25, 25)' }}>
+          <Select
+            size="small"
+            style={{ width: 100, marginRight: 8 }}
+            value={filters.eventType || 'before'}
+            onChange={val => setFilters(prev => ({ ...prev, eventType: val }))}
+            options={[
+              { label: 'Before', value: 'before' },
+              { label: 'After', value: 'after' },
+              { label: 'On Date', value: 'on' },
+            ]}
+          />
+          <Input
+            type="date"
+            size="small"
+            value={filters[key] || ''}
+            onChange={e => handleFilterChange(key, e.target.value)}
+            style={{
+              width: 120,
+              background: 'rgb(25, 25, 25)',
+              color: 'white',
+              border: 'transparent',
+            }}
+          />
+          <span
+            onClick={() => handleRemoveFilter(key)}
+            style={{
+              cursor: 'pointer',
+              padding: '0 6px',
+              fontSize: 16,
+              color: 'white',
+            }}
+          >
+            ×
+          </span>
+        </styled.FilterTag>
+      );
+    }
 
     return (
   <styled.FilterTag key={key} active={!!filters[key]} style={{ background: 'rgb(25, 25, 25)' }}>
@@ -480,7 +580,7 @@ const filteredData = tableData?.filter((row) =>
         isMulti={false}
         value={meta?.selectOptions?.find((opt: any) => opt.value === filters[key]) || null}
         onChange={(option: any) => handleFilterChange(key, option ? option.value : '')}
-        options={meta?.selectOptions}
+        options={meta?.selectOptions || []}
        
       />
     ) : (
