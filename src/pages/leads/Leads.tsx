@@ -15,6 +15,9 @@ import CustomTag from "../../components/customTag/CustomTag";
 import { useGetAllReferences } from "../../api/get/getAllReference";
 import CustomSelect from "../../components/customSelect/CustomSelect";
 import { useGetAllShoots } from "../../api/get/getAllShoot"; // <-- Add this import
+import VoiceModal from "./components/VoiceModal/VoiceModal"; // adjust path if needed
+import { useCreateVoiceRecord } from "../../api/post/newVoiceRecord";
+import { ref } from "yup";
 
 
 interface Doc {
@@ -45,6 +48,9 @@ interface Doc {
   referenceId?: number | null; // Ensure this matches your API
   shootId?: number | null; // <-- Add this line
   comments?: any[]; // Assuming comments is an array of objects
+  visible?: boolean; // Add this field if needed
+  voiceRecords?: { id: number; voiceUrl: string }[]; // Assuming voice records are stored like this
+  
   
 }
 
@@ -53,7 +59,7 @@ interface Doc {
 
 const Leads = () => {
 
-  const userid = localStorage.getItem('userid');
+  const userid = Number(localStorage.getItem('userid'));
   const roleid = localStorage.getItem('roleid');
 
     const {data: LeadsData, refetch: refetchLeadsData} = useGetLeadsByUser(Number(userid));
@@ -139,6 +145,9 @@ const Leads = () => {
 
         const [selectedMentionLeadId, setSelectedMentionLeadId] = useState<number>();
 
+        const [isVoiceModalOpen, setIsVoiceModalOpen] = useState(false);
+        const [selectedVoiceRow, setSelectedVoiceRow] = useState<any>(null);
+
         useEffect(()=>{
           setTableData(LeadsData?.data)
 
@@ -158,6 +167,11 @@ const Leads = () => {
   const openMentionModal = (rowData: Doc) => {
           setSelectedMentionLeadId(rowData?.id);
           setIsMentionModalOpen(true);
+  };
+
+  const openVoiceModal = (rowData: Doc) => {
+          setSelectedVoiceRow(rowData);
+          setIsVoiceModalOpen(true);
   };
 
 
@@ -183,7 +197,8 @@ const Leads = () => {
     leads: '',
     eventCount:0,
     commentCount:0,
-    reference: ''
+    reference: '',
+    visible: true
   },
 ];
 
@@ -198,6 +213,7 @@ const columns: ColumnDef<Doc>[] = [
     meta: { editable: true },
       enableSorting: true,
 
+
   },
   {
     header: 'Event',
@@ -205,6 +221,8 @@ const columns: ColumnDef<Doc>[] = [
      meta: {
     editable: true,
     editorType: 'eventData', // custom type for your filter UI
+        visible: true, // <-- add this
+
   },
 
     cell: ({ row }) => (
@@ -260,7 +278,50 @@ const columns: ColumnDef<Doc>[] = [
       ],
     },
  },
-  { header: 'Voice note', accessorKey: 'voice' },
+  {
+  header: 'Voice note',
+  accessorKey: 'voice',
+  cell: ({ row }) => {
+    const voiceRecords = row.original.voiceRecords || [];
+    console.log("Voice Records:", voiceRecords);
+    return (
+      <div
+        style={{ cursor: "pointer", color: "#52c41a" }}
+        // onClick={() => {
+        //   setSelectedVoiceRow(row.original);
+        //   setIsVoiceModalOpen(true);
+        // }}
+      >
+        {voiceRecords.length > 0 ? (
+          <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+            {voiceRecords.map((v: any) => (
+              <audio
+                key={v.id}
+                controls
+                src={v.voiceUrl}
+  style={{ width: "100%", minWidth: 120, maxWidth: "100%", marginBottom: 4 }}
+
+              />
+            ))}
+          </div>
+        ) : (
+          
+          <span style={{ color: "#aaa" }}>Record</span>
+        )}
+        <Button
+          size="small"
+          icon={<PlusOutlined />}
+          style={{ marginTop: 4 }}
+          onClick={e => {
+            e.stopPropagation();
+            setSelectedVoiceRow(row.original);
+            setIsVoiceModalOpen(true);
+          }}
+        />
+      </div>
+    );
+  },
+},
     { header: 'Follow up', accessorKey: 'followup',     meta: { editable: true,  editorType: 'date', // <-- add this
  },
  },
@@ -279,21 +340,23 @@ const columns: ColumnDef<Doc>[] = [
         </div>
       );
     }
-    // Show the latest comment
-    const latest = comments[0]; // or sort by givenAt if needed
-    const givenBy = latest.givenBy || "Unknown";
-    const givenAtIST = latest.givenAt
-      ? new Date(latest.givenAt).toLocaleString("en-IN", { timeZone: "Asia/Kolkata" })
-      : "";
-
+    // Show all comments in the cell
     return (
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
-        <div>
-          <strong>{latest.comment}</strong>
-        </div>
-        <div style={{ fontSize: 12, color: "#aaa" }}>
-          By: {givenBy} | At: {givenAtIST}
-        </div>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+        {comments.map((c: any, idx: number) => {
+          const givenBy = c.givenBy || "Unknown";
+          const givenAtIST = c.givenAt
+            ? new Date(c.givenAt).toLocaleString("en-IN", { timeZone: "Asia/Kolkata" })
+            : "";
+          return (
+            <div key={c.id || idx} style={{ borderBottom: "1px solid #333", paddingBottom: 4 }}>
+              <strong>{c.comment}</strong>
+              <div style={{ fontSize: 12, color: "#aaa" }}>
+                By: {givenBy} | At: {givenAtIST}
+              </div>
+            </div>
+          );
+        })}
         <div>
           <Button
             size="small"
@@ -481,6 +544,38 @@ const handleAddFilter = (columnKey: string) => {
 };
 
 
+const createVoiceRecordMutation  = useCreateVoiceRecord();
+const handleSaveVoice = async(audioBlob: Blob) => {
+  if (selectedVoiceRow) {
+    const url = URL.createObjectURL(audioBlob);
+
+
+    setTableData(prev =>
+      prev.map(row =>
+        row.id === selectedVoiceRow.id ? { ...row, voice: url } : row
+      )
+    );
+    console.log("Saving voice record for lead:", selectedVoiceRow.id);
+
+     createVoiceRecordMutation.mutate({
+      blob: audioBlob,
+      leadId: selectedVoiceRow?.id, // assuming you have this
+      createdBy: userid, // or get it from auth/user state
+    }, {
+      onSuccess: () => {
+        refetchLeadsData();
+        console.log("Voice record created successfully.");
+      },
+      onError: (error) => {
+        console.error("Error uploading voice record:", error);
+      },
+    });
+    setIsVoiceModalOpen(false);
+    setSelectedVoiceRow(null);
+  }
+};
+
+
 const handleRemoveFilter = (key: string) => {
   setFilters((prev) => {
     const newFilters = { ...prev };
@@ -571,6 +666,7 @@ const filteredData = tableData?.filter((row) => {
         </styled.FilterTag>
       );
     }
+
 
     return (
   <styled.FilterTag key={key} active={!!filters[key]} style={{ background: 'rgb(25, 25, 25)' }}>
@@ -673,6 +769,13 @@ const filteredData = tableData?.filter((row) => {
   />
 )}
 
+        {isVoiceModalOpen && (
+          <VoiceModal
+            open={isVoiceModalOpen}
+            onClose={() => setIsVoiceModalOpen(false)}
+            onSave={handleSaveVoice}
+          />
+        )}
 
     </div>
   )

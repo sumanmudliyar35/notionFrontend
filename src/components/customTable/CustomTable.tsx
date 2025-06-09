@@ -7,12 +7,14 @@ import {
 } from '@tanstack/react-table';
 import type { VisibilityState } from '@tanstack/react-table';
 import type { ColumnDef } from '@tanstack/react-table';
-import { Input, Select, DatePicker } from 'antd';
+import { Input, Select, DatePicker, Button, Modal } from 'antd';
 import * as styled from './style';
 import dayjs from 'dayjs';
 import DownArrowIcon from '../../assets/icons/downArrowIcon';
 import UpArrowIcon from '../../assets/icons/UpArrowIcon';
 import CustomSelect from '../customSelect/CustomSelect';
+import { EyeOutlined, EyeInvisibleOutlined } from "@ant-design/icons";
+import CustomModal from '../customModal/CustomModal';
 
 interface CustomColumnMeta {
   editable?: boolean;
@@ -55,6 +57,7 @@ export function CustomTable<T extends object>({
 
   const [sorting, setSorting] = useState<any[]>([]);
   const [hoveredRow, setHoveredRow] = useState<number | null>(null);
+  const [isColumnModalOpen, setIsColumnModalOpen] = useState(false);
 
   // Add state for column visibility
   const [columnVisibility, setColumnVisibility] = useState<VisibilityState>({});
@@ -91,25 +94,53 @@ export function CustomTable<T extends object>({
 
   });
 
-  // UI for toggling columns
-  const renderColumnToggles = () => (
-    <div style={{ marginBottom: 8 }}>
-      {table.getAllLeafColumns().map((column) => (
-        <label key={column.id} style={{ marginRight: 12 }}>
-          <input
-            type="checkbox"
-            checked={column.getIsVisible()}
-            onChange={() => column.toggleVisibility()}
-          />{' '}
-          {column.columnDef.header as string}
-        </label>
-      ))}
-    </div>
+  // UI for toggling columns (now as a modal)
+  const renderColumnManager = () => (
+    <>
+      <Button
+        type="primary"
+        style={{ marginBottom: 8 }}
+        onClick={() => setIsColumnModalOpen(true)}
+      >
+        Manage Columns
+      </Button>
+      <CustomModal
+        open={isColumnModalOpen}
+        onClose={() => setIsColumnModalOpen(false)}
+        footer={null}
+        title="Show/Hide Columns"
+      >
+        {table.getAllLeafColumns().map((column) => {
+          const visible = column.getIsVisible();
+          return (
+            <div
+              key={column.id}
+              style={{
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "space-between",
+                padding: "8px 0",
+                borderBottom: "1px solid #222",
+              }}
+            >
+              <span>{column.columnDef.header as string}</span>
+              <span
+                style={{ cursor: "pointer", fontSize: 18 }}
+                onClick={() => column.toggleVisibility()}
+                title={visible ? "Hide" : "Show"}
+              >
+                {visible ? <EyeOutlined /> : <EyeInvisibleOutlined />}
+              </span>
+            </div>
+          );
+        })}
+      </CustomModal>
+    </>
   );
 
   return (
     <div style={{ overflowX: 'auto', width: '100%' }}>
-      {renderColumnToggles()}
+      {renderColumnManager()}
       <table style={{ minWidth: '1000px', width: '100%', borderCollapse: 'collapse' }}>
         <thead>
           {table.getHeaderGroups().map((headerGroup) => (
