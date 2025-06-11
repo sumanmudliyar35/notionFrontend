@@ -7,7 +7,7 @@ import { useUpdateLead } from "../../api/put/updateLead";
 import * as styled from './style';
 import { Button, Input, Select } from "antd";
 import EventModal from "./components/EventModal/EventModal";
-import { PlusOutlined } from "@ant-design/icons";
+import { DeleteOutlined, PlusOutlined } from "@ant-design/icons";
 import CommentModal from "./components/CommentModal/CommentModal";
 import { useGetAllUsers } from "../../api/get/getAllMember";
 import MentionModal from "./components/MentionModal/MentionModal";
@@ -18,6 +18,15 @@ import { useGetAllShoots } from "../../api/get/getAllShoot"; // <-- Add this imp
 import VoiceModal from "./components/VoiceModal/VoiceModal"; // adjust path if needed
 import { useCreateVoiceRecord } from "../../api/post/newVoiceRecord";
 import { ref } from "yup";
+import { useUpdateComment } from "../../api/put/updateComment";
+import { useDeleteComment } from "../../api/delete/deleteComment";
+import CrossIcon from "../../assets/icons/CrossIcon";
+import { Popconfirm } from "antd";
+import { useUpdateEvent } from "../../api/put/updateEvent";
+import CustomInput from "../../components/customInput/CustomInput";
+import CsutomTextArea from "../../components/customTextArea/CustomTextArea";
+import CustomTextArea from "../../components/customTextArea/CustomTextArea";
+import { useDeleteEvent } from "../../api/delete/deleteEvent";
 
 
 interface Doc {
@@ -51,6 +60,7 @@ interface Doc {
   visible?: boolean; // Add this field if needed
   voiceRecords?: { id: number; voiceUrl: string }[]; // Assuming voice records are stored like this
   
+  eventData?: { eventId: number; eventDate: string; noOfGuests: number; note?: string }[]; // Assuming events are stored like this
   
 }
 
@@ -72,6 +82,10 @@ const Leads = () => {
   const [assigneeOptions, setAssigneeOptions] = useState<{ label: string; value: any }[]>([]);
   const [referenceOptions, setReferenceOptions] = useState<{ label: string; value: string }[]>([]);
   const [shootOptions, setShootOptions] = useState<{ label: string; value: string }[]>([]);
+
+  const [editingEventCell, setEditingEventCell] = useState<{ rowId: any; eventId: any } | null>(null);
+    const [columnSizing, setColumnSizing] = useState({});
+
 
   useEffect(() => {
     if (allMembersData) {
@@ -143,15 +157,28 @@ const Leads = () => {
 
         const [selectedLeadId, setSelectedLeadId] = useState<number>();
 
+        const [editingEvent, setEditingEvent] = useState<{ rowId: any; eventId: any } | null>(null);
+const [editingEventValue, setEditingEventValue] = useState<any>({});
+
         const [selectedMentionLeadId, setSelectedMentionLeadId] = useState<number>();
 
         const [isVoiceModalOpen, setIsVoiceModalOpen] = useState(false);
         const [selectedVoiceRow, setSelectedVoiceRow] = useState<any>(null);
 
-        useEffect(()=>{
-          setTableData(LeadsData?.data)
+        const [editingComment, setEditingComment] = useState<{ rowId: any; commentId: any } | null>(null);
+const [editingCommentValue, setEditingCommentValue] = useState<string>('');
 
-        },[LeadsData])
+        // useEffect(()=>{
+        //   setTableData(LeadsData?.data)
+
+        // },[LeadsData]);
+
+
+        useEffect(() => {
+  if (!editingComment) {
+    setTableData(LeadsData?.data);
+  }
+}, [LeadsData, editingComment]);
 
          const openEventModal = (rowData: Doc) => {
           setSelectedLeadId(rowData?.id)
@@ -173,6 +200,81 @@ const Leads = () => {
           setSelectedVoiceRow(rowData);
           setIsVoiceModalOpen(true);
   };
+
+  const useUpdateCommentMutate = useUpdateComment();
+
+  const handleEditComment = async(rowId: any, commentId: any, commentText: string) => {
+
+      // setTableData(prev =>
+      //                     prev.map(row =>
+      //                       row.id === rowId
+      //                         ? {
+      //                             ...row,
+      //                             comments: row.comments.map((com: any, i: number) =>
+      //                               (com.id || i) === (commentId)
+      //                                 ? { ...com, comment: commentText }
+      //                                 : com
+      //                             ),
+      //                           }
+      //                         : row
+      //                     )
+      //                   );
+    console.log("Editing comment:", rowId, commentId, commentText);
+    // setEditingComment({ rowId, commentId });
+    const body={
+      comment: commentText,
+    }
+    const response = await useUpdateCommentMutate.mutateAsync([body, commentId]);
+    refetchLeadsData();
+    setEditingComment(null);
+
+  
+  };
+
+
+  const useDeleteCommentMutate = useDeleteComment();
+
+const handleDeleteComment = async (rowId: any, commentId: any) => {
+  const body={
+    deletedAt: new Date()
+  }
+  console.log("commentid", commentId)
+  const reponse = await useDeleteCommentMutate.mutateAsync([body,commentId]);
+    refetchLeadsData();
+
+
+
+
+}
+
+const updateEventMutate = useUpdateEvent();
+
+const handleUpdateEvent = async (rowId: any, eventId: any, eventData: any) => {
+  console.log("Updating event:", rowId, eventId, eventData);
+  const body = {  
+    date: eventData.eventDate,
+    eventName: eventData.eventName, 
+    numberOfGuests: eventData.noOfGuests,
+    note: eventData.note,
+
+  }
+  await updateEventMutate.mutateAsync([body, eventId]);
+  refetchLeadsData();
+};
+
+const deleteEventMutate = useDeleteEvent();
+
+const handleDeleteEvent = async (rowId: any, eventId: any) => {
+  try {
+    const body = {
+      deletedAt: new Date(),
+    };
+    await deleteEventMutate.mutateAsync([body, eventId]);
+    refetchLeadsData();
+  } catch (error) {
+    console.error("Failed to delete event:", error);
+  }
+};
 
 
   const initialDocs: Doc[] = [
@@ -208,6 +310,7 @@ const columns: ColumnDef<Doc>[] = [
   {
     header: 'Name',
     accessorKey: 'name',
+
     size: 500,
 
     meta: { editable: true },
@@ -215,33 +318,186 @@ const columns: ColumnDef<Doc>[] = [
 
 
   },
-  {
-    header: 'Event',
-    accessorKey: 'event',
-     meta: {
-    editable: true,
-    editorType: 'eventData', // custom type for your filter UI
-        visible: true, // <-- add this
+ {
+  header: 'Event',
+  accessorKey: 'eventData',
 
+  meta: {
+    editable: false,
+    editorType: 'eventData',
+    visible: true,
   },
+ cell: ({ row }) => {
+  const events = row.original.eventData || [];
+  const rowId = row.original.id;
 
-    cell: ({ row }) => (
-      <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-        <span>{row.original.eventCount + " Events" || 'No Event'}</span>
-        <Button
-          size="small"
-          icon={<PlusOutlined />}
-          onClick={() => openEventModal(row.original)} // pass row data if needed
-        />
-      </div>
-    ),
-  },
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+      {events.length === 0 && (
+        <span style={{ color: '#aaa' }}>No Events</span>
+      )}
+      {events.map((event: any, idx: number) => {
+        const isEditing =
+          editingEventCell &&
+          editingEventCell.rowId === rowId &&
+          editingEventCell.eventId === (event.eventId || idx);
+
+        // Local state for this event's edit value
+        const [localEditValue, setLocalEditValue] = useState({
+          eventDate: event.eventDate,
+          eventName: event.eventName || '',
+          noOfGuests: event.noOfGuests,
+          note: event.note || '',
+        });
+
+        useEffect(() => {
+          // Reset local value when entering edit mode for this event
+          if (isEditing) {
+            setLocalEditValue({
+              eventDate: event.eventDate,
+              eventName: event.eventName || '',
+              noOfGuests: event.noOfGuests,
+              note: event.note || '',
+            });
+          }
+          // eslint-disable-next-line
+        }, [isEditing, event.eventDate, event.eventName, event.noOfGuests, event.note]);
+
+        return (
+          <div
+            key={event.eventId || idx}
+            style={{ borderBottom: '1px solid #eee', paddingBottom: 2, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}
+          >
+            {isEditing ? (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 8, width: '100%' }}>
+                <input
+                  type="date"
+                  value={localEditValue.eventDate}
+                  onChange={e =>
+                    setLocalEditValue(prev => ({
+                      ...prev,
+                      eventDate: e.target.value,
+                    }))
+                  }
+                  style={{ marginBottom: 8 }}
+                />
+                <CustomInput
+                  placeholder="Event Name"
+                  value={localEditValue.eventName}
+                  onChange={e =>
+                    setLocalEditValue(prev => ({
+                      ...prev,
+                      eventName: e.target.value,
+                    }))
+                  }
+                />
+                <CustomInput
+                  type="number"
+                  placeholder="No. of Guests"
+                  value={localEditValue.noOfGuests}
+                  onChange={e =>
+                    setLocalEditValue(prev => ({
+                      ...prev,
+                      noOfGuests: e.target.value,
+                    }))
+                  }
+                />
+                <textarea
+                  value={localEditValue.note}
+                  onChange={(e: any) =>
+                    setLocalEditValue(prev => ({
+                      ...prev,
+                      note: e.target.value,
+                    }))
+                  }
+                />
+                <div>
+                  <Button
+                    size="small"
+                    type="primary"
+                    onClick={async () => {
+                      await handleUpdateEvent(rowId, event.eventId, localEditValue);
+                      setEditingEventCell(null);
+                    }}
+                    style={{ marginRight: 8 }}
+                  >
+                    Save
+                  </Button>
+                  <Button
+                    size="small"
+                    onClick={() => setEditingEventCell(null)}
+                  >
+                    Cancel
+                  </Button>
+                </div>
+              </div>
+            ) : (
+              <>
+                <div
+                  style={{ cursor: 'pointer', flex: 1 }}
+                  onClick={() => {
+                    setEditingEventCell({ rowId, eventId: event.eventId || idx });
+                  }}
+                >
+                  <div>
+                    <b>{event.eventName} on</b> {event.eventDate}
+                  </div>
+                  <div>
+                    <b>Guests:</b> {event.noOfGuests}
+                  </div>
+                  {event.note && (
+                    <div>
+                      <b>Note:</b> {event.note}
+                    </div>
+                  )}
+                </div>
+                <Button
+                  size="small"
+                  danger
+                  icon={<DeleteOutlined  
+                     style={{
+                        filter: 'brightness(0.7) grayscale(0.7)',
+                      }}
+                  
+                  />}
+                  onClick={e => {
+                    e.stopPropagation();
+                    // Call your delete handler here
+                    handleDeleteEvent(rowId, event.eventId);
+                  }}
+                  style={{
+                    marginLeft: 8,
+                    background: 'lightgray',
+                    borderColor: 'lightgray',
+                  }}
+                />
+              </>
+            )}
+          </div>
+        );
+      })}
+      <Button
+        size="small"
+        icon={<PlusOutlined />}
+        onClick={() => openEventModal(row.original)}
+      />
+    </div>
+  );
+},
+},
   {
     header: 'Amount',
     accessorKey: 'amount',
 
     meta: { editable: true },
       enableSorting: true,
+      cell: ({ getValue }) => {
+    const value = getValue();
+    // Format number with commas if value is a number
+    return typeof value === 'number'
+      ? value.toLocaleString('en-IN')
+      : value;
+  },
 
   },
 
@@ -283,7 +539,6 @@ const columns: ColumnDef<Doc>[] = [
   accessorKey: 'voice',
   cell: ({ row }) => {
     const voiceRecords = row.original.voiceRecords || [];
-    console.log("Voice Records:", voiceRecords);
     return (
       <div
         style={{ cursor: "pointer", color: "#52c41a" }}
@@ -326,8 +581,14 @@ const columns: ColumnDef<Doc>[] = [
  },
  },
       { header: 'Reminder', accessorKey: 'reminder' },
-        { header: 'Comments', accessorKey: 'comment',  cell: ({ row }) => {
+      
+        { header: 'Comments', accessorKey: 'comment',   size: 200,
+    minSize: 80,
+    maxSize: 400,
+    enableResizing: true, cell: ({ row }) => {
     const comments = row.original.comments || [];
+    const rowId = row.original.id;
+
     if (!comments.length) {
       return (
         <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
@@ -340,32 +601,116 @@ const columns: ColumnDef<Doc>[] = [
         </div>
       );
     }
-    // Show all comments in the cell
-    return (
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-        {comments.map((c: any, idx: number) => {
-          const givenBy = c.givenBy || "Unknown";
-          const givenAtIST = c.givenAt
-            ? new Date(c.givenAt).toLocaleString("en-IN", { timeZone: "Asia/Kolkata" })
-            : "";
-          return (
-            <div key={c.id || idx} style={{ borderBottom: "1px solid #333", paddingBottom: 4 }}>
-              <strong>{c.comment}</strong>
-              <div style={{ fontSize: 12, color: "#aaa" }}>
-                By: {givenBy} | At: {givenAtIST}
+
+   return (
+  <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+    {comments.map((c: any, idx: number) => {
+      const isEditing = editingComment && editingComment.rowId === rowId && editingComment.commentId === (c.id || idx);
+
+      // Local state for this comment's edit value
+      const [localEditValue, setLocalEditValue] = useState<string>(c.comment);
+
+      useEffect(() => {
+        // Reset local value when entering edit mode for this comment
+        if (isEditing) setLocalEditValue(c.comment);
+      }, [isEditing, c.comment]);
+
+      return (
+        <div key={c.id || idx} style={{ borderBottom: "1px solid #333", paddingBottom: 4 }}>
+          {isEditing ? (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+              <Input.TextArea
+                value={localEditValue}
+                onChange={e => setLocalEditValue(e.target.value)}
+                style={{ marginBottom: 4 }}
+              />
+              <div>
+                <Button
+                  size="small"
+                  type="primary"
+                  onClick={() => {
+                    handleEditComment(rowId, c.id || idx, localEditValue);
+                  }}
+                  style={{ marginRight: 8 }}
+                >
+                  Save
+                </Button>
+                <Button
+                  size="small"
+                  onClick={() => {
+                    setEditingComment(null);
+                    setLocalEditValue(c.comment);
+                  }}
+                  style={{ marginRight: 8 }}
+                >
+                  Cancel
+                </Button>
+                <Button
+                  size="small"
+                  icon={
+                    <DeleteOutlined
+                      style={{
+                        filter: 'brightness(0.7) grayscale(0.7)',
+                      }}
+                    />
+                  }
+                  onClick={() => handleDeleteComment(rowId, c.id || idx)}
+                  style={{
+                    background: 'lightgray',
+                    borderColor: 'lightgray',
+                  }}
+                />
               </div>
             </div>
-          );
-        })}
-        <div>
-          <Button
-            size="small"
-            icon={<PlusOutlined />}
-            onClick={() => openCommentModal(row.original)}
-          />
+          ) : (
+            <div
+              style={{ cursor: 'pointer', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}
+              onClick={() => {
+                setEditingComment({ rowId, commentId: c.id || idx });
+              }}
+            >
+              <div>
+                <strong>{c.comment}</strong>
+                <div style={{ fontSize: 12, color: "#aaa" }}>
+                  By: {c.givenBy || "Unknown"} | At: {c.givenAt
+                    ? new Date(c.givenAt).toLocaleString("en-IN", { timeZone: "Asia/Kolkata" })
+                    : ""}
+                </div>
+              </div>
+              <Button
+                size="small"
+                danger
+                icon={
+                  <DeleteOutlined
+                    style={{
+                      filter: 'brightness(0.7) grayscale(0.7)',
+                    }}
+                  />
+                }
+                onClick={e => {
+                  e.stopPropagation();
+                  handleDeleteComment(rowId, c.id || idx);
+                }}
+                style={{
+                  background: 'lightgray',
+                  borderColor: 'lightgray',
+                }}
+              >
+              </Button>
+            </div>
+          )}
         </div>
-      </div>
-    );
+      );
+    })}
+    <div>
+      <Button
+        size="small"
+        icon={<PlusOutlined />}
+        onClick={() => openCommentModal(row.original)}
+      />
+    </div>
+  </div>
+);
   },
 },
           {
@@ -517,7 +862,8 @@ const createEmptyDoc = (): Doc => {
                shootId: updatedRow.shootId || null, // <-- Add this line
       };
 
-      const response = await updateLeadMutate.mutateAsync([body, updatedRow.id])
+      const response = await updateLeadMutate.mutateAsync([body, updatedRow.id]);
+      refetchLeadsData();
 
     };
 
@@ -526,9 +872,25 @@ const createEmptyDoc = (): Doc => {
 
     const [activeFilters, setActiveFilters] = useState<string[]>([]);
 
+    const filterableKeys = [
+  "status",
+  "referenceId",
+  "followup",
+  "mentions",
+  "converted",
+  "eventData",
+  "leads"
+];
+
+// const availableFilterColumns = columns.filter(
+//   (col: any) =>
+//     col.meta?.editable &&
+//     !activeFilters.includes(col.accessorKey as string)
+// );
+
 const availableFilterColumns = columns.filter(
   (col: any) =>
-    col.meta?.editable &&
+    filterableKeys.includes(col.accessorKey as string) &&
     !activeFilters.includes(col.accessorKey as string)
 );
 
@@ -539,8 +901,9 @@ const handleFilterChange = (key: string, value: string) => {
   }));
 };
 
-const handleAddFilter = (columnKey: string) => {
-  setActiveFilters((prev) => [...prev, columnKey]);
+const handleAddFilter = (columnKey: any) => {
+  console.log("Adding filter for column:", columnKey);
+  setActiveFilters((prev) => [...prev, columnKey.value]);
 };
 
 
@@ -555,7 +918,6 @@ const handleSaveVoice = async(audioBlob: Blob) => {
         row.id === selectedVoiceRow.id ? { ...row, voice: url } : row
       )
     );
-    console.log("Saving voice record for lead:", selectedVoiceRow.id);
 
      createVoiceRecordMutation.mutate({
       blob: audioBlob,
@@ -588,11 +950,11 @@ const handleRemoveFilter = (key: string) => {
 // Filter tableData based on filters
 const filteredData = tableData?.filter((row) => {
   // Get event filter values outside the loop
-  const eventDateFilter = filters['event'];
+  const eventDateFilter = filters['eventData'];
   const eventTypeFilter = filters['eventType'] || 'before';
 
   return Object.entries(filters).every(([key, val]) => {
-    if (key === 'event' && eventDateFilter) {
+    if (key === 'eventData' && eventDateFilter) {
       const filterDate = eventDateFilter;
       const eventDates = (row.eventData || []).map((e: any) => e.eventDate?.slice(0, 10));
       if (!eventDates.length) return false;
@@ -608,10 +970,42 @@ const filteredData = tableData?.filter((row) => {
       }
       return true;
     }
+
+    if (key === 'followup' && val) {
+  const filterDate = val;
+  const followupDate = row.followup?.slice(0, 10);
+  const followupType = filters.eventType || 'before';
+
+  if (!followupDate) return false;
+
+  if (followupType === 'before') {
+    return followupDate < filterDate;
+  }
+  if (followupType === 'after') {
+    return followupDate > filterDate;
+  }
+  if (followupType === 'on') {
+    return followupDate === filterDate;
+  }
+  return true;
+}
     // Don't filter on eventType key itself
     if (key === 'eventType') return true;
     // Default filter for other columns
-    return val ? String(row[key as keyof Doc] || '').toLowerCase().includes(val.toLowerCase()) : true;
+    if (key === 'assignedTo') {
+      return val ? String(row[key as keyof Doc] || '').includes(val) : true;
+    }
+    if (key === 'mentions') {
+      // row.mentions is an array of { userId, userName }
+      return Array.isArray(row.mentions)
+        ? row.mentions.some((m: any) =>
+            m.userName && m.userName.toLowerCase().includes(String(val).toLowerCase())
+          )
+        : false;
+    }
+    return val
+      ? String(row[key as keyof Doc] || '').toLowerCase().includes(String(val).toLowerCase())
+      : true;
   });
 });
 
@@ -626,7 +1020,50 @@ const filteredData = tableData?.filter((row) => {
 
     const meta: { editorType?: string; selectOptions?: Array<{ label: string; value: any }> } = col.meta || {};
 
-    if (key === 'event') {
+    if (key === 'followup') {
+  return (
+    <styled.FilterTag key={key} active={!!filters[key]} style={{ background: 'rgb(25, 25, 25)' }}>
+     
+      <Select
+            size="small"
+            style={{ width: 100, marginRight: 8 }}
+            value={filters.eventType || 'before'}
+            onChange={val => setFilters(prev => ({ ...prev, eventType: val }))}
+            options={[
+              { label: 'Before', value: 'before' },
+              { label: 'After', value: 'after' },
+              { label: 'On Date', value: 'on' },
+            ]}
+          />
+     
+      <Input
+        type="date"
+        size="small"
+        value={filters[key] || ''}
+        onChange={e => handleFilterChange(key, e.target.value)}
+        style={{
+          width: 120,
+          background: 'rgb(25, 25, 25)',
+          color: 'white',
+          border: 'transparent',
+        }}
+      />
+      <span
+        onClick={() => handleRemoveFilter(key)}
+        style={{
+          cursor: 'pointer',
+          padding: '0 6px',
+          fontSize: 16,
+          color: 'white',
+        }}
+      >
+        ×
+      </span>
+    </styled.FilterTag>
+  );
+}
+
+    if (key === 'eventData') {
       return (
         <styled.FilterTag key={key} active={!!filters[key]} style={{ background: 'rgb(25, 25, 25)' }}>
           <Select
@@ -667,6 +1104,9 @@ const filteredData = tableData?.filter((row) => {
       );
     }
 
+  
+
+    
 
     return (
   <styled.FilterTag key={key} active={!!filters[key]} style={{ background: 'rgb(25, 25, 25)' }}>
@@ -709,7 +1149,7 @@ const filteredData = tableData?.filter((row) => {
 
   })}
 
-  <Select
+  <CustomSelect
     placeholder="+ Filter"
     size="small"
     style={{ width: 150 }}
@@ -732,6 +1172,12 @@ const filteredData = tableData?.filter((row) => {
           onRowCreate={handleRowCreate} // ✅ hook for API
           onRowEdit={handleRowEdit} // ✅ added
           isWithNewRow={true}
+          columnSizing={columnSizing}
+  onColumnSizingChange={(newSizing, columnId) => {
+    setColumnSizing(newSizing);
+    // You can also call any callback here with columnId and newSizing[columnId]
+    console.log('Resized:', columnId, newSizing[columnId]);
+  }}
 
         />
 

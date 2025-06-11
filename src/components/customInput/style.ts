@@ -21,11 +21,13 @@ export const StyledWhiteInput = styled(Input)`
   }
 
   background: rgb(25, 25, 25);
-//   color: white;
+   color: white;
   border: transparent;
 
   &:hover,
   &:focus {
+   background: rgb(25, 25, 25);
+   color: white;
     border-color: #555;
     box-shadow: none;
   }

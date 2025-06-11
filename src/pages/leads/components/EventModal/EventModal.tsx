@@ -84,6 +84,22 @@ const EventModal: React.FC<EventModalProps> = ({
       width={width}
     >
       <form onSubmit={formik.handleSubmit}>
+         <InputWithLabel
+  label="Date"
+  name="date"
+  placeholder="Enter event date"
+  type="date"
+  value={formik.values.date}
+  onChange={formik.handleChange}
+  onBlur={formik.handleBlur}
+  error={formik.touched.date && formik.errors.date ? formik.errors.date : ''}
+  inputProps={{
+    onFocus: e => {
+      // Open native date picker on focus (supported in Chrome, Edge, etc.)
+      e.target.showPicker && e.target.showPicker();
+    }
+  }}
+/>
         <InputWithLabel
           label="Event Name"
           name="eventName"
@@ -94,7 +110,7 @@ const EventModal: React.FC<EventModalProps> = ({
           error={formik.touched.eventName && formik.errors.eventName ? formik.errors.eventName : ''}
         />
 
-        <InputWithLabel
+        {/* <InputWithLabel
           label="Date"
           name="date"
           placeholder="Enter event date"
@@ -103,7 +119,7 @@ const EventModal: React.FC<EventModalProps> = ({
           onChange={formik.handleChange}
           onBlur={formik.handleBlur}
           error={formik.touched.date && formik.errors.date ? formik.errors.date : ''}
-        />
+        /> */}
 
         <InputWithLabel
           label="Number of Guests (optional)"

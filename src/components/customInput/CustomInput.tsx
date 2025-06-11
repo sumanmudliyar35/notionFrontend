@@ -11,6 +11,7 @@ interface CustomInputProps {
   error?: string;
   placeholder?: string;
   type?: string;
+  inputProps?: React.InputHTMLAttributes<HTMLInputElement>;
 }
 
 const CustomInput: React.FC<CustomInputProps> = ({
@@ -22,7 +23,13 @@ const CustomInput: React.FC<CustomInputProps> = ({
   error,
   placeholder,
   type = 'text',
+  inputProps={}
 }) => {
+  // Remove or convert 'size' if it's a number, as StyledWhiteInput expects a specific SizeType
+  const { size, ...restInputProps } = inputProps;
+  const inputPropsToPass =
+    typeof size === 'number' ? restInputProps : inputProps;
+
   return (
     <styled.InputWrapper>
       {label && <styled.Label htmlFor={name}>{label}</styled.Label>}
@@ -34,6 +41,8 @@ const CustomInput: React.FC<CustomInputProps> = ({
         onBlur={onBlur}
         placeholder={placeholder}
         type={type}
+        {...inputPropsToPass} // <-- This line is required!
+
       />
       {error && <styled.ErrorText>{error}</styled.ErrorText>}
     </styled.InputWrapper>

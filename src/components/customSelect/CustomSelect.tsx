@@ -6,12 +6,14 @@ const customSelectStyles = {
     ...provided,
     backgroundColor: "#181818",
     color: "#fff",
+    zIndex: 9999, // Ensure the menu appears above other elements
   }),
   option: (provided: any, state: any) => ({
     ...provided,
     backgroundColor: state.isFocused ? "#23272f" : "#181818",
     color: "#fff",
     cursor: "pointer",
+  
   }),
   multiValue: (provided: any) => ({
     ...provided,
@@ -61,6 +63,7 @@ interface CustomSelectProps {
   value: any;
   onChange: (val: any) => void;
   placeholder?: string;
+  menuIsOpen?: boolean; // <-- add this
   [key: string]: any; // for other props
 }
 
@@ -70,6 +73,7 @@ const CustomSelect: React.FC<CustomSelectProps> = ({
   value,
   onChange,
   placeholder = "Select...",
+  menuIsOpen, // <-- add this
   ...rest
 }) => (
   <Select
@@ -79,6 +83,7 @@ const CustomSelect: React.FC<CustomSelectProps> = ({
     onChange={onChange}
     placeholder={placeholder}
     styles={customSelectStyles}
+    menuIsOpen={menuIsOpen} // <-- pass it here
     {...rest}
   />
 );

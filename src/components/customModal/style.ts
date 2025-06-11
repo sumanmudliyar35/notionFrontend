@@ -23,4 +23,8 @@ export const StyledModal = styled(Modal)`
     background-color: #202020;
     border-top: 1px solid #333;
   }
+
+   .ant-modal-close {
+    color: lightgray; /* sets icon color */
+  }
 `;
