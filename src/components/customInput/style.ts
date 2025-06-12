@@ -5,7 +5,6 @@ import { Input } from 'antd';
 export const InputWrapper = styled.div`
   display: flex;
   flex-direction: column;
-  margin-bottom: 16px;
 `;
 
 export const Label = styled.label`

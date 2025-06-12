@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import {
   useReactTable,
   getCoreRowModel,
@@ -7,15 +7,15 @@ import {
 } from '@tanstack/react-table';
 import type { VisibilityState } from '@tanstack/react-table';
 import type { ColumnDef } from '@tanstack/react-table';
-import { Input, Select, DatePicker, Button, Modal } from 'antd';
+import { Input, Select, DatePicker, Button, Modal, Tooltip } from 'antd';
 import * as styled from './style';
 import dayjs from 'dayjs';
 import DownArrowIcon from '../../assets/icons/downArrowIcon';
 import UpArrowIcon from '../../assets/icons/UpArrowIcon';
 import CustomSelect from '../customSelect/CustomSelect';
-import { EyeOutlined, EyeInvisibleOutlined } from "@ant-design/icons";
+import { EyeOutlined, EyeInvisibleOutlined, MenuUnfoldOutlined, MenuFoldOutlined, DeleteOutlined } from "@ant-design/icons";
 import CustomModal from '../customModal/CustomModal';
-import React from 'react';
+import { SharedStyledWhiteInput } from '../../style/sharedStyle';
 
 interface CustomColumnMeta {
   editable?: boolean;
@@ -37,6 +37,7 @@ columns: ColumnDef<T>[];
     onRowEdit?: (updatedRow: T, rowIndex: number) => void; // ✅ new
     columnSizing?: Record<string, number>;
   onColumnSizingChange?: (newSizing: Record<string, number>, columnId: string) => void;
+onRowDelete?: (rowIndex: number) => void; // Optional callback for row deletion
 
 
 }
@@ -53,6 +54,7 @@ export function CustomTable<T extends object>(props: EditableTableProps<T>) {
     createEmptyRow,
     onRowCreate,
     onRowEdit,
+        onRowDelete,
     isWithNewRow,
     columnSizing = {}, // <-- Add default value for columnSizing
     onColumnSizingChange
@@ -72,6 +74,9 @@ export function CustomTable<T extends object>(props: EditableTableProps<T>) {
   const [columnVisibility, setColumnVisibility] = useState<VisibilityState>({});
   const [menuOpenCell, setMenuOpenCell] = useState<{ rowIndex: number; columnId: keyof T } | null>(null);
 
+
+    const [actionCollapsed, setActionCollapsed] = useState(false);
+  
   const handleEdit = (rowIndex: number, columnId: keyof T, value: any) => {
 
     console.log('Editing row:', rowIndex, 'column:', columnId, 'value:', value);
@@ -83,6 +88,8 @@ export function CustomTable<T extends object>(props: EditableTableProps<T>) {
   onDataChange(updated);
   onRowEdit?.(updated[rowIndex], rowIndex);
 };
+
+
 
 
   const handleAddEmptyRow = () => {
@@ -126,6 +133,9 @@ export function CustomTable<T extends object>(props: EditableTableProps<T>) {
 });
 
   // UI for toggling columns (now as a modal)
+
+
+
   const renderColumnManager = () => (
     <>
       <Button
@@ -194,26 +204,74 @@ export function CustomTable<T extends object>(props: EditableTableProps<T>) {
     };
   }, []);
 
+  // Debounce utility
+function useDebouncedCallback(callback: (...args: any[]) => void, delay: number) {
+  const timeout = useRef<ReturnType<typeof setTimeout> | null>(null);
+  return (...args: any[]) => {
+    if (timeout.current) clearTimeout(timeout.current);
+    timeout.current = setTimeout(() => callback(...args), delay);
+  };
+}
+
+const debouncedHandleEdit = useDebouncedCallback(handleEdit, 500);
+
+
+const handleDeleteRow = (rowIndex: number) => {
+    const updated = [...data];
+    updated.splice(rowIndex, 1);
+    if (onRowDelete) {
+      onRowDelete(rowIndex); // Call the optional callback if provided
+    }
+    onDataChange(updated);
+  };
   return (
+    <div>
+            {renderColumnManager()}
+
     <div style={{ overflowX: 'auto', width: '100%', overflowY: 'auto' }}>
-      {renderColumnManager()}
-      <table style={{ minWidth: '1000px', width: '100%', borderCollapse: 'collapse', maxHeight: 500, overflowY: 'auto' }}>
+      <table style={{ borderCollapse: 'collapse', tableLayout: 'fixed', position: 'sticky', zIndex: 120, top: 0 }}>
         <thead>
           <tr>
+              <th
+                style={{
+                  width: actionCollapsed ? 24 : 48,
+                  minWidth: actionCollapsed ? 24 : 48,
+                  maxWidth: actionCollapsed ? 24 : 48,
+                  background: '#1a1a1a',
+                  border: '3.5px solid rgb(32,32,32)',
+                  textAlign: 'center',
+                  position: 'sticky',
+                  left: 0,
+                  zIndex: 102,
+                  padding: 0,
+                }}
+              >
+                <span
+                  style={{ cursor: 'pointer', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: '100%' }}
+                  onClick={() => setActionCollapsed(c => !c)}
+                  title={actionCollapsed ? "Expand Actions" : "Collapse Actions"}
+                >
+                  {actionCollapsed ? <MenuUnfoldOutlined /> : <MenuFoldOutlined />}
+                </span>
+              </th>
+
             {table.getHeaderGroups()[0].headers.map((header: any) => (
               <th
                 key={header.id}
-                className={header.index === 0 ? 'custom-table-sticky-col' : ''}
                 style={{
-                  border: '3px solid rgb(32,32,32)',
+                  border: '3.5px solid rgb(32,32,32)',
                   padding: '8px',
                       width: header.column.getSize(),
                       minWidth: header.column.getSize(),
                       maxWidth: header.column.getSize(),
-                      position: header.index === 0 ? 'sticky' : undefined,
+                      position: header.index === 0 ? 'sticky' : 'relative',
                       left: header.index === 0 ? 0 : undefined,
-                  background: '#1a1a1a',
-                  userSelect: 'none',
+                     top: header.index === 0 ? 0 : undefined,
+
+                      background: '#1a1a1a',
+                      userSelect: 'none',
+                      zIndex: header.column.getIndex() === 0 ? 101 : undefined, // slightly higher than td
+
 
                 }}
               >
@@ -254,7 +312,13 @@ export function CustomTable<T extends object>(props: EditableTableProps<T>) {
             ))}
           </tr>
         </thead>
-        <tbody>
+
+        </table>
+        <table >
+        <tbody  style={{
+          display: 'block',
+          maxHeight: '60vh', // or '500px'
+        }}>
           {table.getRowModel().rows.map((row) => (
             <tr
               key={row.id}
@@ -265,6 +329,39 @@ export function CustomTable<T extends object>(props: EditableTableProps<T>) {
                 transition: 'background 0.2s',
               }}
             >
+                 <td
+                    style={{
+                      width: actionCollapsed ? 24 : 48,
+                      minWidth: actionCollapsed ? 24 : 48,
+                      maxWidth: actionCollapsed ? 24 : 48,
+                      border: 'none',
+                      padding: 0,
+                      textAlign: 'center',
+                      background: '#1a1a1a',
+                      verticalAlign: 'middle',
+                      position: 'sticky',
+                      left: 0,
+                      zIndex: 1000,
+                    }}
+                  >
+                    {!actionCollapsed && (
+                      <Tooltip title="Delete">
+                        <DeleteOutlined
+                          style={{
+                            color: '#ff4757',
+                            fontSize: 18,
+                            cursor: 'pointer',
+                            opacity: hoveredRow === row.index ? 1 : 0.3,
+                            transition: 'opacity 0.2s',
+                          }}
+                          onClick={e => {
+                            e.stopPropagation();
+                            handleDeleteRow(row.index);
+                          }}
+                        />
+                      </Tooltip>
+                    )}
+                  </td>
               {row.getVisibleCells().map((cell: any) => {
                 const columnId = cell.column.id as keyof T;
                 const meta = cell.column.columnDef.meta as CustomColumnMeta | undefined;
@@ -280,14 +377,16 @@ export function CustomTable<T extends object>(props: EditableTableProps<T>) {
                     key={cell.id}
                     className={cell.column.getIndex() === 0 ? 'custom-table-sticky-col' : ''}
                     style={{
-                      border: '3px solid rgb(32,32,32)',
+                      border: '1px solid rgb(32,32,32)',
                       padding: '8px',
                       cursor: isEditable ? 'pointer' : 'default',
                       width: cell.column.getSize(),
                       minWidth: cell.column.getSize(),
                       maxWidth: cell.column.getSize(),
                       background: hoveredRow === row.index ? '#23272f' : '#1a1a1a',
-                      position: 'relative', // <-- Add this line to fix input positioning
+                       position: cell.column.getIndex() === 0 ? 'sticky' : 'relative', // <-- make sticky for first column
+    left: cell.column.getIndex() === 0 ? 0 : undefined,              // <-- align with header
+    zIndex: cell.column.getIndex() === 101 ? 0 : undefined,          // <-- keep above other cells
                     }}
                     onClick={() => {
                       if (isEditable) {
@@ -296,92 +395,18 @@ export function CustomTable<T extends object>(props: EditableTableProps<T>) {
                     }}
                   >
                     {isEditable && isCurrentlyEditing ? (
-                      // ...editor rendering...
-                      editorType === 'date' ? (
-                        <Input
-                          type="date"
-                          autoFocus
-                          value={
-                            cell.getValue()
-                              ? dayjs(cell.getValue() as string | number | Date).format("YYYY-MM-DD")
-                              : ''
-                          }
-                          onChange={(e) => {
-                            handleEdit(row.index, columnId, e.target.value);
-                            setCurrentlyEditing(null);
-                          }}
-                          onBlur={() => setCurrentlyEditing(null)}
-                          style={{
-                            width: '100%',
-                            position: 'absolute',
-                            top: 0,
-                            left: 0,
-                            zIndex: 2,
-                            background: '#202020',
-                            color: 'white',
-                          }}
-                          onFocus={e => {
-                            e.target.showPicker && e.target.showPicker();
-                          }}
-                        />
-                      ) : editorType === 'select' ? (
-                        <CustomSelect
-                          autoFocus
-                          value={selectOptions.find(opt => opt.value === cell.getValue()) || null}
-                          style={{
-                            width: '100%',
-                            position: 'absolute',
-                            top: 0,
-                            left: 0,
-                            zIndex: 9999,
-                            borderColor: 'transparent',
-                            boxShadow: 'none',
-                            background: 'rgb(37, 37, 37)',
-                          }}
-                          options={selectOptions}
-                          onChange={(option: any) => {
-                            handleEdit(row.index, columnId, option ? option.value : '');
-                            setTimeout(() => setCurrentlyEditing(null), 0);
-                          }}
-                          onBlur={() => {
-                            setCurrentlyEditing(null);
-                          }}
-                          placeholder="Select..."
-                          menuIsOpen={isEditable && isCurrentlyEditing}
-                        />
-                      ) : (
-                        <Input.TextArea
-                          value={cell.getValue() as string}
-                          autoFocus
-                          onChange={(val: any) => {
-                            handleEdit(row.index, columnId, val.target.value);
-                          }}
-                          onBlur={() => setCurrentlyEditing(null)}
-                          style={{
-                            width: '100%',
-                            opacity: 1,
-                            pointerEvents: 'auto',
-                            position: 'absolute',
-                            background: '#202020',
-                            color: 'white',
-                            top: 0,
-                            left: 0,
-                            transition: 'opacity 0.2s',
-                            zIndex: 2,
-                          }}
-                          onKeyDown={e => {
-                            if (e.key === 'Enter' && !e.shiftKey) {
-                              e.preventDefault();
-                              setCurrentlyEditing(null); // Save and exit edit mode
-                            }
-                          }}
-                        />
-                      )
-                    ) : (
-                      editorType === 'select'
-                        ? (selectOptions.find(opt => opt.value === cell.getValue())?.label || '')
-                        : flexRender(cell.column.columnDef.cell, cell.getContext())
-                    )}
+  <EditableCell
+    value={cell.getValue()}
+    editorType={editorType}
+    selectOptions={selectOptions}
+    onSave={val => handleEdit(row.index, columnId, val)}
+    onCancel={() => setCurrentlyEditing(null)}
+  />
+) : (
+  editorType === 'select'
+    ? (selectOptions.find(opt => opt.value === cell.getValue())?.label || '')
+    : flexRender(cell.column.columnDef.cell, cell.getContext())
+)}
                   </td>
                 );
               })}
@@ -390,14 +415,18 @@ export function CustomTable<T extends object>(props: EditableTableProps<T>) {
 
           {isWithNewRow && (
             <tr>
-              <td colSpan={columns.length} style={{ padding: '8px', position: 'sticky' }}>
-                <Input
-                  placeholder="+ New row"
-                  variant="underlined"
-                  onFocus={handleAddEmptyRow}
-                  onClick={handleAddEmptyRow}
-                  style={{ width: '100%', cursor: 'text' }}
-                />
+              <td colSpan={columns.length} style={{ padding: '8px', position: 'sticky', bottom: 0, zIndex: 2000 }}>
+                <SharedStyledWhiteInput
+  placeholder="+ New row"
+  variant="underlined"
+  onFocus={handleAddEmptyRow}
+  onClick={handleAddEmptyRow}
+  style={{
+    width: '100%',
+    cursor: 'text',
+    background: '#202020',
+  }}
+/>
               </td>
             </tr>
           )}
@@ -405,6 +434,117 @@ export function CustomTable<T extends object>(props: EditableTableProps<T>) {
         </tbody>
       </table>
     </div>
+    </div>
   );
+}
+
+function EditableCell({
+  value,
+  editorType,
+  selectOptions,
+  onSave,
+  onCancel,
+}: {
+  value: any;
+  editorType: string;
+  selectOptions?: { label: string; value: string }[];
+  onSave: (val: any) => void;
+  onCancel: () => void;
+}) {
+  const [editValue, setEditValue] = React.useState(value ?? '');
+
+  if (editorType === 'input') {
+    return (
+      <Input.TextArea
+        value={editValue}
+        autoFocus
+        onChange={e => setEditValue(e.target.value)}
+        onBlur={() => {
+          onSave(editValue);
+          onCancel();
+        }}
+        style={{
+          width: '100%',
+          opacity: 1,
+          pointerEvents: 'auto',
+          position: 'absolute',
+          background: '#202020',
+          color: 'white',
+          top: 0,
+          left: 0,
+          transition: 'opacity 0.2s',
+          zIndex: 2,
+        }}
+        onKeyDown={e => {
+          if (e.key === 'Enter' && !e.shiftKey) {
+            e.preventDefault();
+            onSave(editValue);
+            onCancel();
+          }
+        }}
+      />
+    );
+  }
+
+  if (editorType === 'date') {
+  return (
+    <Input
+      type="date"
+      autoFocus
+      value={editValue}
+      onChange={e => {
+        setEditValue(e.target.value);
+        onSave(e.target.value); // Call handleEdit immediately on date select
+        onCancel();             // Close the editor
+      }}
+      onBlur={() => {
+        onSave(editValue);
+        onCancel();
+      }}
+      style={{
+        width: '100%',
+        position: 'absolute',
+        top: 0,
+        left: 0,
+        zIndex: 2,
+        background: '#202020',
+        color: 'white',
+      }}
+      onFocus={e => {
+        e.target.showPicker && e.target.showPicker();
+      }}
+    />
+  );
+}
+
+  if (editorType === 'select') {
+    return (
+      <CustomSelect
+        autoFocus
+        value={selectOptions?.find(opt => opt.value === editValue) || null}
+        style={{
+          width: '100%',
+          position: 'absolute',
+          top: 0,
+          left: 0,
+          zIndex: 9999,
+          borderColor: 'transparent',
+          boxShadow: 'none',
+          background: 'rgb(37, 37, 37)',
+        }}
+        options={selectOptions || []}
+        onChange={option => {
+          setEditValue(option ? option.value : '');
+          onSave(option ? option.value : '');
+                            setTimeout(() => onCancel(), 0);
+        }}
+        // No need for onBlur here, since we close on select
+        placeholder="Select..."
+        menuIsOpen
+      />
+    );
+  }
+
+  return null;
 }
 

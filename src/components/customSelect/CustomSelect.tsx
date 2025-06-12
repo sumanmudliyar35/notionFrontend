@@ -64,7 +64,9 @@ interface CustomSelectProps {
   onChange: (val: any) => void;
   placeholder?: string;
   menuIsOpen?: boolean; // <-- add this
+  label?: string; // <-- add label prop
   [key: string]: any; // for other props
+  width?: string; // optional width prop
 }
 
 const CustomSelect: React.FC<CustomSelectProps> = ({
@@ -73,19 +75,28 @@ const CustomSelect: React.FC<CustomSelectProps> = ({
   value,
   onChange,
   placeholder = "Select...",
-  menuIsOpen, // <-- add this
+  menuIsOpen,
+  label,
+  width = "100%", // default width
   ...rest
 }) => (
-  <Select
-    isMulti={isMulti}
-    options={options}
-    value={value}
-    onChange={onChange}
-    placeholder={placeholder}
-    styles={customSelectStyles}
-    menuIsOpen={menuIsOpen} // <-- pass it here
-    {...rest}
-  />
+  <div style={{ width }}>
+    {label && (
+      <label style={{ color: "#fff", display: "block" }}>
+        {label}
+      </label>
+    )}
+    <Select
+      isMulti={isMulti}
+      options={options}
+      value={value}
+      onChange={onChange}
+      placeholder={placeholder}
+      styles={customSelectStyles}
+      menuIsOpen={menuIsOpen}
+      {...rest}
+    />
+  </div>
 );
 
 export default CustomSelect;

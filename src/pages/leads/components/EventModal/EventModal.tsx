@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import CustomModal from '../../../../components/customModal/CustomModal';
 import { Button } from 'antd';
 import InputWithLabel from '../../../../components/customInput/CustomInput';
@@ -7,6 +7,10 @@ import { useFormik } from 'formik';
 import { useCreateEvent } from '../../../../api/post/newEvent';
 import { useGetEventsByLead } from '../../../../api/get/getEventByLead';
 import EventList from '../EventsList/EventsList';
+import { useGetAllEventList } from '../../../../api/get/getAllEventList';
+import CustomSelect from '../../../../components/customSelect/CustomSelect';
+import { SharedInputWrapper } from '../../../../style/sharedStyle';
+import InputWithDate from '../../../../components/InputWithDate/InputWithDate';
 
 interface EventModalProps {
   open: boolean;
@@ -31,17 +35,37 @@ const EventModal: React.FC<EventModalProps> = ({
 
 
   const userid=localStorage.getItem('userid');
-  const {data: events, refetch: refetchEvent}= useGetEventsByLead(leadId)
+  const {data: events, refetch: refetchEvent}= useGetEventsByLead(leadId);
+
+  const {data: eventList, refetch: refetchEventList} = useGetAllEventList();
+const [eventOptions, setEventOptions] = useState<{ label: string; value: string }[]>([]);
+
+useEffect(() => {
+  if (eventList && Array.isArray(eventList)) {
+    setEventOptions(
+      eventList.map((event: any) => ({
+        label: event.eventName,
+        value: event.id,
+      }))
+    );
+  }
+}, [eventList]);
+
+
   const initialValues = {
+    eventListId:'',
     eventName: '',
     date: '',
     numberOfGuests: '',
     note:'',
+    crew: ''
   };
-
+  
   const validationSchema = Yup.object({
-    eventName: Yup.string().required('Event name is required'),
+
+    eventListId: Yup.string().required('Event is required'),
     date: Yup.string().required('Date is required'),
+    
     numberOfGuests: Yup.number()
       .transform((value) => (isNaN(value) ? undefined : value))
       .nullable()
@@ -55,15 +79,17 @@ const EventModal: React.FC<EventModalProps> = ({
   const formik = useFormik({
     enableReinitialize: true,
     initialValues,
-    validationSchema,
-    onSubmit: async (values, {resetForm}) => {
+    // validationSchema,
+    onSubmit: async (values : any, {resetForm}) => {
       const body={
-        eventName: formik.values.eventName,
+        others: formik.values.eventName,
+        eventListId: values.eventListId.value,
         date: formik.values.date,
         numberOfGuests: formik.values.numberOfGuests,
         note: formik.values.note,
         createdBy: userid,
-        leadId: leadId
+        leadId: leadId,
+        crew: formik.values.crew,
       };
 
       const response = await createEventMutate.mutateAsync([body, userid]);
@@ -75,6 +101,8 @@ const EventModal: React.FC<EventModalProps> = ({
     },
   });
 
+  console.log("sdsd", );
+
   return (
     <CustomModal
       open={open}
@@ -84,7 +112,9 @@ const EventModal: React.FC<EventModalProps> = ({
       width={width}
     >
       <form onSubmit={formik.handleSubmit}>
-         <InputWithLabel
+        <SharedInputWrapper>
+
+         {/* <InputWithLabel
   label="Date"
   name="date"
   placeholder="Enter event date"
@@ -92,23 +122,66 @@ const EventModal: React.FC<EventModalProps> = ({
   value={formik.values.date}
   onChange={formik.handleChange}
   onBlur={formik.handleBlur}
-  error={formik.touched.date && formik.errors.date ? formik.errors.date : ''}
+  error={
+    formik.touched.date && formik.errors.date
+      ? typeof formik.errors.date === 'string'
+        ? formik.errors.date
+        : Array.isArray(formik.errors.date)
+          ? formik.errors.date.join(', ')
+          : JSON.stringify(formik.errors.date)
+      : ''
+  }
   inputProps={{
     onFocus: e => {
       // Open native date picker on focus (supported in Chrome, Edge, etc.)
       e.target.showPicker && e.target.showPicker();
     }
   }}
+/> */}
+
+<InputWithDate
+  label="Date"
+  name="date"
+  value={formik.values.date}
+  onChange={formik.handleChange}
+  onBlur={formik.handleBlur}
+  error={
+    formik.touched.date && formik.errors.date
+      ? typeof formik.errors.date === 'string'
+        ? formik.errors.date
+        : Array.isArray(formik.errors.date)
+          ? formik.errors.date.join(', ')
+          : JSON.stringify(formik.errors.date)
+      : ''
+  }
 />
-        <InputWithLabel
+
+<CustomSelect
+  label="Event"
+  name="eventId"
+  placeholder='Select an event'
+  options={eventOptions}
+  value={formik.values.eventListId}
+  onChange={(inputValue: any) => {
+    formik.setFieldValue('eventListId', inputValue);
+  }}
+  onBlur={formik.handleBlur}
+  error={formik.touched.eventListId && formik.errors.eventListId ? formik.errors.eventListId : ''}
+/>
+
+
+{formik.values.eventListId && formik.values.eventListId.label === "Others" && (
+
+         <InputWithLabel
           label="Event Name"
           name="eventName"
           placeholder="Enter event name"
           value={formik.values.eventName}
           onChange={formik.handleChange}
           onBlur={formik.handleBlur}
-          error={formik.touched.eventName && formik.errors.eventName ? formik.errors.eventName : ''}
         />
+
+         )}
 
         {/* <InputWithLabel
           label="Date"
@@ -135,6 +208,17 @@ const EventModal: React.FC<EventModalProps> = ({
               : ''
           }
         />
+
+        <InputWithLabel
+          label="Crew Member (optional)"
+          name="crew"
+          placeholder="Enter number of member"
+          type="number"
+          value={formik.values.crew}
+          onChange={formik.handleChange}
+          onBlur={formik.handleBlur}
+          
+        />
          <InputWithLabel
           label="Note (optional)"
           name="note"
@@ -144,14 +228,17 @@ const EventModal: React.FC<EventModalProps> = ({
           onBlur={formik.handleBlur}
         />
 
-        <div style={{ marginTop: 20, textAlign: 'right' }}>
+        <div style={{  textAlign: 'right' }}>
           <Button onClick={onClose} style={{ marginRight: 10 }}>
             Cancel
           </Button>
-          <Button type="primary" htmlType="submit">
+          <Button type="primary" onClick={()=>formik.handleSubmit()}>
             Submit
           </Button>
         </div>
+
+                </SharedInputWrapper>
+
       </form>
 
       <EventList events={events} />

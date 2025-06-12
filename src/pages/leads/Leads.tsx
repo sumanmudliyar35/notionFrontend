@@ -24,9 +24,10 @@ import CrossIcon from "../../assets/icons/CrossIcon";
 import { Popconfirm } from "antd";
 import { useUpdateEvent } from "../../api/put/updateEvent";
 import CustomInput from "../../components/customInput/CustomInput";
-import CsutomTextArea from "../../components/customTextArea/CustomTextArea";
 import CustomTextArea from "../../components/customTextArea/CustomTextArea";
 import { useDeleteEvent } from "../../api/delete/deleteEvent";
+import CustomModal from "../../components/customModal/CustomModal";
+import { useGetAllEventList } from "../../api/get/getAllEventList";
 
 
 interface Doc {
@@ -81,6 +82,11 @@ const Leads = () => {
   // Store userId and name in state
   const [assigneeOptions, setAssigneeOptions] = useState<{ label: string; value: any }[]>([]);
   const [referenceOptions, setReferenceOptions] = useState<{ label: string; value: string }[]>([]);
+
+  const leadsOption =[
+     { label: 'Warm', value: 'warm' },
+      { label: 'Cold', value: 'cold' },
+  ]
   const [shootOptions, setShootOptions] = useState<{ label: string; value: string }[]>([]);
 
   const [editingEventCell, setEditingEventCell] = useState<{ rowId: any; eventId: any } | null>(null);
@@ -167,6 +173,21 @@ const [editingEventValue, setEditingEventValue] = useState<any>({});
 
         const [editingComment, setEditingComment] = useState<{ rowId: any; commentId: any } | null>(null);
 const [editingCommentValue, setEditingCommentValue] = useState<string>('');
+
+
+ const {data: eventList, refetch: refetchEventList} = useGetAllEventList();
+const [eventOptions, setEventOptions] = useState<{ label: string; value: string }[]>([]);
+
+useEffect(() => {
+  if (eventList && Array.isArray(eventList)) {
+    setEventOptions(
+      eventList.map((event: any) => ({
+        label: event.eventName,
+        value: event.id,
+      }))
+    );
+  }
+}, [eventList]);
 
         // useEffect(()=>{
         //   setTableData(LeadsData?.data)
@@ -256,6 +277,7 @@ const handleUpdateEvent = async (rowId: any, eventId: any, eventData: any) => {
     eventName: eventData.eventName, 
     numberOfGuests: eventData.noOfGuests,
     note: eventData.note,
+    crew: eventData.crew,
 
   }
   await updateEventMutate.mutateAsync([body, eventId]);
@@ -276,6 +298,17 @@ const handleDeleteEvent = async (rowId: any, eventId: any) => {
   }
 };
 
+
+
+    const updateLeadMutate = useUpdateLead()
+
+const handleDeleteLead = async (leadId: any) => {
+  const body = {
+    deletedAt: new Date(),
+  };
+  await updateLeadMutate.mutateAsync([body, leadId]);
+  refetchLeadsData();
+};
 
   const initialDocs: Doc[] = [
   {
@@ -315,12 +348,18 @@ const columns: ColumnDef<Doc>[] = [
 
     meta: { editable: true },
       enableSorting: true,
-
-
+      cell: ({ row }) => (
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+          <span>{row.original.name}</span>
+         
+           
+        </div>
+      ),
   },
  {
   header: 'Event',
   accessorKey: 'eventData',
+  enableResizing: true ,
 
   meta: {
     editable: false,
@@ -348,6 +387,7 @@ const columns: ColumnDef<Doc>[] = [
           eventName: event.eventName || '',
           noOfGuests: event.noOfGuests,
           note: event.note || '',
+          crew: event.crew || '',
         });
 
         useEffect(() => {
@@ -358,10 +398,11 @@ const columns: ColumnDef<Doc>[] = [
               eventName: event.eventName || '',
               noOfGuests: event.noOfGuests,
               note: event.note || '',
+              crew: event.crew || '',
             });
           }
           // eslint-disable-next-line
-        }, [isEditing, event.eventDate, event.eventName, event.noOfGuests, event.note]);
+        }, [isEditing, event.eventDate, event.eventName, event.noOfGuests, event.note, event.crew]);
 
         return (
           <div
@@ -381,7 +422,11 @@ const columns: ColumnDef<Doc>[] = [
                   }
                   style={{ marginBottom: 8 }}
                 />
-                <CustomInput
+
+                
+
+                
+               <CustomInput
                   placeholder="Event Name"
                   value={localEditValue.eventName}
                   onChange={e =>
@@ -390,7 +435,7 @@ const columns: ColumnDef<Doc>[] = [
                       eventName: e.target.value,
                     }))
                   }
-                />
+                /> 
                 <CustomInput
                   type="number"
                   placeholder="No. of Guests"
@@ -402,14 +447,26 @@ const columns: ColumnDef<Doc>[] = [
                     }))
                   }
                 />
-                <textarea
-                  value={localEditValue.note}
-                  onChange={(e: any) =>
+
+                <CustomInput
+                  type="number"
+                  placeholder="No. of Crew"
+                  value={localEditValue.crew}
+                  onChange={e =>
                     setLocalEditValue(prev => ({
                       ...prev,
-                      note: e.target.value,
+                      crew: e.target.value,
                     }))
                   }
+                />
+                <CustomTextArea
+                  value={localEditValue.note}
+                 onChange={val =>
+    setLocalEditValue(prev => ({
+      ...prev,
+      note: val,
+    }))
+  }
                 />
                 <div>
                   <Button
@@ -445,6 +502,12 @@ const columns: ColumnDef<Doc>[] = [
                   <div>
                     <b>Guests:</b> {event.noOfGuests}
                   </div>
+
+                    {event.crew && (<div>
+                    <b>Crew:</b> {event.crew || 0}
+
+                    </div>)
+      }
                   {event.note && (
                     <div>
                       <b>Note:</b> {event.note}
@@ -488,16 +551,19 @@ const columns: ColumnDef<Doc>[] = [
   {
     header: 'Amount',
     accessorKey: 'amount',
-
+    enableResizing: true ,
     meta: { editable: true },
       enableSorting: true,
-      cell: ({ getValue }) => {
-    const value = getValue();
-    // Format number with commas if value is a number
-    return typeof value === 'number'
-      ? value.toLocaleString('en-IN')
-      : value;
-  },
+    cell: ({ getValue }) => {
+     let value = getValue();
+  if (typeof value === 'string') {
+    // Remove spaces and commas, then parse as number
+    value = Number(value.replace(/[\s,]/g, ''));
+  }
+  return typeof value === 'number' && !isNaN(value)
+    ? value.toLocaleString('en-IN', { maximumFractionDigits: 0 })
+    : value;
+},
 
   },
 
@@ -523,6 +589,14 @@ const columns: ColumnDef<Doc>[] = [
   { header: 'Description', 
     accessorKey: 'description', 
     meta: { editable: true },
+     cell: ( getValue: any) => {
+    const value = getValue.getValue();
+    return (
+      <span style={{ whiteSpace: 'pre-line' }}>
+        {value}
+      </span>
+    );
+  },
  },
   { header: 'Status', accessorKey: 'status',
      meta: {
@@ -623,6 +697,12 @@ const columns: ColumnDef<Doc>[] = [
                 value={localEditValue}
                 onChange={e => setLocalEditValue(e.target.value)}
                 style={{ marginBottom: 4 }}
+                onKeyDown={e => {
+          if (e.key === 'Enter' && !e.shiftKey) {
+            e.preventDefault();
+            handleEditComment(rowId, c.id || idx, localEditValue);
+          }
+        }}
               />
               <div>
                 <Button
@@ -670,7 +750,7 @@ const columns: ColumnDef<Doc>[] = [
               }}
             >
               <div>
-                <strong>{c.comment}</strong>
+               <span style={{ whiteSpace: 'pre-line' }}> <strong>{c.comment}</strong></span>
                 <div style={{ fontSize: 12, color: "#aaa" }}>
                   By: {c.givenBy || "Unknown"} | At: {c.givenAt
                     ? new Date(c.givenAt).toLocaleString("en-IN", { timeZone: "Asia/Kolkata" })
@@ -754,15 +834,16 @@ const columns: ColumnDef<Doc>[] = [
     }
 
              },
-              { header: 'Leads', accessorKey: 'leads',  
-                meta: {
-      editable: true,
-      editorType: 'select',
-      selectOptions: [
-        { label: 'Warm', value: 'warm' },
-        { label: 'Cold', value: 'cold' },
-      ],
-    }, },
+             {
+  header: 'Leads',
+  accessorKey: 'leads',
+  meta: {
+    editable: true,
+    editorType: 'select',
+    selectOptions:leadsOption,
+  },
+  
+},
               {
   header: 'Reference',
   accessorKey: 'referenceId', // Make sure your data has this field
@@ -845,7 +926,6 @@ const createEmptyDoc = (): Doc => {
     };
 
 
-    const updateLeadMutate = useUpdateLead()
 
     const handleRowEdit=async(updatedRow: Doc, rowIndex: number)=>{
       const body={
@@ -866,6 +946,16 @@ const createEmptyDoc = (): Doc => {
       refetchLeadsData();
 
     };
+
+
+    const handleRowDelete = async (rowIndex: number) => {
+
+      const leadId = tableData[rowIndex].id;
+      if (!leadId) return;
+      await updateLeadMutate.mutateAsync([{deletedAt: new Date()}, leadId]);
+      refetchLeadsData();
+
+    }
 
 
     const [filters, setFilters] = useState<Record<string, string>>({});
@@ -937,6 +1027,11 @@ const handleSaveVoice = async(audioBlob: Blob) => {
   }
 };
 
+  const [isColumnModalOpen, setIsColumnModalOpen] = useState(false);
+
+
+
+
 
 const handleRemoveFilter = (key: string) => {
   setFilters((prev) => {
@@ -949,54 +1044,65 @@ const handleRemoveFilter = (key: string) => {
 };
 // Filter tableData based on filters
 const filteredData = tableData?.filter((row) => {
-  // Get event filter values outside the loop
   const eventDateFilter = filters['eventData'];
   const eventTypeFilter = filters['eventType'] || 'before';
 
   return Object.entries(filters).every(([key, val]) => {
-    if (key === 'eventData' && eventDateFilter) {
-      const filterDate = eventDateFilter;
+    // Event Data filter
+    if (key === 'eventData') {
       const eventDates = (row.eventData || []).map((e: any) => e.eventDate?.slice(0, 10));
       if (!eventDates.length) return false;
 
       if (eventTypeFilter === 'before') {
-        return eventDates.some((d: any) => d && d < filterDate);
+        return eventDates.some((d: any) => d && d < val);
       }
       if (eventTypeFilter === 'after') {
-        return eventDates.some((d: any) => d && d > filterDate);
+        return eventDates.some((d: any) => d && d > val);
       }
       if (eventTypeFilter === 'on') {
-        return eventDates.some((d: any) => d && d === filterDate);
+        return eventDates.some((d: any) => d && d === val);
+      }
+      if (eventTypeFilter === 'between') {
+        const start = filters.eventDataStart;
+        const end = filters.eventDataEnd;
+        if (!start || !end) return true; // Don't filter if both not set
+        return eventDates.some((d: any) => d && d >= start && d <= end);
       }
       return true;
     }
 
-    if (key === 'followup' && val) {
-  const filterDate = val;
-  const followupDate = row.followup?.slice(0, 10);
-  const followupType = filters.eventType || 'before';
+    // Followup filter
+    if (key === 'followup') {
+      const followupDate = row.followup?.slice(0, 10);
+      const followupType = filters.eventType || 'before';
 
-  if (!followupDate) return false;
+      if (!followupDate) return false;
 
-  if (followupType === 'before') {
-    return followupDate < filterDate;
-  }
-  if (followupType === 'after') {
-    return followupDate > filterDate;
-  }
-  if (followupType === 'on') {
-    return followupDate === filterDate;
-  }
-  return true;
-}
-    // Don't filter on eventType key itself
+      if (followupType === 'between') {
+        const start = filters.followupStart;
+        const end = filters.followupEnd;
+        if (!start || !end) return true; // Don't filter if both not set
+        return followupDate >= start && followupDate <= end;
+      }
+
+      if (followupType === 'before') {
+        return followupDate < val;
+      }
+      if (followupType === 'after') {
+        return followupDate > val;
+      }
+      if (followupType === 'on') {
+        return followupDate === val;
+      }
+      return true;
+    }
+
+    // ...rest of your filters...
     if (key === 'eventType') return true;
-    // Default filter for other columns
     if (key === 'assignedTo') {
       return val ? String(row[key as keyof Doc] || '').includes(val) : true;
     }
     if (key === 'mentions') {
-      // row.mentions is an array of { userId, userName }
       return Array.isArray(row.mentions)
         ? row.mentions.some((m: any) =>
             m.userName && m.userName.toLowerCase().includes(String(val).toLowerCase())
@@ -1010,6 +1116,15 @@ const filteredData = tableData?.filter((row) => {
 });
 
 
+
+const dateOption =[
+  { label: 'Before', value: 'before' },
+          { label: 'After', value: 'after' },
+          { label: 'On Date', value: 'on' },
+          // { label: 'In Between', value: 'between' },
+]
+
+
   return (
     <div>
 
@@ -1020,34 +1135,67 @@ const filteredData = tableData?.filter((row) => {
 
     const meta: { editorType?: string; selectOptions?: Array<{ label: string; value: any }> } = col.meta || {};
 
-    if (key === 'followup') {
+  if (key === 'followup') {
+  const followupType = filters.eventType || 'before';
   return (
     <styled.FilterTag key={key} active={!!filters[key]} style={{ background: 'rgb(25, 25, 25)' }}>
-     
-      <Select
-            size="small"
-            style={{ width: 100, marginRight: 8 }}
-            value={filters.eventType || 'before'}
-            onChange={val => setFilters(prev => ({ ...prev, eventType: val }))}
-            options={[
-              { label: 'Before', value: 'before' },
-              { label: 'After', value: 'after' },
-              { label: 'On Date', value: 'on' },
-            ]}
-          />
-     
-      <Input
-        type="date"
+      <CustomSelect
         size="small"
-        value={filters[key] || ''}
-        onChange={e => handleFilterChange(key, e.target.value)}
-        style={{
-          width: 120,
-          background: 'rgb(25, 25, 25)',
-          color: 'white',
-          border: 'transparent',
-        }}
+        style={{ width: 100, marginRight: 8 }}
+       
+        // value={followupType}
+                value={dateOption?.find(opt => opt.value === followupType) || null}
+
+        onChange={val => setFilters(prev => ({ ...prev, eventType: val ? val.value : '' }))}
+        options={dateOption}
       />
+      
+
+
+
+      {followupType === 'between' ? (
+        <>
+          <Input
+            type="date"
+            size="small"
+            value={filters.followupStart || ''}
+            onChange={e => setFilters(prev => ({ ...prev, followupStart: e.target.value }))}
+            style={{
+              width: 110,
+              background: 'rgb(25, 25, 25)',
+              color: 'white',
+              border: 'transparent',
+              marginRight: 4,
+            }}
+            placeholder="Start date"
+          />
+          <Input
+            type="date"
+            size="small"
+            value={filters.followupEnd || ''}
+            onChange={e => setFilters(prev => ({ ...prev, followupEnd: e.target.value }))}
+            style={{
+              width: 110,
+              background: 'rgb(25, 25, 25)',
+              color: 'white',
+              border: 'transparent',
+            }}
+            placeholder="End date"
+          />
+        </>
+      ) : (
+        <Input
+          type="date"
+          size="small"
+          value={filters[key] || ''}
+          onChange={e => handleFilterChange(key, e.target.value)}
+          style={{
+            background: 'rgb(25, 25, 25)',
+            color: 'white',
+            border: 'transparent',
+          }}
+        />
+      )}
       <span
         onClick={() => handleRemoveFilter(key)}
         style={{
@@ -1062,33 +1210,66 @@ const filteredData = tableData?.filter((row) => {
     </styled.FilterTag>
   );
 }
-
     if (key === 'eventData') {
+      const eventType = filters.eventType || 'before';
       return (
         <styled.FilterTag key={key} active={!!filters[key]} style={{ background: 'rgb(25, 25, 25)' }}>
-          <Select
+          <CustomSelect
             size="small"
-            style={{ width: 100, marginRight: 8 }}
-            value={filters.eventType || 'before'}
+            style={{ width: 100, marginRight: 8, background: 'rgb(25, 25, 25)' }}
+            value={eventType}
             onChange={val => setFilters(prev => ({ ...prev, eventType: val }))}
             options={[
               { label: 'Before', value: 'before' },
               { label: 'After', value: 'after' },
               { label: 'On Date', value: 'on' },
+              // { label: 'In Between', value: 'between' }
             ]}
           />
-          <Input
-            type="date"
-            size="small"
-            value={filters[key] || ''}
-            onChange={e => handleFilterChange(key, e.target.value)}
-            style={{
-              width: 120,
-              background: 'rgb(25, 25, 25)',
-              color: 'white',
-              border: 'transparent',
-            }}
-          />
+          {eventType === 'between' ? (
+            <>
+              <Input
+                type="date"
+                size="small"
+                value={filters.eventDataStart || ''}
+                onChange={e => setFilters(prev => ({ ...prev, eventDataStart: e.target.value }))}
+                style={{
+                  width: 110,
+                  background: 'rgb(25, 25, 25)',
+                  color: 'white',
+                  border: 'transparent',
+                  marginRight: 4,
+                }}
+                placeholder="Start date"
+              />
+              <Input
+                type="date"
+                size="small"
+                value={filters.eventDataEnd || ''}
+                onChange={e => setFilters(prev => ({ ...prev, eventDataEnd: e.target.value }))}
+                style={{
+                  width: 110,
+                  background: 'rgb(25, 25, 25)',
+                  color: 'white',
+                  border: 'transparent',
+                }}
+                placeholder="End date"
+              />
+            </>
+          ) : (
+            <Input
+              type="date"
+              size="small"
+              value={filters[key] || ''}
+              onChange={e => handleFilterChange(key, e.target.value)}
+              style={{
+                width: 120,
+                background: 'rgb(25, 25, 25)',
+                color: 'white',
+                border: 'transparent',
+              }}
+            />
+          )}
           <span
             onClick={() => handleRemoveFilter(key)}
             style={{
@@ -1152,7 +1333,7 @@ const filteredData = tableData?.filter((row) => {
   <CustomSelect
     placeholder="+ Filter"
     size="small"
-    style={{ width: 150 }}
+    width="150px"
     value={null}
     onChange={handleAddFilter}
     options={availableFilterColumns.map((col: any) => ({
@@ -1177,7 +1358,9 @@ const filteredData = tableData?.filter((row) => {
     setColumnSizing(newSizing);
     // You can also call any callback here with columnId and newSizing[columnId]
     console.log('Resized:', columnId, newSizing[columnId]);
+    
   }}
+  onRowDelete={handleRowDelete} // ✅ added
 
         />
 

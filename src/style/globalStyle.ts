@@ -14,4 +14,19 @@ export const CustomSelectStyles = createGlobalStyle`
     background-color: #333 !important;
     color: white !important;
   }
+
+  /* Make Popconfirm text white and background dark */
+  .ant-popover-inner {
+    background: #202020 !important;
+    color: #fff !important;
+  }
+  .ant-popconfirm-title {
+    color: #fff !important;
+  }
+  .ant-popconfirm-message {
+    color: #fff !important;
+  }
 `;
+
+
+

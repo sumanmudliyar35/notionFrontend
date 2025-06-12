@@ -23,11 +23,10 @@ const CustomTextArea: React.FC<EditableTextAreaProps> = ({
         width: '100%',
         opacity: 1,
         pointerEvents: 'auto',
-        position: 'absolute',
+        // position: 'absolute',
         background: '#202020',
         color: 'white',
-        top: 0,
-        left: 0,
+       
         transition: 'opacity 0.2s',
         zIndex: 2,
       }}
