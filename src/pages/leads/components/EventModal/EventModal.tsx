@@ -63,13 +63,8 @@ useEffect(() => {
   
   const validationSchema = Yup.object({
 
-    eventListId: Yup.string().required('Event is required'),
     date: Yup.string().required('Date is required'),
-    
-    numberOfGuests: Yup.number()
-      .transform((value) => (isNaN(value) ? undefined : value))
-      .nullable()
-      .min(0, 'Must be non-negative'),
+ 
   });
 
 
@@ -79,7 +74,7 @@ useEffect(() => {
   const formik = useFormik({
     enableReinitialize: true,
     initialValues,
-    // validationSchema,
+    validationSchema,
     onSubmit: async (values : any, {resetForm}) => {
       const body={
         others: formik.values.eventName,

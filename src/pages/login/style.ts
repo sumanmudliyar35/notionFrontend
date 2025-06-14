@@ -6,6 +6,7 @@ export const Container = styled.div`
   justify-content: center;
   align-items: center;
   height: 100vh;
+  background: #2c2c2c;
 `;
 
 export const Card = styled.div`

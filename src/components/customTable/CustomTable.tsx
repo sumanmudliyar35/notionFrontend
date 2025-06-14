@@ -1,4 +1,4 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import {
   useReactTable,
   getCoreRowModel,
@@ -16,6 +16,7 @@ import CustomSelect from '../customSelect/CustomSelect';
 import { EyeOutlined, EyeInvisibleOutlined, MenuUnfoldOutlined, MenuFoldOutlined, DeleteOutlined } from "@ant-design/icons";
 import CustomModal from '../customModal/CustomModal';
 import { SharedStyledWhiteInput } from '../../style/sharedStyle';
+import CustomSearchInput from '../CustomSearchInput/CustomSearchInput';
 
 interface CustomColumnMeta {
   editable?: boolean;
@@ -46,6 +47,34 @@ export function CustomTable<T extends object>(props: EditableTableProps<T>) {
 
 
 
+    const [searchText, setSearchText] = useState('');
+
+      const searchInputRef = useRef<HTMLInputElement>(null);
+
+        const newRowRef = useRef<HTMLTableRowElement>(null);
+
+        const addRowTriggeredRef = useRef(false);
+
+
+
+
+        useEffect(() => {
+
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.ctrlKey && e.key.toLowerCase() === 'f') {
+        e.preventDefault();
+        setTimeout(() => {
+          searchInputRef.current?.focus();
+        }, 0);
+      }
+      // Optionally: ESC to close search
+      
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, []);
+   
+
 
   const {
     columns,
@@ -59,6 +88,20 @@ export function CustomTable<T extends object>(props: EditableTableProps<T>) {
     columnSizing = {}, // <-- Add default value for columnSizing
     onColumnSizingChange
   } = props;
+
+
+  
+
+
+   const filteredData = React.useMemo(() => {
+    if (!searchText.trim()) return data;
+    const lower = searchText.toLowerCase();
+    return data.filter(row =>
+      Object.values(row).some(val =>
+        (val !== null && val !== undefined && String(val).toLowerCase().includes(lower))
+      )
+    );
+  }, [data, searchText]);
 
   const [hasAdded, setHasAdded] = useState(false);
   const [currentlyEditing, setCurrentlyEditing] = useState<{
@@ -75,7 +118,7 @@ export function CustomTable<T extends object>(props: EditableTableProps<T>) {
   const [menuOpenCell, setMenuOpenCell] = useState<{ rowIndex: number; columnId: keyof T } | null>(null);
 
 
-    const [actionCollapsed, setActionCollapsed] = useState(false);
+    const [actionCollapsed, setActionCollapsed] = useState(true);
   
   const handleEdit = (rowIndex: number, columnId: keyof T, value: any) => {
 
@@ -93,9 +136,31 @@ export function CustomTable<T extends object>(props: EditableTableProps<T>) {
 
 
   const handleAddEmptyRow = () => {
+    if (addRowTriggeredRef.current) return;
+  addRowTriggeredRef.current = true;
     const newRow = createEmptyRow();
     onDataChange([...data, createEmptyRow()]);
       onRowCreate?.(newRow); // ✅ Notify parent
+        setTimeout(() => {
+    if (newRowRef.current) {
+      newRowRef.current.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    }
+    // Open the first editable cell of the new row
+    const lastRowIndex = table.getRowModel().rows.length;
+    const firstEditableCol = columns.find((col: any) => col.meta?.editable);
+if (firstEditableCol) {
+  setCurrentlyEditing({
+    rowIndex: lastRowIndex,
+    columnId: columns[0].id as keyof T, // use the first column's id
+  });
+}
+    // Find the first editable column
+   
+  }, 0);
+
+   setTimeout(() => {
+    addRowTriggeredRef.current = false;
+  }, 300);
 
     setHasAdded(true);
   };
@@ -113,7 +178,7 @@ export function CustomTable<T extends object>(props: EditableTableProps<T>) {
   // });
 
   const table = useReactTable({
-  data,
+    data: filteredData,
   columns,
   getCoreRowModel: getCoreRowModel(),
   getSortedRowModel: getSortedRowModel(),
@@ -132,6 +197,8 @@ export function CustomTable<T extends object>(props: EditableTableProps<T>) {
   },
 });
 
+
+
   // UI for toggling columns (now as a modal)
 
 
@@ -140,7 +207,6 @@ export function CustomTable<T extends object>(props: EditableTableProps<T>) {
     <>
       <Button
         type="primary"
-        style={{ marginBottom: 8 }}
         onClick={() => setIsColumnModalOpen(true)}
       >
         Manage Columns
@@ -192,9 +258,9 @@ export function CustomTable<T extends object>(props: EditableTableProps<T>) {
       }
       @media (min-width: 601px) {
         .custom-table-sticky-col {
-          position: sticky !important;
-          left: 0 !important;
-          z-index: 100 !important;
+          // position: sticky !important;
+          // left: 0 !important;
+          // z-index: 100 !important;
         }
       }
     `;
@@ -224,19 +290,32 @@ const handleDeleteRow = (rowIndex: number) => {
     }
     onDataChange(updated);
   };
+
+
+
   return (
-    <div>
+    <styled.tableMainContainer>
+
+      <styled.tableActionsDiv>
             {renderColumnManager()}
 
+            <CustomSearchInput
+              placeholder="Search"
+              allowClear
+              value={searchText}
+              onChange={e => setSearchText(e.target.value)}
+          style={{ width: 200}}
+        />
+        </styled.tableActionsDiv>
     <div style={{ overflowX: 'auto', width: '100%', overflowY: 'auto' }}>
       <table style={{ borderCollapse: 'collapse', tableLayout: 'fixed', position: 'sticky', zIndex: 120, top: 0 }}>
         <thead>
           <tr>
               <th
                 style={{
-                  width: actionCollapsed ? 24 : 48,
-                  minWidth: actionCollapsed ? 24 : 48,
-                  maxWidth: actionCollapsed ? 24 : 48,
+                  width: actionCollapsed ? 30 : 48,
+                  minWidth: actionCollapsed ? 30 : 48,
+                  maxWidth: actionCollapsed ? 30 : 48,
                   background: '#1a1a1a',
                   border: '3.5px solid rgb(32,32,32)',
                   textAlign: 'center',
@@ -265,8 +344,8 @@ const handleDeleteRow = (rowIndex: number) => {
                       minWidth: header.column.getSize(),
                       maxWidth: header.column.getSize(),
                       position: header.index === 0 ? 'sticky' : 'relative',
-                      left: header.index === 0 ? 0 : undefined,
-                     top: header.index === 0 ? 0 : undefined,
+                      left: header.index === 0 ? '30px' : undefined,
+                      top: header.index === 0 ? 0 : undefined,
 
                       background: '#1a1a1a',
                       userSelect: 'none',
@@ -331,9 +410,9 @@ const handleDeleteRow = (rowIndex: number) => {
             >
                  <td
                     style={{
-                      width: actionCollapsed ? 24 : 48,
-                      minWidth: actionCollapsed ? 24 : 48,
-                      maxWidth: actionCollapsed ? 24 : 48,
+                      width: actionCollapsed ? 30 : 48,
+                      minWidth: actionCollapsed ? 30 : 48,
+                      maxWidth: actionCollapsed ? 30 : 48,
                       border: 'none',
                       padding: 0,
                       textAlign: 'center',
@@ -341,7 +420,7 @@ const handleDeleteRow = (rowIndex: number) => {
                       verticalAlign: 'middle',
                       position: 'sticky',
                       left: 0,
-                      zIndex: 1000,
+                      zIndex: 101,
                     }}
                   >
                     {!actionCollapsed && (
@@ -385,8 +464,8 @@ const handleDeleteRow = (rowIndex: number) => {
                       maxWidth: cell.column.getSize(),
                       background: hoveredRow === row.index ? '#23272f' : '#1a1a1a',
                        position: cell.column.getIndex() === 0 ? 'sticky' : 'relative', // <-- make sticky for first column
-    left: cell.column.getIndex() === 0 ? 0 : undefined,              // <-- align with header
-    zIndex: cell.column.getIndex() === 101 ? 0 : undefined,          // <-- keep above other cells
+    left: cell.column.getIndex() === 0 ? '30px' : undefined,              // <-- align with header
+    zIndex: cell.column.getIndex() === 0 ? 101 : undefined,          // <-- keep above other cells
                     }}
                     onClick={() => {
                       if (isEditable) {
@@ -414,8 +493,9 @@ const handleDeleteRow = (rowIndex: number) => {
           ))}
 
           {isWithNewRow && (
-            <tr>
-              <td colSpan={columns.length} style={{ padding: '8px', position: 'sticky', bottom: 0, zIndex: 2000 }}>
+            <tr  ref={newRowRef}
+>
+              <td colSpan={columns.length + 1} style={{ padding: '8px', position: 'sticky', bottom: 0, zIndex: 2000 }}>
                 <SharedStyledWhiteInput
   placeholder="+ New row"
   variant="underlined"
@@ -434,7 +514,7 @@ const handleDeleteRow = (rowIndex: number) => {
         </tbody>
       </table>
     </div>
-    </div>
+    </styled.tableMainContainer>
   );
 }
 

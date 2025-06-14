@@ -1,5 +1,5 @@
 import styled, { createGlobalStyle } from "styled-components";
-import { Select } from 'antd';
+import { Input, Select } from 'antd';
 
 export const DarkSelect = styled(Select)`
   .ant-select-selector {
@@ -38,4 +38,43 @@ export const DarkSelect = styled(Select)`
   .ant-select-item-option-active {
     background-color: #333 !important;
   }
+`;
+
+
+export const tableActionsDiv= styled.div`
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+
+
+  `;
+
+  export const StyledTableSearch = styled(Input.Search)`
+  // && {
+  //   background: black;
+  //   input {
+  //     background: black !important;
+  //     color: white !important;
+  //     border: none;
+  //   }
+  //   .ant-input {
+  //     background: black !important;
+  //     color: white !important;
+  //     border: none;
+  //   }
+  //   .ant-input-search-button {
+  //     background: #222 !important;
+  //     color: white !important;
+  //     border: none;
+  //   }
+  // }
+`;
+
+
+export const tableMainContainer = styled.div`
+display: flex;
+flex-direction: column;
+gap: 10px;
+
+
 `;

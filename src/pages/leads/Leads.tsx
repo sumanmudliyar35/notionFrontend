@@ -1,6 +1,6 @@
 import type { ColumnDef } from "@tanstack/react-table";
 import  { CustomTable } from "../../components/customTable/CustomTable"
-import { useEffect, useState, useMemo } from "react";
+import React, { useEffect, useState, useMemo, useRef } from "react";
 import { useGetLeadsByUser } from "../../api/get/getLeadsByUser";
 import { useCreateLead } from "../../api/post/newLead";
 import { useUpdateLead } from "../../api/put/updateLead";
@@ -91,6 +91,11 @@ const Leads = () => {
 
   const [editingEventCell, setEditingEventCell] = useState<{ rowId: any; eventId: any } | null>(null);
     const [columnSizing, setColumnSizing] = useState({});
+
+    const inputRef = useRef<HTMLInputElement>(null);
+
+    const eventInputRef = useRef<HTMLInputElement>(null);
+
 
 
   useEffect(() => {
@@ -350,7 +355,7 @@ const columns: ColumnDef<Doc>[] = [
       enableSorting: true,
       cell: ({ row }) => (
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-          <span>{row.original.name}</span>
+          <span  style={{ whiteSpace: 'pre-line' }}>{row.original.name}</span>
          
            
         </div>
@@ -420,7 +425,7 @@ const columns: ColumnDef<Doc>[] = [
                       eventDate: e.target.value,
                     }))
                   }
-                  style={{ marginBottom: 8 }}
+                  style={{ fontFamily: 'sans-serif', padding: 4, borderRadius: 4, border: '1px solid #ccc', width: '100%' }}
                 />
 
                 
@@ -449,7 +454,7 @@ const columns: ColumnDef<Doc>[] = [
                 />
 
                 <CustomInput
-                  type="number"
+                  type="text"
                   placeholder="No. of Crew"
                   value={localEditValue.crew}
                   onChange={e =>
@@ -497,7 +502,22 @@ const columns: ColumnDef<Doc>[] = [
                   }}
                 >
                   <div>
-                    <b>{event.eventName} on</b> {event.eventDate}
+                   <b>{event.eventName} on</b>{' '}
+{event.eventDate
+  ? (() => {
+      // If already dd-mm-yyyy or dd/mm/yyyy, just return as is
+      if (/^\d{2}[-/]\d{2}[-/]\d{4}$/.test(event.eventDate)) {
+        return event.eventDate.replace(/\//g, '-');
+      }
+      // If ISO or other, convert to dd-mm-yyyy
+      const d = new Date(event.eventDate);
+      if (isNaN(d.getTime())) return event.eventDate;
+      const day = String(d.getDate()).padStart(2, '0');
+      const month = String(d.getMonth() + 1).padStart(2, '0');
+      const year = d.getFullYear();
+      return `${day}-${month}-${year}`;
+    })()
+  : ''}
                   </div>
                   <div>
                     <b>Guests:</b> {event.noOfGuests}
@@ -585,6 +605,14 @@ const columns: ColumnDef<Doc>[] = [
   { header: 'Contact', 
     accessorKey: 'contact',
     meta: { editable: true },
+     cell: ( getValue: any) => {
+  ;
+    return (
+      <span style={{ whiteSpace: 'pre-line' }}>
+        {getValue.getValue()}
+      </span>
+    );
+  },
  },
   { header: 'Description', 
     accessorKey: 'description', 
@@ -651,9 +679,30 @@ const columns: ColumnDef<Doc>[] = [
     );
   },
 },
-    { header: 'Follow up', accessorKey: 'followup',     meta: { editable: true,  editorType: 'date', // <-- add this
- },
- },
+    { header: 'Follow up', accessorKey: 'followup',     
+      meta: { editable: true,  editorType: 'date', // <-- add this
+ }
+ ,
+    cell: (getValue: any) => {
+   const value = getValue.getValue();
+    if (!value) return '';
+    // If already dd-mm-yyyy or dd/mm/yyyy, just return as is
+    if (/^\d{2}[-/]\d{2}[-/]\d{4}$/.test(value)) {
+      return value.replace(/\//g, '-');
+    }
+    // If ISO or other, convert to dd-mm-yyyy
+    const d = new Date(value);
+    if (isNaN(d.getTime())) return value;
+    const day = String(d.getDate()).padStart(2, '0');
+    const month = String(d.getMonth() + 1).padStart(2, '0');
+    const year = d.getFullYear();
+    return `${day}-${month}-${year}`;
+  },
+
+},
+
+
+ 
       { header: 'Reminder', accessorKey: 'reminder' },
       
         { header: 'Comments', accessorKey: 'comment',   size: 200,
@@ -934,7 +983,17 @@ const createEmptyDoc = (): Doc => {
                description: updatedRow.description,
                status: updatedRow.status,
                converted: updatedRow.converted,
-               amount: updatedRow.amount,
+              amount: (() => {
+  if (typeof updatedRow.amount === 'number') {
+    return updatedRow.amount.toLocaleString('en-IN');
+  }
+  if (typeof updatedRow.amount === 'string') {
+    // Remove commas/spaces, parse as number, then format
+    const num = Number((updatedRow.amount !== undefined && updatedRow.amount !== null ? updatedRow.amount : '').toString().replace(/[\s,]/g, ''));
+    return !isNaN(num) ? num.toLocaleString('en-IN') : updatedRow.amount;
+  }
+  return updatedRow.amount;
+})(),
                leads: updatedRow.leads,
                followup: updatedRow.followup,
                assignedTo: updatedRow.assignedTo,
@@ -1043,22 +1102,73 @@ const handleRemoveFilter = (key: string) => {
   setActiveFilters((prev: string[]) => prev.filter((k) => k !== key));
 };
 // Filter tableData based on filters
-const filteredData = tableData?.filter((row) => {
+
+
+
+const dateOption =[
+  { label: 'Before', value: 'before' },
+          { label: 'After', value: 'after' },
+          { label: 'On Date', value: 'on' },
+          // { label: 'In Between', value: 'between' },
+]
+const filteredData = React.useMemo(() => {
+
+   const hasActiveFilters = Object.values(filters).some(val => val !== undefined && val !== null && val !== '');
+  if (!hasActiveFilters) return tableData;
+
+console.log("Filters", hasActiveFilters, filters);
+
+  return tableData?.filter((row) => {
+
   const eventDateFilter = filters['eventData'];
-  const eventTypeFilter = filters['eventType'] || 'before';
+
+  const eventTypeOption = dateOption.find(opt => opt.value === filters.eventType);
+
+  const eventTypeFilter = filters.eventType
+
+    const followupType = filters.followupType;
 
   return Object.entries(filters).every(([key, val]) => {
+
+
     // Event Data filter
+
+
+    console.log("Key", key, "val" ,val, "filter",  eventTypeFilter)
+
     if (key === 'eventData') {
+
+
+
+            if (!eventTypeFilter || !val) return true;
+
+console.log("eventTypeFilter after");
+
       const eventDates = (row.eventData || []).map((e: any) => e.eventDate?.slice(0, 10));
-      if (!eventDates.length) return false;
+
+      console.log("eventDates",eventDates);
+
+
+      if (!eventDates.length || !filters.eventType) return false;
+
+      console.log("aftersuman",);
 
       if (eventTypeFilter === 'before') {
-        return eventDates.some((d: any) => d && d < val);
-      }
+return eventDates.some((d: any) => {
+    if (!d || !val) return false;
+    const dateD = new Date(d);
+    const dateVal = new Date(val);
+    if (isNaN(dateD.getTime()) || isNaN(dateVal.getTime())) return false;
+    return dateD < dateVal;
+  });      }
       if (eventTypeFilter === 'after') {
-        return eventDates.some((d: any) => d && d > val);
-      }
+return eventDates.some((d: any) => {
+  if (!d || !val) return false;
+  const dateD = new Date(d);
+  const dateVal = new Date(val);
+  if (isNaN(dateD.getTime()) || isNaN(dateVal.getTime())) return false;
+  return dateD > dateVal;
+});        }
       if (eventTypeFilter === 'on') {
         return eventDates.some((d: any) => d && d === val);
       }
@@ -1068,15 +1178,18 @@ const filteredData = tableData?.filter((row) => {
         if (!start || !end) return true; // Don't filter if both not set
         return eventDates.some((d: any) => d && d >= start && d <= end);
       }
-      return true;
+      // return true;
     }
 
     // Followup filter
-    if (key === 'followup') {
-      const followupDate = row.followup?.slice(0, 10);
-      const followupType = filters.eventType || 'before';
 
-      if (!followupDate) return false;
+  
+    if (key === 'followup' || key === 'followupType') {
+            if (!followupType || !val) return true;
+
+      const followupDate = row.followup?.slice(0, 10);
+
+      if (!followupDate || !filters.followup) return false;
 
       if (followupType === 'between') {
         const start = filters.followupStart;
@@ -1086,13 +1199,22 @@ const filteredData = tableData?.filter((row) => {
       }
 
       if (followupType === 'before') {
-        return followupDate < val;
+
+        console.log("inside before");
+        console.log("followupDate", followupDate, "filters.followup", filters.followup, followupDate < filters.followup);
+
+        return followupDate < filters.followup;
       }
       if (followupType === 'after') {
-        return followupDate > val;
+
+        console.log("inside after");
+        console.log("followupDate", followupDate, "filters.followup", filters.followup, followupDate> filters.followup);
+        return followupDate > filters.followup;
       }
       if (followupType === 'on') {
-        return followupDate === val;
+                console.log("followupDate", followupDate, "filters.followup", filters.followup, followupDate=== filters.followup);
+
+        return followupDate === filters.followup;
       }
       return true;
     }
@@ -1114,15 +1236,10 @@ const filteredData = tableData?.filter((row) => {
       : true;
   });
 });
+}, [tableData, filters]);
 
 
 
-const dateOption =[
-  { label: 'Before', value: 'before' },
-          { label: 'After', value: 'after' },
-          { label: 'On Date', value: 'on' },
-          // { label: 'In Between', value: 'between' },
-]
 
 
   return (
@@ -1136,18 +1253,22 @@ const dateOption =[
     const meta: { editorType?: string; selectOptions?: Array<{ label: string; value: any }> } = col.meta || {};
 
   if (key === 'followup') {
-  const followupType = filters.eventType || 'before';
+  const followupType = filters.followupType;
   return (
     <styled.FilterTag key={key} active={!!filters[key]} style={{ background: 'rgb(25, 25, 25)' }}>
+       <span style={{ color: '#bbb', marginRight: 6, fontWeight: 500, minWidth: "fit-content" }}>
+    {col.header?.toString()}:
+  </span>
       <CustomSelect
         size="small"
         style={{ width: 100, marginRight: 8 }}
        
         // value={followupType}
                 value={dateOption?.find(opt => opt.value === followupType) || null}
-
-        onChange={val => setFilters(prev => ({ ...prev, eventType: val ? val.value : '' }))}
-        options={dateOption}
+onChange={val => {
+  console.log('Selected followupType:', val.value, val.label);
+  setFilters(prev => ({ ...prev, followupType: val.value }));
+}}        options={dateOption}
       />
       
 
@@ -1186,7 +1307,9 @@ const dateOption =[
       ) : (
         <Input
           type="date"
-          size="small"
+          autoFocus
+          // ref={inputRef}
+
           value={filters[key] || ''}
           onChange={e => handleFilterChange(key, e.target.value)}
           style={{
@@ -1194,10 +1317,39 @@ const dateOption =[
             color: 'white',
             border: 'transparent',
           }}
+            onFocus={e => {
+        e.target.showPicker && e.target.showPicker();
+      }}
+      onClick={e => {
+    // Always open the picker on click
+    if (inputRef.current && inputRef.current.showPicker) {
+      inputRef.current.showPicker();
+    }
+  }}
         />
       )}
       <span
-        onClick={() => handleRemoveFilter(key)}
+       onClick={() => {
+  console.log("Removing filter for key:", key);
+  if (key === 'followup') {
+    handleRemoveFilter('followup');
+    handleRemoveFilter('followupType');
+
+    
+  } else if (key === 'followupType') {
+    handleRemoveFilter('followupType');
+    handleRemoveFilter('followup');
+
+  } else if (key === 'eventData') {
+    handleRemoveFilter('eventData');
+    handleRemoveFilter('eventType');
+  } else if (key === 'eventType') {
+    handleRemoveFilter('eventType');
+    handleRemoveFilter('eventData');
+  } else {
+    handleRemoveFilter(key);
+  }
+}}    
         style={{
           cursor: 'pointer',
           padding: '0 6px',
@@ -1211,14 +1363,18 @@ const dateOption =[
   );
 }
     if (key === 'eventData') {
-      const eventType = filters.eventType || 'before';
+      const eventType = filters.eventType
       return (
         <styled.FilterTag key={key} active={!!filters[key]} style={{ background: 'rgb(25, 25, 25)' }}>
+           <span style={{ color: '#bbb', marginRight: 6, fontWeight: 500, minWidth: "fit-content" }}>
+    {col.header?.toString()}:
+  </span>
           <CustomSelect
             size="small"
             style={{ width: 100, marginRight: 8, background: 'rgb(25, 25, 25)' }}
-            value={eventType}
-            onChange={val => setFilters(prev => ({ ...prev, eventType: val }))}
+            value={dateOption?.find(opt => opt.value === eventType) || null}
+
+            onChange={val => setFilters(prev => ({ ...prev, eventType: val.value }))}
             options={[
               { label: 'Before', value: 'before' },
               { label: 'After', value: 'after' },
@@ -1259,11 +1415,20 @@ const dateOption =[
           ) : (
             <Input
               type="date"
+              autoFocus
               size="small"
               value={filters[key] || ''}
               onChange={e => handleFilterChange(key, e.target.value)}
+              onFocus={e => {
+    e.target.showPicker && e.target.showPicker();
+  }}
+              onClick={e => {
+    // Always open the picker on click
+    if (eventInputRef.current && eventInputRef.current.showPicker) {
+      eventInputRef.current.showPicker();
+    }
+  }}
               style={{
-                width: 120,
                 background: 'rgb(25, 25, 25)',
                 color: 'white',
                 border: 'transparent',
@@ -1271,8 +1436,28 @@ const dateOption =[
             />
           )}
           <span
-            onClick={() => handleRemoveFilter(key)}
-            style={{
+onClick={() => {
+  console.log("Removing filter for key:", key);
+  if (key === 'followup') {
+    handleRemoveFilter('followup');
+    handleRemoveFilter('followupType');
+
+    
+  } else if (key === 'followupType') {
+    handleRemoveFilter('followupType');
+    handleRemoveFilter('followup');
+
+  } else if (key === 'eventData') {
+    handleRemoveFilter('eventData');
+    handleRemoveFilter('eventType');
+  } else if (key === 'eventType') {
+    handleRemoveFilter('eventType');
+    handleRemoveFilter('eventData');
+  } else {
+    handleRemoveFilter(key);
+  }
+}}    
+                style={{
               cursor: 'pointer',
               padding: '0 6px',
               fontSize: 16,
@@ -1285,12 +1470,18 @@ const dateOption =[
       );
     }
 
+
+  
   
 
     
 
     return (
   <styled.FilterTag key={key} active={!!filters[key]} style={{ background: 'rgb(25, 25, 25)' }}>
+
+    <span style={{ color: '#bbb', marginRight: 6, fontWeight: 500 }}>
+    {col.header?.toString()}:
+  </span>
     {meta?.editorType === 'select' ? (
       <CustomSelect
         placeholder={col.header?.toString()}
@@ -1315,8 +1506,27 @@ const dateOption =[
       />
     )}
      <span
-    onClick={() => handleRemoveFilter(key)}
-    style={{
+onClick={() => {
+  console.log("Removing filter for key:", key);
+  if (key === 'followup') {
+    handleRemoveFilter('followup');
+    handleRemoveFilter('followupType');
+
+    
+  } else if (key === 'followupType') {
+    handleRemoveFilter('followupType');
+    handleRemoveFilter('followup');
+
+  } else if (key === 'eventData') {
+    handleRemoveFilter('eventData');
+    handleRemoveFilter('eventType');
+  } else if (key === 'eventType') {
+    handleRemoveFilter('eventType');
+    handleRemoveFilter('eventData');
+  } else {
+    handleRemoveFilter(key);
+  }
+}}    style={{
       cursor: 'pointer',
       padding: '0 6px',
       fontSize: 16,

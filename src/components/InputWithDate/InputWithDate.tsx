@@ -42,6 +42,8 @@ const InputWithDate: React.FC<InputWithDateProps> = ({
         border: "1px solid #23272f",
         background: "#181818",
         color: "#fff",
+        fontFamily: "sans-serif",
+
       }}
       onFocus={e => {
         // Open native date picker on focus (supported in Chrome, Edge, etc.)
