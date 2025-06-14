@@ -339,7 +339,7 @@ const handleDeleteRow = (rowIndex: number) => {
                 key={header.id}
                 style={{
                   border: '3.5px solid rgb(32,32,32)',
-                  padding: '8px',
+                  padding: '7.7px',
                       width: header.column.getSize(),
                       minWidth: header.column.getSize(),
                       maxWidth: header.column.getSize(),
@@ -468,7 +468,7 @@ const handleDeleteRow = (rowIndex: number) => {
     zIndex: cell.column.getIndex() === 0 ? 101 : undefined,          // <-- keep above other cells
                     }}
                     onClick={() => {
-                      if (isEditable) {
+                      if (columnId !== 'description' && isEditable ) {
                         setCurrentlyEditing({ rowIndex: row.index, columnId });
                       }
                     }}

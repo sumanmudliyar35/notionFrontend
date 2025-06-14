@@ -13,6 +13,8 @@ interface VoiceModalProps {
 const VoiceModal: React.FC<VoiceModalProps> = ({ open, onClose, onSave }) => {
   const [record, setRecord] = useState(false);
   const [audioBlob, setAudioBlob] = useState<Blob | null>(null);
+  const [isStarted, setIsStarted] = useState(false);
+
 
   return (
     <CustomModal
@@ -34,17 +36,28 @@ const VoiceModal: React.FC<VoiceModalProps> = ({ open, onClose, onSave }) => {
           </styled.StyledMicWrapper>
         
         <div style={{ marginTop: 16 }}>
-          <Button onClick={() => setRecord(true)} disabled={record}>
+          {!isStarted && (
+          <Button onClick={() =>{setRecord(true), setIsStarted(true)}} disabled={record}>
             Start
           </Button>
-          <Button onClick={() => setRecord(false)} disabled={!record} style={{ marginLeft: 8 }}>
+
+
+          )}
+          {isStarted && (
+          <Button onClick={() =>{setIsStarted(false), setRecord(false)}} disabled={!record} style={{ marginLeft: 8 }}>
             Stop
           </Button>
+
+          )}
+
+
         </div>
         {audioBlob && (
           <audio controls src={URL.createObjectURL(audioBlob)} style={{ marginTop: 16 }} />
         )}
         <div style={{ marginTop: 16 }}>
+          {audioBlob && (  
+
           <Button
             type="primary"
             onClick={() => audioBlob && onSave(audioBlob)}
@@ -52,6 +65,7 @@ const VoiceModal: React.FC<VoiceModalProps> = ({ open, onClose, onSave }) => {
           >
             Save
           </Button>
+          )}
           <Button onClick={onClose} style={{ marginLeft: 8 }}>
             Cancel
           </Button>

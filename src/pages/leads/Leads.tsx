@@ -28,6 +28,7 @@ import CustomTextArea from "../../components/customTextArea/CustomTextArea";
 import { useDeleteEvent } from "../../api/delete/deleteEvent";
 import CustomModal from "../../components/customModal/CustomModal";
 import { useGetAllEventList } from "../../api/get/getAllEventList";
+import DescriptionCell from "./components/DescriptionCell/DescriptionCell";
 
 
 interface Doc {
@@ -273,6 +274,18 @@ const handleDeleteComment = async (rowId: any, commentId: any) => {
 
 }
 
+const handleDescriptionChange = async (value: string, rowId: any ) => {
+  console.log("Description changed for row:", rowId, "New value:", value);
+  const body = {
+    description: value,
+  };
+
+  const response = await updateLeadMutate.mutateAsync([body,rowId, userid]);
+      refetchLeadsData();
+
+
+}
+
 const updateEventMutate = useUpdateEvent();
 
 const handleUpdateEvent = async (rowId: any, eventId: any, eventData: any) => {
@@ -311,9 +324,27 @@ const handleDeleteLead = async (leadId: any) => {
   const body = {
     deletedAt: new Date(),
   };
-  await updateLeadMutate.mutateAsync([body, leadId]);
+  await updateLeadMutate.mutateAsync([body, leadId, userid]);
   refetchLeadsData();
 };
+
+
+
+ useEffect(() => {
+    if (allMembersData) {
+      setAssigneeOptions(
+        allMembersData
+          .filter((u: any) => u.name && u.userId)
+          .map((u: any) => ({
+            label: u.name,
+            value: u.userId,
+          }))
+      );
+    }
+  }, [allMembersData]);
+
+
+
 
   const initialDocs: Doc[] = [
   {
@@ -617,12 +648,23 @@ const columns: ColumnDef<Doc>[] = [
   { header: 'Description', 
     accessorKey: 'description', 
     meta: { editable: true },
-     cell: ( getValue: any) => {
-    const value = getValue.getValue();
+     cell: ({row}) => {
+
+    const value = row.original.description;
     return (
-      <span style={{ whiteSpace: 'pre-line' }}>
-        {value}
-      </span>
+      // <span style={{ whiteSpace: 'pre-line' }}>
+      //   {value}
+      // </span>
+     <DescriptionCell
+      value={value}
+      onChange={handleDescriptionChange}
+            leadid={row.original.id}
+            assigneeOptions={assigneeOptions}
+
+
+    />
+
+     
     );
   },
  },
@@ -976,6 +1018,8 @@ const createEmptyDoc = (): Doc => {
 
 
 
+    
+
     const handleRowEdit=async(updatedRow: Doc, rowIndex: number)=>{
       const body={
                name: updatedRow?.name,
@@ -1001,7 +1045,7 @@ const createEmptyDoc = (): Doc => {
                shootId: updatedRow.shootId || null, // <-- Add this line
       };
 
-      const response = await updateLeadMutate.mutateAsync([body, updatedRow.id]);
+      const response = await updateLeadMutate.mutateAsync([body, updatedRow.id, userid]);
       refetchLeadsData();
 
     };
@@ -1011,7 +1055,7 @@ const createEmptyDoc = (): Doc => {
 
       const leadId = tableData[rowIndex].id;
       if (!leadId) return;
-      await updateLeadMutate.mutateAsync([{deletedAt: new Date()}, leadId]);
+      await updateLeadMutate.mutateAsync([{deletedAt: new Date()}, leadId, userid]);
       refetchLeadsData();
 
     }

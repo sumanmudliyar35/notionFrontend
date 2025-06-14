@@ -96,7 +96,6 @@ useEffect(() => {
     },
   });
 
-  console.log("sdsd", );
 
   return (
     <CustomModal
@@ -208,7 +207,7 @@ useEffect(() => {
           label="Crew Member (optional)"
           name="crew"
           placeholder="Enter number of member"
-          type="number"
+          type="text"
           value={formik.values.crew}
           onChange={formik.handleChange}
           onBlur={formik.handleBlur}

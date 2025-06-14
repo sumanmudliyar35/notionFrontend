@@ -3,13 +3,13 @@ import axiosInstance from "../../connection/axiosInstance";
 import type {MutationFunction} from "react-query";
 
 // Mutation function to create a lead
-const updateLead: MutationFunction<any, [any, any]> = async (
-  params: [any, any]
+const updateLead: MutationFunction<any, [any, any, any]> = async (
+  params: [any, any, any]
 ) => {
-  const [body, leadId] = params;
+  const [body, leadId, userId] = params;
 
   const response = await axiosInstance.put(
-    `/leads/updateLead?leadid=${leadId}`,
+    `/leads/updateLead?leadid=${leadId}&userid=${userId}`,
     body
   );
 
