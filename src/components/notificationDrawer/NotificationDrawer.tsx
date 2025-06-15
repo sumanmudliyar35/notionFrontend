@@ -29,7 +29,7 @@ const NotificationDrawer: React.FC<NotificationDrawerProps> = ({
       open={open}
       width={drawerWidth}
       getContainer={getContainer}
-      style={{ position: 'absolute', backgroundColor: '#202020', color: '#808080' }}
+      style={{ position: 'absolute', backgroundColor: '#202020', color: '#808080', zIndex:5000 }}
       closeIcon={<CloseOutlined style={{ color: '#808080' }} />}
     >
       {isLoading ? (

@@ -11,6 +11,7 @@ import { useGetAllEventList } from '../../../../api/get/getAllEventList';
 import CustomSelect from '../../../../components/customSelect/CustomSelect';
 import { SharedInputWrapper } from '../../../../style/sharedStyle';
 import InputWithDate from '../../../../components/InputWithDate/InputWithDate';
+import MuiInputWithDate from '../../../../components/MuiDatePicker/MuiInputWithDate';
 
 interface EventModalProps {
   open: boolean;
@@ -133,7 +134,7 @@ useEffect(() => {
   }}
 /> */}
 
-<InputWithDate
+{/* <InputWithDate
   label="Date"
   name="date"
   value={formik.values.date}
@@ -148,7 +149,28 @@ useEffect(() => {
           : JSON.stringify(formik.errors.date)
       : ''
   }
-/>
+/> */}
+
+
+<MuiInputWithDate
+  label="Date"
+  name="date"
+  value={formik.values.date}
+  onChange={formik.handleChange}
+ error={
+    formik.touched.date && formik.errors.date
+      ? typeof formik.errors.date === 'string'
+        ? formik.errors.date
+        : Array.isArray(formik.errors.date)
+          ? formik.errors.date.join(', ')
+          : JSON.stringify(formik.errors.date)
+      : ''
+  }
+ 
+  />
+
+
+
 
 <CustomSelect
   label="Event"

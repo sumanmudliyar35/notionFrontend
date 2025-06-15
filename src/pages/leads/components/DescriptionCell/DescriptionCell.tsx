@@ -132,7 +132,10 @@ const DescriptionCell = ({ value = '', onChange, leadid, assigneeOptions = [] }:
                 <div
                   key={member.value}
                   style={{ padding: 8, cursor: 'pointer', color: 'white' }}
-                  onMouseDown={() => handleSelectMember(member)}
+                  onMouseDown={(e) => {
+                    e.preventDefault();
+                    handleSelectMember(member);
+                  }}
                 >
                   {member.label}
                 </div>
@@ -146,7 +149,7 @@ const DescriptionCell = ({ value = '', onChange, leadid, assigneeOptions = [] }:
           style={{ whiteSpace: 'pre-line', cursor: 'pointer', display: 'block' }}
           onClick={() => setIsEditing(true)}
         >
-          {value}
+          {value || "Add a description ..."}
         </span>
       )}
     </div>

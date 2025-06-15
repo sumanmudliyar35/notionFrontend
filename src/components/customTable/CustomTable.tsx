@@ -17,6 +17,9 @@ import { EyeOutlined, EyeInvisibleOutlined, MenuUnfoldOutlined, MenuFoldOutlined
 import CustomModal from '../customModal/CustomModal';
 import { SharedStyledWhiteInput } from '../../style/sharedStyle';
 import CustomSearchInput from '../CustomSearchInput/CustomSearchInput';
+import { date } from 'yup';
+import MuiInputWithDate from '../MuiDatePicker/MuiInputWithDate';
+import Mui2InputWithDate from '../Mui2InputWithDate/Mui2InputWithDate';
 
 interface CustomColumnMeta {
   editable?: boolean;
@@ -93,15 +96,51 @@ export function CustomTable<T extends object>(props: EditableTableProps<T>) {
   
 
 
-   const filteredData = React.useMemo(() => {
-    if (!searchText.trim()) return data;
-    const lower = searchText.toLowerCase();
-    return data.filter(row =>
-      Object.values(row).some(val =>
-        (val !== null && val !== undefined && String(val).toLowerCase().includes(lower))
-      )
-    );
-  }, [data, searchText]);
+  //  const filteredData = React.useMemo(() => {
+  //   if (!searchText.trim()) return data;
+  //   const lower = searchText.toLowerCase();
+  //   return data.filter(row =>
+  //     Object.values(row).some(val =>
+  //       (val !== null && val !== undefined && String(val).toLowerCase().includes(lower))
+  //     )
+  //   );
+  // }, [data, searchText]);
+
+  const filteredData = React.useMemo(() => {
+  if (!searchText) return data;
+  const lower = searchText.toLowerCase();
+
+  return data.filter(row => {
+    return Object.values(row).some(val => {
+      // If value is a string or number, check directly
+      if (typeof val === 'string' || typeof val === 'number') {
+        return val.toString().toLowerCase().includes(lower);
+      }
+      // If value is an array of objects, search inside each object's values
+      if (Array.isArray(val) && val.length > 0 && typeof val[0] === 'object' && val[0] !== null) {
+        console.log("val", val)
+        return val.some(obj =>
+          Object.values(obj).some(innerVal =>
+            innerVal && innerVal.toString().toLowerCase().includes(lower)
+          )
+        );
+      }
+      // If value is an array of primitives
+      if (Array.isArray(val)) {
+        return val.some(item =>
+          item && item.toString().toLowerCase().includes(lower)
+        );
+      }
+      // If value is an object (not array), search its values
+      if (typeof val === 'object' && val !== null) {
+        return Object.values(val).some(innerVal =>
+          innerVal && innerVal.toString().toLowerCase().includes(lower)
+        );
+      }
+      return false;
+    });
+  });
+}, [data, searchText]);
 
   const [hasAdded, setHasAdded] = useState(false);
   const [currentlyEditing, setCurrentlyEditing] = useState<{
@@ -197,6 +236,8 @@ if (firstEditableCol) {
   },
 });
 
+
+console.log("date", data)
 
 
   // UI for toggling columns (now as a modal)
@@ -495,7 +536,7 @@ const handleDeleteRow = (rowIndex: number) => {
           {isWithNewRow && (
             <tr  ref={newRowRef}
 >
-              <td colSpan={columns.length + 1} style={{ padding: '8px', position: 'sticky', bottom: 0, zIndex: 2000 }}>
+              <td colSpan={columns.length + 1} style={{ padding: '8px', position: 'sticky', bottom: 0, zIndex: 200 }}>
                 <SharedStyledWhiteInput
   placeholder="+ New row"
   variant="underlined"
@@ -533,6 +574,15 @@ function EditableCell({
 }) {
   const [editValue, setEditValue] = React.useState(value ?? '');
 
+    const [open, setOpen] = React.useState(false);
+
+     React.useEffect(() => {
+    if (editorType === 'date') {
+      setOpen(true);
+    }
+  }, [editorType]);
+
+
   if (editorType === 'input') {
     return (
       <Input.TextArea
@@ -568,31 +618,50 @@ function EditableCell({
 
   if (editorType === 'date') {
   return (
-    <Input
-      type="date"
-      autoFocus
+    // <Input
+    //   type="date"
+    //   autoFocus
+    //   value={editValue}
+    //   onChange={e => {
+    //     setEditValue(e.target.value);
+    //     onSave(e.target.value); // Call handleEdit immediately on date select
+    //     onCancel();             // Close the editor
+    //   }}
+    //   onBlur={() => {
+    //     onSave(editValue);
+    //     onCancel();
+    //   }}
+    //   style={{
+    //     width: '100%',
+    //     position: 'absolute',
+    //     top: 0,
+    //     left: 0,
+    //     zIndex: 2,
+    //     background: '#202020',
+    //     color: 'white',
+    //   }}
+    //   onFocus={e => {
+    //     e.target.showPicker && e.target.showPicker();
+    //   }}
+    // />
+
+     <Mui2InputWithDate
+      name=""
       value={editValue}
       onChange={e => {
         setEditValue(e.target.value);
         onSave(e.target.value); // Call handleEdit immediately on date select
-        onCancel();             // Close the editor
+       setTimeout(() => onCancel(), 0);
       }}
       onBlur={() => {
         onSave(editValue);
         onCancel();
       }}
-      style={{
-        width: '100%',
-        position: 'absolute',
-        top: 0,
-        left: 0,
-        zIndex: 2,
-        background: '#202020',
-        color: 'white',
-      }}
-      onFocus={e => {
-        e.target.showPicker && e.target.showPicker();
-      }}
+       open={open}
+          setOpen={setOpen}
+    
+   
+     
     />
   );
 }

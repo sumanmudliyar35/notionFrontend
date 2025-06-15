@@ -29,6 +29,8 @@ import { useDeleteEvent } from "../../api/delete/deleteEvent";
 import CustomModal from "../../components/customModal/CustomModal";
 import { useGetAllEventList } from "../../api/get/getAllEventList";
 import DescriptionCell from "./components/DescriptionCell/DescriptionCell";
+import MuiInputWithDate from "../../components/MuiDatePicker/MuiInputWithDate";
+import Mui2InputWithDate from "../../components/Mui2InputWithDate/Mui2InputWithDate";
 
 
 interface Doc {
@@ -447,7 +449,7 @@ const columns: ColumnDef<Doc>[] = [
           >
             {isEditing ? (
               <div style={{ display: 'flex', flexDirection: 'column', gap: 8, width: '100%' }}>
-                <input
+                {/* <input
                   type="date"
                   value={localEditValue.eventDate}
                   onChange={e =>
@@ -457,7 +459,29 @@ const columns: ColumnDef<Doc>[] = [
                     }))
                   }
                   style={{ fontFamily: 'sans-serif', padding: 4, borderRadius: 4, border: '1px solid #ccc', width: '100%' }}
-                />
+                /> */}
+
+                <Mui2InputWithDate
+
+  name="eventDate"
+  value={localEditValue.eventDate}
+  onChange={e =>
+    setLocalEditValue(prev => ({
+      ...prev,
+      eventDate: e.target.value,
+    }))
+  }
+  placeholder="Select date"
+  required={false}
+  error={undefined}
+  // sx={{
+  //   fontFamily: 'sans-serif',
+  //   padding: 4,
+  //   borderRadius: 4,
+  //   border: '1px solid #ccc',
+  //   width: '100%',
+  // }}
+/>
 
                 
 
@@ -884,36 +908,36 @@ const columns: ColumnDef<Doc>[] = [
 );
   },
 },
-          {
-  header: 'Mention',
-  accessorKey: 'mentions',
-  cell: ({ row }) => {
-    const mentions = row.original.mentions;
-    return (
-      <div
-        style={{
-          cursor: 'pointer',
-          color: '#52c41a',
-          minHeight: 32,
-          display: 'flex',
-          alignItems: 'center',
-          gap: 4,
-          flexWrap: 'wrap',
-        }}
-        onClick={() => openMentionModal(row.original)}
-      >
-        {Array.isArray(mentions) && mentions.length > 0 ? (
-          mentions.map((m: any) => (
-            <CustomTag key={m.userId} name={m.userName} />
+//           {
+//   header: 'Mention',
+//   accessorKey: 'mentions',
+//   cell: ({ row }) => {
+//     const mentions = row.original.mentions;
+//     return (
+//       <div
+//         style={{
+//           cursor: 'pointer',
+//           color: '#52c41a',
+//           minHeight: 32,
+//           display: 'flex',
+//           alignItems: 'center',
+//           gap: 4,
+//           flexWrap: 'wrap',
+//         }}
+//         onClick={() => openMentionModal(row.original)}
+//       >
+//         {Array.isArray(mentions) && mentions.length > 0 ? (
+//           mentions.map((m: any) => (
+//             <CustomTag key={m.userId} name={m.userName} />
              
-          ))
-        ) : (
-          <span style={{ color: '#aaa' }}>Mention</span>
-        )}
-      </div>
-    );
-  },
-},
+//           ))
+//         ) : (
+//           <span style={{ color: '#aaa' }}>Mention</span>
+//         )}
+//       </div>
+//     );
+//   },
+// },
             { header: 'Converted', accessorKey: 'converted',
                meta: {
       editable: true,
@@ -1155,6 +1179,10 @@ const dateOption =[
           { label: 'On Date', value: 'on' },
           // { label: 'In Between', value: 'between' },
 ]
+
+
+
+
 const filteredData = React.useMemo(() => {
 
    const hasActiveFilters = Object.values(filters).some(val => val !== undefined && val !== null && val !== '');
@@ -1349,28 +1377,37 @@ onChange={val => {
           />
         </>
       ) : (
-        <Input
-          type="date"
-          autoFocus
-          // ref={inputRef}
+  //       <Input
+  //         type="date"
+  //         autoFocus
+  //         // ref={inputRef}
 
-          value={filters[key] || ''}
-          onChange={e => handleFilterChange(key, e.target.value)}
-          style={{
-            background: 'rgb(25, 25, 25)',
-            color: 'white',
-            border: 'transparent',
-          }}
-            onFocus={e => {
-        e.target.showPicker && e.target.showPicker();
-      }}
-      onClick={e => {
-    // Always open the picker on click
-    if (inputRef.current && inputRef.current.showPicker) {
-      inputRef.current.showPicker();
-    }
-  }}
-        />
+  //         value={filters[key] || ''}
+  //         onChange={e => handleFilterChange(key, e.target.value)}
+  //         style={{
+  //           background: 'rgb(25, 25, 25)',
+  //           color: 'white',
+  //           border: 'transparent',
+  //         }}
+  //           onFocus={e => {
+  //       e.target.showPicker && e.target.showPicker();
+  //     }}
+  //     onClick={e => {
+  //   // Always open the picker on click
+  //   if (inputRef.current && inputRef.current.showPicker) {
+  //     inputRef.current.showPicker();
+  //   }
+  // }}
+  //       />
+    <MuiInputWithDate
+  name={key}
+  value={filters[key] || ''}
+  onChange={e => handleFilterChange(key, e.target.value)}
+  placeholder="Select date"
+  required={false}
+  error={undefined}
+
+/>
       )}
       <span
        onClick={() => {
@@ -1409,7 +1446,7 @@ onChange={val => {
     if (key === 'eventData') {
       const eventType = filters.eventType
       return (
-        <styled.FilterTag key={key} active={!!filters[key]} style={{ background: 'rgb(25, 25, 25)' }}>
+        <styled.FilterTag key={key} active={!!filters[key]} style={{ background: 'rgb(25, 25, 25)',  }}>
            <span style={{ color: '#bbb', marginRight: 6, fontWeight: 500, minWidth: "fit-content" }}>
     {col.header?.toString()}:
   </span>
@@ -1457,27 +1494,37 @@ onChange={val => {
               />
             </>
           ) : (
-            <Input
-              type="date"
-              autoFocus
-              size="small"
-              value={filters[key] || ''}
-              onChange={e => handleFilterChange(key, e.target.value)}
-              onFocus={e => {
-    e.target.showPicker && e.target.showPicker();
-  }}
-              onClick={e => {
-    // Always open the picker on click
-    if (eventInputRef.current && eventInputRef.current.showPicker) {
-      eventInputRef.current.showPicker();
-    }
-  }}
-              style={{
-                background: 'rgb(25, 25, 25)',
-                color: 'white',
-                border: 'transparent',
-              }}
-            />
+  //           <Input
+  //             type="date"
+  //             autoFocus
+  //             size="small"
+  //             value={filters[key] || ''}
+  //             onChange={e => handleFilterChange(key, e.target.value)}
+  //             onFocus={e => {
+  //   e.target.showPicker && e.target.showPicker();
+  // }}
+  //             onClick={e => {
+  //   // Always open the picker on click
+  //   if (eventInputRef.current && eventInputRef.current.showPicker) {
+  //     eventInputRef.current.showPicker();
+  //   }
+  // }}
+  //             style={{
+  //               background: 'rgb(25, 25, 25)',
+  //               color: 'white',
+  //               border: 'transparent',
+  //             }}
+  //           />
+
+  <MuiInputWithDate
+  name={key}
+  value={filters[key] || ''}
+  onChange={e => handleFilterChange(key, e.target.value)}
+  placeholder="Select date"
+  required={false}
+  error={undefined}
+
+/>
           )}
           <span
 onClick={() => {

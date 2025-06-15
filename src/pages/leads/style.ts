@@ -72,6 +72,7 @@ export const DarkSelect = styled(Select)`
 
 export const FiltersDiv = styled.div`
 display: flex;
+flex-wrap: wrap;
 
 margin-bottom: 16px;
     align-items: center;
