@@ -2,9 +2,10 @@ import React from "react";
 import Select from "react-select";
 
 const customSelectStyles = {
-
-  menuList: (base: any) => ({
+     menuList: (base: any) => ({
       ...base,
+      maxHeight: 'none',  // Remove max height
+      overflowY: 'visible' // Remove scrolling
     }),
   menu: (provided: any) => ({
     ...provided,
@@ -18,10 +19,6 @@ const customSelectStyles = {
     color: "#fff",
     cursor: "pointer",
   
-  }),
-  optionList: (provided: any) => ({
-    ...provided,
-    zIndex: 9999, // Ensure the option list appears above other elements
   }),
   multiValue: (provided: any) => ({
     ...provided,
@@ -77,7 +74,7 @@ interface CustomSelectProps {
   width?: string; // optional width prop
 }
 
-const CustomSelect: React.FC<CustomSelectProps> = ({
+const CustomSelectWithAllOption: React.FC<CustomSelectProps> = ({
   isMulti = false,
   options,
   value,
@@ -85,7 +82,7 @@ const CustomSelect: React.FC<CustomSelectProps> = ({
   placeholder = "Select...",
   menuIsOpen,
   label,
-  width,// default width
+  width = "100%", // default width
   ...rest
 }) => (
   <div style={{ width }}>
@@ -107,4 +104,4 @@ const CustomSelect: React.FC<CustomSelectProps> = ({
   </div>
 );
 
-export default CustomSelect;
+export default CustomSelectWithAllOption;

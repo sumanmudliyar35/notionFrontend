@@ -15,7 +15,6 @@ export const SharedStyledWhiteInput = styled(Input)`
   &:hover,
   &:focus {
    background: rgb(25, 25, 25);
-   color: white;
     border-color: #555;
     box-shadow: none;
   }

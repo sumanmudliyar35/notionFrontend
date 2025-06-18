@@ -20,6 +20,7 @@ import CustomSearchInput from '../CustomSearchInput/CustomSearchInput';
 import { date } from 'yup';
 import MuiInputWithDate from '../MuiDatePicker/MuiInputWithDate';
 import Mui2InputWithDate from '../Mui2InputWithDate/Mui2InputWithDate';
+import MuiInputWithDateTime from '../MuiDateTimePicker/MuiDateTimePicker';
 
 interface CustomColumnMeta {
   editable?: boolean;
@@ -51,6 +52,8 @@ export function CustomTable<T extends object>(props: EditableTableProps<T>) {
 
 
     const [searchText, setSearchText] = useState('');
+    const [selectMenuOpen, setSelectMenuOpen] = useState(true);
+
 
       const searchInputRef = useRef<HTMLInputElement>(null);
 
@@ -118,7 +121,6 @@ export function CustomTable<T extends object>(props: EditableTableProps<T>) {
       }
       // If value is an array of objects, search inside each object's values
       if (Array.isArray(val) && val.length > 0 && typeof val[0] === 'object' && val[0] !== null) {
-        console.log("val", val)
         return val.some(obj =>
           Object.values(obj).some(innerVal =>
             innerVal && innerVal.toString().toLowerCase().includes(lower)
@@ -170,6 +172,7 @@ export function CustomTable<T extends object>(props: EditableTableProps<T>) {
   onDataChange(updated);
   onRowEdit?.(updated[rowIndex], rowIndex);
 };
+
 
 
 
@@ -237,7 +240,6 @@ if (firstEditableCol) {
 });
 
 
-console.log("date", data)
 
 
   // UI for toggling columns (now as a modal)
@@ -576,11 +578,35 @@ function EditableCell({
 
     const [open, setOpen] = React.useState(false);
 
+    const [selectMenuOpen, setSelectMenuOpen] = React.useState(false);
+  const selectRef = useRef<HTMLDivElement>(null);
+
      React.useEffect(() => {
     if (editorType === 'date') {
       setOpen(true);
     }
+     if (editorType === 'select') {
+      setSelectMenuOpen(true);
+    }
   }, [editorType]);
+
+   React.useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (selectRef.current && !selectRef.current.contains(event.target as Node)) {
+        if (selectMenuOpen) {
+          setSelectMenuOpen(false);
+          onCancel();
+        }
+      }
+    };
+
+    if (editorType === 'select' && selectMenuOpen) {
+      document.addEventListener('mousedown', handleClickOutside);
+      return () => {
+        document.removeEventListener('mousedown', handleClickOutside);
+      };
+    }
+  }, [editorType, selectMenuOpen, onCancel]);
 
 
   if (editorType === 'input') {
@@ -666,13 +692,35 @@ function EditableCell({
   );
 }
 
+if(editorType === 'datetime') {
+  return (
+    <MuiInputWithDateTime
+      name=""
+      value={editValue}
+      onChange={e => {
+        setEditValue(e.target.value);
+        onSave(e.target.value);
+        // setTimeout(() => onCancel(), 0);
+      }}
+      onBlur={() => {
+        onSave(editValue);
+        onCancel();
+      }}
+     
+    />
+  );
+}
+
+
+
   if (editorType === 'select') {
     return (
-      <CustomSelect
-        autoFocus
-        value={selectOptions?.find(opt => opt.value === editValue) || null}
-        style={{
-          width: '100%',
+      <div ref={selectRef}>
+        <CustomSelect
+          autoFocus
+          value={selectOptions?.find(opt => opt.value === editValue) || null}
+          style={{
+            width: '100%',
           position: 'absolute',
           top: 0,
           left: 0,
@@ -691,6 +739,7 @@ function EditableCell({
         placeholder="Select..."
         menuIsOpen
       />
+      </div>
     );
   }
 

@@ -12,6 +12,7 @@ import CustomSelect from '../../../../components/customSelect/CustomSelect';
 import { SharedInputWrapper } from '../../../../style/sharedStyle';
 import InputWithDate from '../../../../components/InputWithDate/InputWithDate';
 import MuiInputWithDate from '../../../../components/MuiDatePicker/MuiInputWithDate';
+import CustomSelectWithAllOption from '../../../../components/CustomSelectWithAllOption/CustomSelectWithAllOption';
 
 interface EventModalProps {
   open: boolean;
@@ -172,7 +173,7 @@ useEffect(() => {
 
 
 
-<CustomSelect
+<CustomSelectWithAllOption
   label="Event"
   name="eventId"
   placeholder='Select an event'
@@ -183,6 +184,7 @@ useEffect(() => {
   }}
   onBlur={formik.handleBlur}
   error={formik.touched.eventListId && formik.errors.eventListId ? formik.errors.eventListId : ''}
+ 
 />
 
 

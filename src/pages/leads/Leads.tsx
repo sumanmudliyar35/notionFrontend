@@ -31,6 +31,11 @@ import { useGetAllEventList } from "../../api/get/getAllEventList";
 import DescriptionCell from "./components/DescriptionCell/DescriptionCell";
 import MuiInputWithDate from "../../components/MuiDatePicker/MuiInputWithDate";
 import Mui2InputWithDate from "../../components/Mui2InputWithDate/Mui2InputWithDate";
+import { createPortal } from "react-dom";
+import CommentCell from "./components/CommentCell/CommentCell";
+import DateTimeModal from "./components/DateTimeModal/DateTimeModal";
+import ReminderModal from "../../components/reminderModal/ReminderModal";
+import { useCreateReminder } from "../../api/post/newReminder";
 
 
 interface Doc {
@@ -68,6 +73,10 @@ interface Doc {
   
 }
 
+
+
+
+const DROPDOWN_HEIGHT = 150; // px
 
 
 
@@ -177,6 +186,10 @@ const [editingEventValue, setEditingEventValue] = useState<any>({});
         const [selectedMentionLeadId, setSelectedMentionLeadId] = useState<number>();
 
         const [isVoiceModalOpen, setIsVoiceModalOpen] = useState(false);
+
+        const [isTimeDateModalOpen, setIsTimeDateModalOpen] = useState(false);  
+
+        const [isReminderModalOpen, setIsReminderModalOpen] = useState(false);
         const [selectedVoiceRow, setSelectedVoiceRow] = useState<any>(null);
 
         const [editingComment, setEditingComment] = useState<{ rowId: any; commentId: any } | null>(null);
@@ -230,9 +243,15 @@ useEffect(() => {
           setIsVoiceModalOpen(true);
   };
 
+
+  const handleOpenReminderModal = (rowId: any, reminder: any) => {
+    setSelectedLeadId(rowId);
+    setIsReminderModalOpen(true);
+  };
+
   const useUpdateCommentMutate = useUpdateComment();
 
-  const handleEditComment = async(rowId: any, commentId: any, commentText: string) => {
+  const handleEditComment = async(rowId: any, commentId: any, commentText: string, mentionedMember: any) => {
 
       // setTableData(prev =>
       //                     prev.map(row =>
@@ -248,12 +267,13 @@ useEffect(() => {
       //                         : row
       //                     )
       //                   );
-    console.log("Editing comment:", rowId, commentId, commentText);
+    console.log("Editing comment:", rowId, commentId, commentText, mentionedMember);
     // setEditingComment({ rowId, commentId });
     const body={
       comment: commentText,
+      mentionedMember: mentionedMember,
     }
-    const response = await useUpdateCommentMutate.mutateAsync([body, commentId]);
+    const response = await useUpdateCommentMutate.mutateAsync([body, commentId, userid]);
     refetchLeadsData();
     setEditingComment(null);
 
@@ -276,10 +296,22 @@ const handleDeleteComment = async (rowId: any, commentId: any) => {
 
 }
 
-const handleDescriptionChange = async (value: string, rowId: any ) => {
+const [editingRow, setEditingRow] = useState<any>(null);
+const [editingRowValue, setEditingRowValue] = useState<any>({});
+
+
+const handleOpenDateTimeModal = (row: any, date: any, time: any) => {
+  setEditingRow(row);
+  setEditingRowValue({ date, time });
+  setIsTimeDateModalOpen(true)
+};
+
+const handleDescriptionChange = async (value: string, rowId: any, mentionedMembers: any[] ) => {
   console.log("Description changed for row:", rowId, "New value:", value);
   const body = {
     description: value,
+    mentionedMembers: mentionedMembers
+
   };
 
   const response = await updateLeadMutate.mutateAsync([body,rowId, userid]);
@@ -325,6 +357,8 @@ const handleDeleteEvent = async (rowId: any, eventId: any) => {
 const handleDeleteLead = async (leadId: any) => {
   const body = {
     deletedAt: new Date(),
+    mentions: [],
+
   };
   await updateLeadMutate.mutateAsync([body, leadId, userid]);
   refetchLeadsData();
@@ -729,7 +763,7 @@ const columns: ColumnDef<Doc>[] = [
           </div>
         ) : (
           
-          <span style={{ color: "#aaa" }}>Record</span>
+          <span style={{ color: "#aaa" }}></span>
         )}
         <Button
           size="small"
@@ -746,167 +780,233 @@ const columns: ColumnDef<Doc>[] = [
   },
 },
     { header: 'Follow up', accessorKey: 'followup',     
-      meta: { editable: true,  editorType: 'date', // <-- add this
+      meta: { editorType: 'datetime', // <-- add this
  }
  ,
     cell: (getValue: any) => {
-   const value = getValue.getValue();
-    if (!value) return '';
-    // If already dd-mm-yyyy or dd/mm/yyyy, just return as is
-    if (/^\d{2}[-/]\d{2}[-/]\d{4}$/.test(value)) {
-      return value.replace(/\//g, '-');
-    }
-    // If ISO or other, convert to dd-mm-yyyy
-    const d = new Date(value);
-    if (isNaN(d.getTime())) return value;
+  const { followup, followupTime } = getValue.row.original;
+  if (!followup) return '';
+
+  // Combine date and time as a string in local time
+  const dateTimeString = `${followup}T${followupTime || '00:00'}`;
+  const d = new Date(dateTimeString);
+
+  let displayValue = '';
+  if (isNaN(d.getTime())) {
+    displayValue = followup;
+  } else {
+    // Format as DD/MM/YYYY, hh:mm AM/PM (no timezone conversion)
     const day = String(d.getDate()).padStart(2, '0');
     const month = String(d.getMonth() + 1).padStart(2, '0');
     const year = d.getFullYear();
-    return `${day}-${month}-${year}`;
-  },
+
+    let hour = d.getHours();
+    const minute = String(d.getMinutes()).padStart(2, '0');
+    const ampm = hour >= 12 ? 'PM' : 'AM';
+    hour = hour % 12;
+    hour = hour ? hour : 12; // the hour '0' should be '12'
+
+    displayValue = `${day}/${month}/${year}, ${String(hour).padStart(2, '0')}:${minute} ${ampm}`;
+  }
+
+  return (
+    <span
+      style={{ cursor: 'pointer', color: '#fff' }}
+      onClick={() =>
+        handleOpenDateTimeModal(
+          getValue.row.original.id,
+          followup,
+          followupTime
+        )
+      }
+    >
+      {displayValue || <span style={{ color: '#888' }}>Set follow up</span>}
+    </span>
+  );
+},
 
 },
 
 
  
-      { header: 'Reminder', accessorKey: 'reminder' },
+      { header: 'Reminder', accessorKey: 'reminder',
+
+        cell: (getValue: any) => {
+    const value = getValue.getValue();
+    return (
+      <span
+        style={{ cursor: 'pointer', color: '#fff' }}
+        onClick={() => handleOpenReminderModal(getValue.row.original.id, value,)}
+      >
+        {value || <span style={{ color: '#888' }}>Set reminder</span>}
+      </span>
+    );
+  },
+       },
       
         { header: 'Comments', accessorKey: 'comment',   size: 200,
     minSize: 80,
     maxSize: 400,
-    enableResizing: true, cell: ({ row }) => {
-    const comments = row.original.comments || [];
-    const rowId = row.original.id;
+    enableResizing: true, 
+//     cell: ({ row }) => {
+//     const comments = row.original.comments || [];
+//     const rowId = row.original.id;
 
-    if (!comments.length) {
-      return (
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-          <span>No comment</span>
-          <Button
-            size="small"
-            icon={<PlusOutlined />}
-            onClick={() => openCommentModal(row.original)}
-          />
-        </div>
-      );
-    }
+//     if (!comments.length) {
+//       return (
+//         <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+//           <span>No comment</span>
+//           <Button
+//             size="small"
+//             icon={<PlusOutlined />}
+//             onClick={() => openCommentModal(row.original)}
+//           />
+//         </div>
+//       );
+//     }
 
-   return (
-  <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-    {comments.map((c: any, idx: number) => {
-      const isEditing = editingComment && editingComment.rowId === rowId && editingComment.commentId === (c.id || idx);
+//    return (
+//   <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+//     {comments.map((c: any, idx: number) => {
+//       const isEditing = editingComment && editingComment.rowId === rowId && editingComment.commentId === (c.id || idx);
 
-      // Local state for this comment's edit value
-      const [localEditValue, setLocalEditValue] = useState<string>(c.comment);
+//       // Local state for this comment's edit value
+//       const [localEditValue, setLocalEditValue] = useState<string>(c.comment);
 
-      useEffect(() => {
-        // Reset local value when entering edit mode for this comment
-        if (isEditing) setLocalEditValue(c.comment);
-      }, [isEditing, c.comment]);
 
-      return (
-        <div key={c.id || idx} style={{ borderBottom: "1px solid #333", paddingBottom: 4 }}>
-          {isEditing ? (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
-              <Input.TextArea
-                value={localEditValue}
-                onChange={e => setLocalEditValue(e.target.value)}
-                style={{ marginBottom: 4 }}
-                onKeyDown={e => {
-          if (e.key === 'Enter' && !e.shiftKey) {
-            e.preventDefault();
-            handleEditComment(rowId, c.id || idx, localEditValue);
-          }
-        }}
-              />
-              <div>
-                <Button
-                  size="small"
-                  type="primary"
-                  onClick={() => {
-                    handleEditComment(rowId, c.id || idx, localEditValue);
-                  }}
-                  style={{ marginRight: 8 }}
-                >
-                  Save
-                </Button>
-                <Button
-                  size="small"
-                  onClick={() => {
-                    setEditingComment(null);
-                    setLocalEditValue(c.comment);
-                  }}
-                  style={{ marginRight: 8 }}
-                >
-                  Cancel
-                </Button>
-                <Button
-                  size="small"
-                  icon={
-                    <DeleteOutlined
-                      style={{
-                        filter: 'brightness(0.7) grayscale(0.7)',
-                      }}
-                    />
-                  }
-                  onClick={() => handleDeleteComment(rowId, c.id || idx)}
-                  style={{
-                    background: 'lightgray',
-                    borderColor: 'lightgray',
-                  }}
-                />
-              </div>
-            </div>
-          ) : (
-            <div
-              style={{ cursor: 'pointer', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}
-              onClick={() => {
-                setEditingComment({ rowId, commentId: c.id || idx });
-              }}
-            >
-              <div>
-               <span style={{ whiteSpace: 'pre-line' }}> <strong>{c.comment}</strong></span>
-                <div style={{ fontSize: 12, color: "#aaa" }}>
-                  By: {c.givenBy || "Unknown"} | At: {c.givenAt
-                    ? new Date(c.givenAt).toLocaleString("en-IN", { timeZone: "Asia/Kolkata" })
-                    : ""}
-                </div>
-              </div>
-              <Button
-                size="small"
-                danger
-                icon={
-                  <DeleteOutlined
-                    style={{
-                      filter: 'brightness(0.7) grayscale(0.7)',
-                    }}
-                  />
-                }
-                onClick={e => {
-                  e.stopPropagation();
-                  handleDeleteComment(rowId, c.id || idx);
-                }}
-                style={{
-                  background: 'lightgray',
-                  borderColor: 'lightgray',
-                }}
-              >
-              </Button>
-            </div>
-          )}
-        </div>
-      );
-    })}
-    <div>
-      <Button
-        size="small"
-        icon={<PlusOutlined />}
-        onClick={() => openCommentModal(row.original)}
-      />
-    </div>
-  </div>
-);
-  },
+        
+          
+            
+      
+
+//       useEffect(() => {
+//         // Reset local value when entering edit mode for this comment
+//         if (isEditing) setLocalEditValue(c.comment);
+//       }, [isEditing, c.comment]);
+
+//       return (
+//         <div key={c.id || idx} style={{ borderBottom: "1px solid #333", paddingBottom: 4 }}>
+//           {isEditing ? (
+//             <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+//               <Input.TextArea
+//                 value={localEditValue}
+//                 onChange={e => setLocalEditValue(e.target.value)}
+//                 style={{ marginBottom: 4 }}
+//                 onKeyDown={e => {
+//           if (e.key === 'Enter' && !e.shiftKey) {
+//             e.preventDefault();
+//             handleEditComment(rowId, c.id || idx, localEditValue);
+//           }
+//         }}
+//               />
+            
+//               <div>
+//                 <Button
+//                   size="small"
+//                   type="primary"
+//                   onClick={() => {
+//                     handleEditComment(rowId, c.id || idx, localEditValue);
+//                   }}
+//                   style={{ marginRight: 8 }}
+//                 >
+//                   Save
+//                 </Button>
+//                 <Button
+//                   size="small"
+//                   onClick={() => {
+//                     setEditingComment(null);
+//                     setLocalEditValue(c.comment);
+//                   }}
+//                   style={{ marginRight: 8 }}
+//                 >
+//                   Cancel
+//                 </Button>
+//                 <Button
+//                   size="small"
+//                   icon={
+//                     <DeleteOutlined
+//                       style={{
+//                         filter: 'brightness(0.7) grayscale(0.7)',
+//                       }}
+//                     />
+//                   }
+//                   onClick={() => handleDeleteComment(rowId, c.id || idx)}
+//                   style={{
+//                     background: 'lightgray',
+//                     borderColor: 'lightgray',
+//                   }}
+//                 />
+//               </div>
+//             </div>
+//           ) : (
+//             <div
+//               style={{ cursor: 'pointer', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}
+//               onClick={() => {
+//                 setEditingComment({ rowId, commentId: c.id || idx });
+//               }}
+//             >
+//               <div>
+//                <span style={{ whiteSpace: 'pre-line' }}> <strong>{c.comment}</strong></span>
+//                 <div style={{ fontSize: 12, color: "#aaa" }}>
+//                   By: {c.givenBy || "Unknown"} | At: {c.givenAt
+//                     ? new Date(c.givenAt).toLocaleString("en-IN", { timeZone: "Asia/Kolkata" })
+//                     : ""}
+//                 </div>
+//               </div>
+//               <Button
+//                 size="small"
+//                 danger
+//                 icon={
+//                   <DeleteOutlined
+//                     style={{
+//                       filter: 'brightness(0.7) grayscale(0.7)',
+//                     }}
+//                   />
+//                 }
+//                 onClick={e => {
+//                   e.stopPropagation();
+//                   handleDeleteComment(rowId, c.id || idx);
+//                 }}
+//                 style={{
+//                   background: 'lightgray',
+//                   borderColor: 'lightgray',
+//                 }}
+//               >
+//               </Button>
+//             </div>
+//           )}
+//         </div>
+//       );
+//     })}
+//     <div>
+//       <Button
+//         size="small"
+//         icon={<PlusOutlined />}
+//         onClick={() => openCommentModal(row.original)}
+//       />
+//     </div>
+//   </div>
+// );
+//   },
+cell: ({ row }) => {
+  const comments = row.original.comments || [];
+  const rowId = row.original.id;
+
+  return (
+    <CommentCell
+      comments={comments}
+      rowId={rowId}
+      openCommentModal={openCommentModal}
+      handleEditComment={handleEditComment}
+      handleDeleteComment={handleDeleteComment}
+      editingComment={editingComment}
+      setEditingComment={setEditingComment}
+      assigneeOptions={assigneeOptions}
+    />
+  );
+}
+
+
 },
 //           {
 //   header: 'Mention',
@@ -1051,6 +1151,7 @@ const createEmptyDoc = (): Doc => {
                description: updatedRow.description,
                status: updatedRow.status,
                converted: updatedRow.converted,
+               mentionedMembers:[],
               amount: (() => {
   if (typeof updatedRow.amount === 'number') {
     return updatedRow.amount.toLocaleString('en-IN');
@@ -1079,11 +1180,50 @@ const createEmptyDoc = (): Doc => {
 
       const leadId = tableData[rowIndex].id;
       if (!leadId) return;
-      await updateLeadMutate.mutateAsync([{deletedAt: new Date()}, leadId, userid]);
+      await updateLeadMutate.mutateAsync([{deletedAt: new Date(), mentionedMembers: []}, leadId, userid]);
       refetchLeadsData();
 
     }
 
+
+    const handleFollowupChange = async (date: any,time: any, leadID: any) => {
+      const body = {
+        followup: date ,
+        followupTime: time,
+        mentionedMembers: [],
+      };
+      try {
+        await updateLeadMutate.mutateAsync([body, leadID, userid]);
+
+        refetchLeadsData();
+      } catch (error) {
+        console.error("Error updating followup:", error);
+      }
+
+
+    };
+    
+
+
+
+const reminderMutate = useCreateReminder();
+
+    const handleReminderChange = async (date: any, time: any, leadID: any) => {
+      const body = {
+        reminderDate: date,
+        reminderTime: time,
+        leadID: selectedLeadId,
+        userId: userid,
+      };
+      try {
+        await reminderMutate.mutateAsync([body, selectedLeadId]);
+        refetchLeadsData();
+        setSelectedLeadId(0);
+        setIsReminderModalOpen(false);
+      } catch (error) {
+        console.error("Error creating reminder:", error);
+      }
+    };
 
     const [filters, setFilters] = useState<Record<string, string>>({});
 
@@ -1177,7 +1317,7 @@ const dateOption =[
   { label: 'Before', value: 'before' },
           { label: 'After', value: 'after' },
           { label: 'On Date', value: 'on' },
-          // { label: 'In Between', value: 'between' },
+          { label: 'In Between', value: 'between' },
 ]
 
 
@@ -1206,11 +1346,14 @@ console.log("Filters", hasActiveFilters, filters);
     // Event Data filter
 
 
-    console.log("Key", key, "val" ,val, "filter",  eventTypeFilter)
+    console.log("key", key, "val", val);
 
-    if (key === 'eventData') {
+    if (key === 'eventData' || key ==="eventDataStart" || key === "eventDataEnd") {
+
+      console.log("eventTypeFilter", eventTypeFilter);
 
 
+      console.log("eventDataFilter", eventDateFilter, "val", val, "event",key);
 
             if (!eventTypeFilter || !val) return true;
 
@@ -1256,34 +1399,81 @@ return eventDates.some((d: any) => {
     // Followup filter
 
   
-    if (key === 'followup' || key === 'followupType') {
+    if (key === 'followup' || key === 'followupType' || key ==='followupStart' || key ==="followupEnd") {
             if (!followupType || !val) return true;
 
       const followupDate = row.followup?.slice(0, 10);
 
-      if (!followupDate || !filters.followup) return false;
+      console.log("key", key, "followupDate", followupDate, followupType);
 
-      if (followupType === 'between') {
-        const start = filters.followupStart;
-        const end = filters.followupEnd;
-        if (!start || !end) return true; // Don't filter if both not set
-        return followupDate >= start && followupDate <= end;
-      }
+            // if (!followupDate || !filters.followup) return false;
 
-      if (followupType === 'before') {
+
+    
+
+  //     if (followupType === 'between') {
+
+  //      const start = filters.followupStart;
+  // const end = filters.followupEnd;
+
+
+
+  // if (!start || !end || !followupDate) return false; // All must be present
+
+  // // Convert to Date objects for accurate comparison
+  // const date = new Date(followupDate);
+  // const startDate = new Date(start);
+  // const endDate = new Date(end);
+  // console.log("startDate", startDate, "endDate", endDate, "date", date);
+  // console.log("dsds", date >= startDate, date <= endDate);
+
+
+
+  // // Check for valid dates
+  // if (isNaN(date.getTime()) || isNaN(startDate.getTime()) || isNaN(endDate.getTime())) return false;
+
+
+
+  // return date >= startDate && date <= endDate;
+  //     }
+
+
+  if (followupType === 'between' && filters.followupStart && filters.followupEnd) {
+
+
+  const start = filters.followupStart;
+  const end = filters.followupEnd;
+  
+  // If no range is set, don't filter
+  if (!start || !end) return true;
+  
+  // If no followup date, exclude this row
+  if (!followupDate) return false;
+
+  // For date-only comparisons, use string comparison (YYYY-MM-DD format)
+  // This avoids timezone issues and is more reliable for date-only filtering
+  return followupDate >= start && followupDate <= end;
+}
+
+      // if(filters.followup!=="between"){
+
+      // }
+
+
+      if (followupType === 'before' && filters.followup) {
 
         console.log("inside before");
         console.log("followupDate", followupDate, "filters.followup", filters.followup, followupDate < filters.followup);
 
         return followupDate < filters.followup;
       }
-      if (followupType === 'after') {
+      if (followupType === 'after' && filters.followup) {
 
         console.log("inside after");
         console.log("followupDate", followupDate, "filters.followup", filters.followup, followupDate> filters.followup);
         return followupDate > filters.followup;
       }
-      if (followupType === 'on') {
+      if (followupType === 'on' && filters.followup) {
                 console.log("followupDate", followupDate, "filters.followup", filters.followup, followupDate=== filters.followup);
 
         return followupDate === filters.followup;
@@ -1293,6 +1483,9 @@ return eventDates.some((d: any) => {
 
     // ...rest of your filters...
     if (key === 'eventType') return true;
+
+
+
     if (key === 'assignedTo') {
       return val ? String(row[key as keyof Doc] || '').includes(val) : true;
     }
@@ -1338,7 +1531,6 @@ return eventDates.some((d: any) => {
         // value={followupType}
                 value={dateOption?.find(opt => opt.value === followupType) || null}
 onChange={val => {
-  console.log('Selected followupType:', val.value, val.label);
   setFilters(prev => ({ ...prev, followupType: val.value }));
 }}        options={dateOption}
       />
@@ -1415,18 +1607,26 @@ onChange={val => {
   if (key === 'followup') {
     handleRemoveFilter('followup');
     handleRemoveFilter('followupType');
+    handleRemoveFilter('followupStart');
+    handleRemoveFilter('followupEnd');
 
     
   } else if (key === 'followupType') {
     handleRemoveFilter('followupType');
     handleRemoveFilter('followup');
+     handleRemoveFilter('followupStart');
+    handleRemoveFilter('followupEnd');
 
   } else if (key === 'eventData') {
     handleRemoveFilter('eventData');
     handleRemoveFilter('eventType');
+    handleRemoveFilter('eventDataStart');
+    handleRemoveFilter('eventDataEnd');
   } else if (key === 'eventType') {
     handleRemoveFilter('eventType');
     handleRemoveFilter('eventData');
+    handleRemoveFilter('eventDataStart');
+    handleRemoveFilter('eventDataEnd');
   } else {
     handleRemoveFilter(key);
   }
@@ -1460,36 +1660,22 @@ onChange={val => {
               { label: 'Before', value: 'before' },
               { label: 'After', value: 'after' },
               { label: 'On Date', value: 'on' },
-              // { label: 'In Between', value: 'between' }
+              { label: 'In Between', value: 'between' }
             ]}
           />
           {eventType === 'between' ? (
             <>
-              <Input
-                type="date"
-                size="small"
+              <MuiInputWithDate
+               name="eventDataStart"
                 value={filters.eventDataStart || ''}
                 onChange={e => setFilters(prev => ({ ...prev, eventDataStart: e.target.value }))}
-                style={{
-                  width: 110,
-                  background: 'rgb(25, 25, 25)',
-                  color: 'white',
-                  border: 'transparent',
-                  marginRight: 4,
-                }}
+                
                 placeholder="Start date"
               />
-              <Input
-                type="date"
-                size="small"
+              <MuiInputWithDate
+name="eventDataEnd"
                 value={filters.eventDataEnd || ''}
                 onChange={e => setFilters(prev => ({ ...prev, eventDataEnd: e.target.value }))}
-                style={{
-                  width: 110,
-                  background: 'rgb(25, 25, 25)',
-                  color: 'white',
-                  border: 'transparent',
-                }}
                 placeholder="End date"
               />
             </>
@@ -1541,9 +1727,13 @@ onClick={() => {
   } else if (key === 'eventData') {
     handleRemoveFilter('eventData');
     handleRemoveFilter('eventType');
+    handleRemoveFilter('eventDataStart');
+    handleRemoveFilter('eventDataEnd');
   } else if (key === 'eventType') {
     handleRemoveFilter('eventType');
     handleRemoveFilter('eventData');
+     handleRemoveFilter('eventDataStart');
+    handleRemoveFilter('eventDataEnd');
   } else {
     handleRemoveFilter(key);
   }
@@ -1680,11 +1870,12 @@ onClick={() => {
 
            {isCommentModalOpen && (
           <CommentModal
-          open={isCommentModalOpen}
+        open={isCommentModalOpen}
         onClose={() => setIsCommentModalOpen(false)}
         title="Add Comments"
         leadId={selectedLeadId || 0}
         refetch={refetchLeadsData}
+        assigneeOptions={assigneeOptions}
     
           />
         )}
@@ -1699,6 +1890,30 @@ onClick={() => {
   />
 )}
 
+
+ {isTimeDateModalOpen && (
+  <DateTimeModal
+    open={isTimeDateModalOpen}
+    onClose={() => setIsTimeDateModalOpen(false)}
+    title="Add Time/Date"
+    onSave={handleFollowupChange}
+    leadID={editingRow}
+    data={editingRowValue}
+  />
+)}
+
+{isReminderModalOpen && (
+  <ReminderModal
+    open={isReminderModalOpen}
+    onClose={() => setIsReminderModalOpen(false)}
+    title="Add Reminder"
+    onSave={handleReminderChange}
+    leadID={selectedLeadId}
+  />
+)}
+
+
+
         {isVoiceModalOpen && (
           <VoiceModal
             open={isVoiceModalOpen}
@@ -1706,6 +1921,9 @@ onClick={() => {
             onSave={handleSaveVoice}
           />
         )}
+
+
+
 
     </div>
   )

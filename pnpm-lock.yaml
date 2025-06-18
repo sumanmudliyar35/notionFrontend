@@ -38,6 +38,9 @@ importers:
       formik:
         specifier: ^2.4.6
         version: 2.4.6(react@19.1.0)
+      howler:
+        specifier: ^2.2.4
+        version: 2.2.4
       react:
         specifier: ^19.1.0
         version: 19.1.0
@@ -56,6 +59,9 @@ importers:
       react-select:
         specifier: ^5.10.1
         version: 5.10.1(@types/react@19.1.5)(react-dom@19.1.0(react@19.1.0))(react@19.1.0)
+      react-sounds:
+        specifier: ^1.0.25
+        version: 1.0.25(howler@2.2.4)(react@19.1.0)
       styled-components:
         specifier: ^6.1.18
         version: 6.1.18(react-dom@19.1.0(react@19.1.0))(react@19.1.0)
@@ -1375,6 +1381,9 @@ packages:
   hoist-non-react-statics@3.3.2:
     resolution: {integrity: sha512-/gGivxi8JPKWNm/W0jSmzcMPpfpPLc3dY/6GxhX2hQ9iGj3aDfklV4ET7NjKpSinLpJ5vafa9iiGIEZg10SfBw==}
 
+  howler@2.2.4:
+    resolution: {integrity: sha512-iARIBPgcQrwtEr+tALF+rapJ8qSc+Set2GJQl7xT1MQzWaVkFebdJhR3alVlSiUf5U7nAANKuj3aWpwerocD5w==}
+
   ignore@5.3.2:
     resolution: {integrity: sha512-hsBTNUqQTDwkWtcdYI2i06Y/nUBEsNEDJKjWdigLvegy8kDuJAS8uRlpkkcQpyEXL0Z/pjDy5HBmMjRCJ2gq+g==}
     engines: {node: '>= 4'}
@@ -1924,6 +1933,13 @@ packages:
     peerDependencies:
       react: ^16.8.0 || ^17.0.0 || ^18.0.0 || ^19.0.0
       react-dom: ^16.8.0 || ^17.0.0 || ^18.0.0 || ^19.0.0
+
+  react-sounds@1.0.25:
+    resolution: {integrity: sha512-szyOayVjaTomED1MSQdcNw5gBxHffClR982sl3yxeUi3hmmfJZf0Q1+hneab7z8x4khM64bvlrF4VQltzyEjUg==}
+    hasBin: true
+    peerDependencies:
+      howler: ^2.2.3
+      react: ^16.8.0 || ^17.0.0 || ^18.0.0 || ^19.0.0
 
   react-transition-group@4.4.5:
     resolution: {integrity: sha512-pZcd1MCJoiKiBR2NRxeCRg13uCXbydPnmB4EOeRrY7480qNWO8IIgQG6zlDkm6uRMsURXPuKq0GWtiM59a5Q6g==}
@@ -3534,6 +3550,8 @@ snapshots:
     dependencies:
       react-is: 16.13.1
 
+  howler@2.2.4: {}
+
   ignore@5.3.2: {}
 
   ignore@7.0.4: {}
@@ -4131,6 +4149,11 @@ snapshots:
     transitivePeerDependencies:
       - '@types/react'
       - supports-color
+
+  react-sounds@1.0.25(howler@2.2.4)(react@19.1.0):
+    dependencies:
+      howler: 2.2.4
+      react: 19.1.0
 
   react-transition-group@4.4.5(react-dom@19.1.0(react@19.1.0))(react@19.1.0):
     dependencies:

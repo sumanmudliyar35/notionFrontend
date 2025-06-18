@@ -8,7 +8,7 @@ const createComment: MutationFunction<any, [any, any]> = async (
 ) => {
   const [body, userId] = params;
 
-  const response = await axiosInstance.post(`/comment/createComment`, body);
+  const response = await axiosInstance.post(`/comment/createComment?userId=${userId}`, body);
   return response.data;
 };
 
