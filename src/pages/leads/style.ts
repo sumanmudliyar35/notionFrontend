@@ -80,3 +80,21 @@ margin-bottom: 16px;
 
 
 `
+
+
+export const DateDiv = styled.div`
+  display: flex;
+
+
+
+
+  
+    `;
+
+
+    export const singleDateDiv = styled.div`
+    display: flex;
+    width: 160px;
+
+
+    `;

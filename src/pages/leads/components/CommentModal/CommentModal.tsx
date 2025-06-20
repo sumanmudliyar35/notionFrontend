@@ -51,6 +51,7 @@ const CommentModal: React.FC<CommentModalProps> = ({
         leadId: leadId,
         comment: values.comment,
         mentionedMembers: storeMentionedUserIds,
+        givenBy: userid,
       }
       const response = await createCommentMutate.mutateAsync([body,userid]);
       resetForm();
@@ -123,6 +124,7 @@ const CommentModal: React.FC<CommentModalProps> = ({
               padding: 8,
               background: 'rgb(25, 25, 25)',
               color: 'white',
+              fontFamily: 'sans-serif'
             }}
             onKeyDown={(e) => {
     if (e.key === 'Enter') {

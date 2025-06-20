@@ -5,7 +5,7 @@ import { useGetLeadsByUser } from "../../api/get/getLeadsByUser";
 import { useCreateLead } from "../../api/post/newLead";
 import { useUpdateLead } from "../../api/put/updateLead";
 import * as styled from './style';
-import { Button, Input, Select } from "antd";
+import { Button, Input, message, Select } from "antd";
 import EventModal from "./components/EventModal/EventModal";
 import { DeleteOutlined, PlusOutlined } from "@ant-design/icons";
 import CommentModal from "./components/CommentModal/CommentModal";
@@ -96,6 +96,7 @@ const Leads = () => {
   const [referenceOptions, setReferenceOptions] = useState<{ label: string; value: string }[]>([]);
 
   const leadsOption =[
+    {label: 'Excited', value: 'excited'},
      { label: 'Warm', value: 'warm' },
       { label: 'Cold', value: 'cold' },
   ]
@@ -438,9 +439,38 @@ const columns: ColumnDef<Doc>[] = [
     editorType: 'eventData',
     visible: true,
   },
- cell: ({ row }) => {
+cell: ({ row }) => {
   const events = row.original.eventData || [];
   const rowId = row.original.id;
+
+  // State for editing event (move this to your parent component if you want to edit only one event at a time for the whole table)
+  const [editingIdx, setEditingIdx] = useState<number | null>(null);
+  const [localEditValue, setLocalEditValue] = useState<any>(null);
+
+  // When entering edit mode, set the local edit value
+  const startEdit = (event: any, idx: number) => {
+    setEditingIdx(idx);
+    setLocalEditValue({
+      eventDate: event.eventDate,
+      eventName: event.eventName || '',
+      noOfGuests: event.noOfGuests,
+      note: event.note || '',
+      crew: event.crew || '',
+    });
+  };
+
+  // When saving, call your handler and reset editing state
+  const saveEdit = async (eventId: any) => {
+    await handleUpdateEvent(rowId, eventId, localEditValue);
+    setEditingIdx(null);
+    setLocalEditValue(null);
+  };
+
+  // When canceling, reset editing state
+  const cancelEdit = () => {
+    setEditingIdx(null);
+    setLocalEditValue(null);
+  };
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
@@ -448,106 +478,61 @@ const columns: ColumnDef<Doc>[] = [
         <span style={{ color: '#aaa' }}>No Events</span>
       )}
       {events.map((event: any, idx: number) => {
-        const isEditing =
-          editingEventCell &&
-          editingEventCell.rowId === rowId &&
-          editingEventCell.eventId === (event.eventId || idx);
-
-        // Local state for this event's edit value
-        const [localEditValue, setLocalEditValue] = useState({
-          eventDate: event.eventDate,
-          eventName: event.eventName || '',
-          noOfGuests: event.noOfGuests,
-          note: event.note || '',
-          crew: event.crew || '',
-        });
-
-        useEffect(() => {
-          // Reset local value when entering edit mode for this event
-          if (isEditing) {
-            setLocalEditValue({
-              eventDate: event.eventDate,
-              eventName: event.eventName || '',
-              noOfGuests: event.noOfGuests,
-              note: event.note || '',
-              crew: event.crew || '',
-            });
-          }
-          // eslint-disable-next-line
-        }, [isEditing, event.eventDate, event.eventName, event.noOfGuests, event.note, event.crew]);
+        const isEditing = editingIdx === idx;
 
         return (
           <div
             key={event.eventId || idx}
-            style={{ borderBottom: '1px solid #eee', paddingBottom: 2, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}
+            style={{
+              borderBottom: '1px solid #eee',
+              paddingBottom: 2,
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+            }}
           >
             {isEditing ? (
               <div style={{ display: 'flex', flexDirection: 'column', gap: 8, width: '100%' }}>
-                {/* <input
-                  type="date"
+                <Mui2InputWithDate
+                  name="eventDate"
                   value={localEditValue.eventDate}
                   onChange={e =>
-                    setLocalEditValue(prev => ({
+                    setLocalEditValue((prev: any) => ({
                       ...prev,
                       eventDate: e.target.value,
                     }))
                   }
-                  style={{ fontFamily: 'sans-serif', padding: 4, borderRadius: 4, border: '1px solid #ccc', width: '100%' }}
-                /> */}
-
-                <Mui2InputWithDate
-
-  name="eventDate"
-  value={localEditValue.eventDate}
-  onChange={e =>
-    setLocalEditValue(prev => ({
-      ...prev,
-      eventDate: e.target.value,
-    }))
-  }
-  placeholder="Select date"
-  required={false}
-  error={undefined}
-  // sx={{
-  //   fontFamily: 'sans-serif',
-  //   padding: 4,
-  //   borderRadius: 4,
-  //   border: '1px solid #ccc',
-  //   width: '100%',
-  // }}
-/>
-
-                
-
-                
-               <CustomInput
+                  placeholder="Select date"
+                  required={false}
+                  error={undefined}
+                />
+                <CustomInput
                   placeholder="Event Name"
                   value={localEditValue.eventName}
                   onChange={e =>
-                    setLocalEditValue(prev => ({
+                    setLocalEditValue((prev: any) => ({
                       ...prev,
                       eventName: e.target.value,
                     }))
                   }
-                /> 
+                />
                 <CustomInput
                   type="number"
                   placeholder="No. of Guests"
                   value={localEditValue.noOfGuests}
                   onChange={e =>
-                    setLocalEditValue(prev => ({
+                    setLocalEditValue((prev: any) => ({
                       ...prev,
                       noOfGuests: e.target.value,
                     }))
                   }
                 />
-
                 <CustomInput
                   type="text"
                   placeholder="No. of Crew"
                   value={localEditValue.crew}
                   onChange={e =>
-                    setLocalEditValue(prev => ({
+                    setLocalEditValue((prev: any) => ({
                       ...prev,
                       crew: e.target.value,
                     }))
@@ -555,29 +540,23 @@ const columns: ColumnDef<Doc>[] = [
                 />
                 <CustomTextArea
                   value={localEditValue.note}
-                 onChange={val =>
-    setLocalEditValue(prev => ({
-      ...prev,
-      note: val,
-    }))
-  }
+                  onChange={val =>
+                    setLocalEditValue((prev: any) => ({
+                      ...prev,
+                      note: val,
+                    }))
+                  }
                 />
                 <div>
                   <Button
                     size="small"
                     type="primary"
-                    onClick={async () => {
-                      await handleUpdateEvent(rowId, event.eventId, localEditValue);
-                      setEditingEventCell(null);
-                    }}
+                    onClick={() => saveEdit(event.eventId)}
                     style={{ marginRight: 8 }}
                   >
                     Save
                   </Button>
-                  <Button
-                    size="small"
-                    onClick={() => setEditingEventCell(null)}
-                  >
+                  <Button size="small" onClick={cancelEdit}>
                     Cancel
                   </Button>
                 </div>
@@ -586,37 +565,32 @@ const columns: ColumnDef<Doc>[] = [
               <>
                 <div
                   style={{ cursor: 'pointer', flex: 1 }}
-                  onClick={() => {
-                    setEditingEventCell({ rowId, eventId: event.eventId || idx });
-                  }}
+                  onClick={() => startEdit(event, idx)}
                 >
                   <div>
-                   <b>{event.eventName} on</b>{' '}
-{event.eventDate
-  ? (() => {
-      // If already dd-mm-yyyy or dd/mm/yyyy, just return as is
-      if (/^\d{2}[-/]\d{2}[-/]\d{4}$/.test(event.eventDate)) {
-        return event.eventDate.replace(/\//g, '-');
-      }
-      // If ISO or other, convert to dd-mm-yyyy
-      const d = new Date(event.eventDate);
-      if (isNaN(d.getTime())) return event.eventDate;
-      const day = String(d.getDate()).padStart(2, '0');
-      const month = String(d.getMonth() + 1).padStart(2, '0');
-      const year = d.getFullYear();
-      return `${day}-${month}-${year}`;
-    })()
-  : ''}
+                    <b>{event.eventName} on</b>{' '}
+                    {event.eventDate
+                      ? (() => {
+                          if (/^\d{2}[-/]\d{2}[-/]\d{4}$/.test(event.eventDate)) {
+                            return event.eventDate.replace(/\//g, '-');
+                          }
+                          const d = new Date(event.eventDate);
+                          if (isNaN(d.getTime())) return event.eventDate;
+                          const day = String(d.getDate()).padStart(2, '0');
+                          const month = String(d.getMonth() + 1).padStart(2, '0');
+                          const year = d.getFullYear();
+                          return `${day}-${month}-${year}`;
+                        })()
+                      : ''}
                   </div>
                   <div>
                     <b>Guests:</b> {event.noOfGuests}
                   </div>
-
-                    {event.crew && (<div>
-                    <b>Crew:</b> {event.crew || 0}
-
-                    </div>)
-      }
+                  {event.crew && (
+                    <div>
+                      <b>Crew:</b> {event.crew || 0}
+                    </div>
+                  )}
                   {event.note && (
                     <div>
                       <b>Note:</b> {event.note}
@@ -626,15 +600,15 @@ const columns: ColumnDef<Doc>[] = [
                 <Button
                   size="small"
                   danger
-                  icon={<DeleteOutlined  
-                     style={{
+                  icon={
+                    <DeleteOutlined
+                      style={{
                         filter: 'brightness(0.7) grayscale(0.7)',
                       }}
-                  
-                  />}
+                    />
+                  }
                   onClick={e => {
                     e.stopPropagation();
-                    // Call your delete handler here
                     handleDeleteEvent(rowId, event.eventId);
                   }}
                   style={{
@@ -655,7 +629,7 @@ const columns: ColumnDef<Doc>[] = [
       />
     </div>
   );
-},
+}
 },
   {
     header: 'Amount',
@@ -785,7 +759,7 @@ const columns: ColumnDef<Doc>[] = [
  ,
     cell: (getValue: any) => {
   const { followup, followupTime } = getValue.row.original;
-  if (!followup) return '';
+  // if (!followup) return  <span style={{ color: '#888' }}>Set follow up</span>;
 
   // Combine date and time as a string in local time
   const dateTimeString = `${followup}T${followupTime || '00:00'}`;
@@ -1200,20 +1174,38 @@ const createEmptyDoc = (): Doc => {
         console.error("Error updating followup:", error);
       }
 
-
     };
+
+
+    const handleColumnOrder= (newOrder: string[]) => {
+      const updatedColumns = newOrder.map((key) => {
+        const col = columns.find((c: any) => c.accessorKey === key);
+        return col ? { ...col, order: newOrder.indexOf(key) } : null;
+      }).filter(Boolean) as ColumnDef<Doc>[];
+
+
+      console.log("Updated columns:", updatedColumns);
+      
+      // setColumns(updatedColumns);
+      // onColumnOrderChange?.(newOrder);
+    };
+
+
+
     
 
 
 
 const reminderMutate = useCreateReminder();
 
-    const handleReminderChange = async (date: any, time: any, leadID: any) => {
+    const handleReminderChange = async (date: any, time: any, leadID: any, title: any) => {
+
       const body = {
         reminderDate: date,
         reminderTime: time,
-        leadID: selectedLeadId,
+        leadId: selectedLeadId,
         userId: userid,
+        message: title,
       };
       try {
         await reminderMutate.mutateAsync([body, selectedLeadId]);
@@ -1540,66 +1532,35 @@ onChange={val => {
 
       {followupType === 'between' ? (
         <>
-          <Input
-            type="date"
-            size="small"
+        <styled.singleDateDiv>
+          <MuiInputWithDate
+            name="followupStart"
             value={filters.followupStart || ''}
             onChange={e => setFilters(prev => ({ ...prev, followupStart: e.target.value }))}
-            style={{
-              width: 110,
-              background: 'rgb(25, 25, 25)',
-              color: 'white',
-              border: 'transparent',
-              marginRight: 4,
-            }}
+          
             placeholder="Start date"
           />
-          <Input
-            type="date"
-            size="small"
+          </styled.singleDateDiv>
+          <styled.singleDateDiv>
+          <MuiInputWithDate
+            name="followupEnd"
             value={filters.followupEnd || ''}
             onChange={e => setFilters(prev => ({ ...prev, followupEnd: e.target.value }))}
-            style={{
-              width: 110,
-              background: 'rgb(25, 25, 25)',
-              color: 'white',
-              border: 'transparent',
-            }}
             placeholder="End date"
           />
+        </styled.singleDateDiv>
         </>
       ) : (
-  //       <Input
-  //         type="date"
-  //         autoFocus
-  //         // ref={inputRef}
-
-  //         value={filters[key] || ''}
-  //         onChange={e => handleFilterChange(key, e.target.value)}
-  //         style={{
-  //           background: 'rgb(25, 25, 25)',
-  //           color: 'white',
-  //           border: 'transparent',
-  //         }}
-  //           onFocus={e => {
-  //       e.target.showPicker && e.target.showPicker();
-  //     }}
-  //     onClick={e => {
-  //   // Always open the picker on click
-  //   if (inputRef.current && inputRef.current.showPicker) {
-  //     inputRef.current.showPicker();
-  //   }
-  // }}
-  //       />
-    <MuiInputWithDate
-  name={key}
-  value={filters[key] || ''}
-  onChange={e => handleFilterChange(key, e.target.value)}
-  placeholder="Select date"
-  required={false}
-  error={undefined}
-
-/>
+        <styled.singleDateDiv>
+          <MuiInputWithDate
+            name={key}
+            value={filters[key] || ''}
+            onChange={e => handleFilterChange(key, e.target.value)}
+            placeholder="Select date"
+            required={false}
+            error={undefined}
+          />
+        </styled.singleDateDiv>
       )}
       <span
        onClick={() => {
@@ -1665,6 +1626,8 @@ onChange={val => {
           />
           {eventType === 'between' ? (
             <>
+
+             <styled.singleDateDiv>
               <MuiInputWithDate
                name="eventDataStart"
                 value={filters.eventDataStart || ''}
@@ -1672,35 +1635,26 @@ onChange={val => {
                 
                 placeholder="Start date"
               />
+
+              </styled.singleDateDiv>
+
+              <styled.singleDateDiv>
+
+              
               <MuiInputWithDate
 name="eventDataEnd"
                 value={filters.eventDataEnd || ''}
                 onChange={e => setFilters(prev => ({ ...prev, eventDataEnd: e.target.value }))}
                 placeholder="End date"
               />
+
+                            </styled.singleDateDiv>
+
             </>
-          ) : (
-  //           <Input
-  //             type="date"
-  //             autoFocus
-  //             size="small"
-  //             value={filters[key] || ''}
-  //             onChange={e => handleFilterChange(key, e.target.value)}
-  //             onFocus={e => {
-  //   e.target.showPicker && e.target.showPicker();
-  // }}
-  //             onClick={e => {
-  //   // Always open the picker on click
-  //   if (eventInputRef.current && eventInputRef.current.showPicker) {
-  //     eventInputRef.current.showPicker();
-  //   }
-  // }}
-  //             style={{
-  //               background: 'rgb(25, 25, 25)',
-  //               color: 'white',
-  //               border: 'transparent',
-  //             }}
-  //           />
+          ) : (    
+
+            <styled.singleDateDiv>
+
 
   <MuiInputWithDate
   name={key}
@@ -1711,6 +1665,8 @@ name="eventDataEnd"
   error={undefined}
 
 />
+            </styled.singleDateDiv>
+
           )}
           <span
 onClick={() => {
@@ -1852,6 +1808,7 @@ onClick={() => {
     
   }}
   onRowDelete={handleRowDelete} // ✅ added
+  onColumnOrderChange={handleColumnOrder} // ✅ added
 
         />
 

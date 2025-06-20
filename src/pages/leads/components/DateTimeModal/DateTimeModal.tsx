@@ -54,6 +54,7 @@ const DateTimeModal = ({ open, onClose, title, onSave, leadID, data }: DateTimeM
               backgroundColor: 'rgb(25, 25, 25)',
               color: 'white',
             }}
+           
             placeholder="Select Date"
           />
         </div>

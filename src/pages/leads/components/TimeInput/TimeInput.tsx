@@ -25,7 +25,7 @@ const TimeInput: React.FC<TimeInputProps> = ({
     } else {
       onChange(null); // Clear the value if no time is selected
     }
-    setOpen(false); // Close after selection
+    // setOpen(false); // Close after selection
   };
 
   return (

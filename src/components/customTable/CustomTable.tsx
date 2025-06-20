@@ -21,6 +21,11 @@ import { date } from 'yup';
 import MuiInputWithDate from '../MuiDatePicker/MuiInputWithDate';
 import Mui2InputWithDate from '../Mui2InputWithDate/Mui2InputWithDate';
 import MuiInputWithDateTime from '../MuiDateTimePicker/MuiDateTimePicker';
+import { DndContext, closestCenter, PointerSensor, useSensor, useSensors } from '@dnd-kit/core';
+import { arrayMove, SortableContext, useSortable, verticalListSortingStrategy } from '@dnd-kit/sortable';
+import { CSS } from '@dnd-kit/utilities';
+import { MenuOutlined } from '@ant-design/icons';
+import ManageColumn from '../../pages/leads/components/ManageColumn/ManageColumn';
 
 interface CustomColumnMeta {
   editable?: boolean;
@@ -43,45 +48,35 @@ columns: ColumnDef<T>[];
     columnSizing?: Record<string, number>;
   onColumnSizingChange?: (newSizing: Record<string, number>, columnId: string) => void;
 onRowDelete?: (rowIndex: number) => void; // Optional callback for row deletion
+onColumnOrderChange?: (newOrder: string[]) => void;
 
 
 }
 
 export function CustomTable<T extends object>(props: EditableTableProps<T>) {
+  // ✅ ALL HOOKS FIRST - NO CONDITIONS
+  const [searchText, setSearchText] = useState('');
+  const [selectMenuOpen, setSelectMenuOpen] = useState(true);
+  const [hasAdded, setHasAdded] = useState(false);
+  const [currentlyEditing, setCurrentlyEditing] = useState<{
+    rowIndex: number;
+    columnId: keyof T;
+  } | null>(null);
+  const [sorting, setSorting] = useState<any[]>([]);
+  const [hoveredRow, setHoveredRow] = useState<number | null>(null);
+  const [isColumnModalOpen, setIsColumnModalOpen] = useState(false);
+  const [columnVisibility, setColumnVisibility] = useState<VisibilityState>({});
+  const [menuOpenCell, setMenuOpenCell] = useState<{ rowIndex: number; columnId: keyof T } | null>(null);
+  const [actionCollapsed, setActionCollapsed] = useState(true);
+  const [columnManagerOrder, setColumnManagerOrder] = useState<string[]>([]);
 
+  // ✅ ALL REFS
+  const searchInputRef = useRef<HTMLInputElement>(null);
+  const newRowRef = useRef<HTMLTableRowElement>(null);
+  const addRowTriggeredRef = useRef(false);
+  const timeout = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-
-    const [searchText, setSearchText] = useState('');
-    const [selectMenuOpen, setSelectMenuOpen] = useState(true);
-
-
-      const searchInputRef = useRef<HTMLInputElement>(null);
-
-        const newRowRef = useRef<HTMLTableRowElement>(null);
-
-        const addRowTriggeredRef = useRef(false);
-
-
-
-
-        useEffect(() => {
-
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.ctrlKey && e.key.toLowerCase() === 'f') {
-        e.preventDefault();
-        setTimeout(() => {
-          searchInputRef.current?.focus();
-        }, 0);
-      }
-      // Optionally: ESC to close search
-      
-    };
-    window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
-  }, []);
-   
-
-
+  // ✅ DESTRUCTURE PROPS AFTER HOOKS
   const {
     columns,
     data,
@@ -89,207 +84,43 @@ export function CustomTable<T extends object>(props: EditableTableProps<T>) {
     createEmptyRow,
     onRowCreate,
     onRowEdit,
-        onRowDelete,
+    onRowDelete,
     isWithNewRow,
-    columnSizing = {}, // <-- Add default value for columnSizing
-    onColumnSizingChange
+    columnSizing = {},
+    onColumnSizingChange,
+    onColumnOrderChange
   } = props;
 
-
-  
-
-
-  //  const filteredData = React.useMemo(() => {
-  //   if (!searchText.trim()) return data;
-  //   const lower = searchText.toLowerCase();
-  //   return data.filter(row =>
-  //     Object.values(row).some(val =>
-  //       (val !== null && val !== undefined && String(val).toLowerCase().includes(lower))
-  //     )
-  //   );
-  // }, [data, searchText]);
-
-  const filteredData = React.useMemo(() => {
-  if (!searchText) return data;
-  const lower = searchText.toLowerCase();
-
-  return data.filter(row => {
-    return Object.values(row).some(val => {
-      // If value is a string or number, check directly
-      if (typeof val === 'string' || typeof val === 'number') {
-        return val.toString().toLowerCase().includes(lower);
-      }
-      // If value is an array of objects, search inside each object's values
-      if (Array.isArray(val) && val.length > 0 && typeof val[0] === 'object' && val[0] !== null) {
-        return val.some(obj =>
-          Object.values(obj).some(innerVal =>
-            innerVal && innerVal.toString().toLowerCase().includes(lower)
-          )
-        );
-      }
-      // If value is an array of primitives
-      if (Array.isArray(val)) {
-        return val.some(item =>
-          item && item.toString().toLowerCase().includes(lower)
-        );
-      }
-      // If value is an object (not array), search its values
-      if (typeof val === 'object' && val !== null) {
-        return Object.values(val).some(innerVal =>
-          innerVal && innerVal.toString().toLowerCase().includes(lower)
-        );
-      }
-      return false;
-    });
-  });
-}, [data, searchText]);
-
-  const [hasAdded, setHasAdded] = useState(false);
-  const [currentlyEditing, setCurrentlyEditing] = useState<{
-    rowIndex: number;
-    columnId: keyof T;
-  } | null>(null);
-
-  const [sorting, setSorting] = useState<any[]>([]);
-  const [hoveredRow, setHoveredRow] = useState<number | null>(null);
-  const [isColumnModalOpen, setIsColumnModalOpen] = useState(false);
-
-  // Add state for column visibility
-  const [columnVisibility, setColumnVisibility] = useState<VisibilityState>({});
-  const [menuOpenCell, setMenuOpenCell] = useState<{ rowIndex: number; columnId: keyof T } | null>(null);
-
-
-    const [actionCollapsed, setActionCollapsed] = useState(true);
-  
-  const handleEdit = (rowIndex: number, columnId: keyof T, value: any) => {
-
-    console.log('Editing row:', rowIndex, 'column:', columnId, 'value:', value);
-  const updated = [...data];
-  updated[rowIndex] = {
-    ...updated[rowIndex],
-    [columnId]: value,
-  };
-  onDataChange(updated);
-  onRowEdit?.(updated[rowIndex], rowIndex);
-};
-
-
-
-
-
-  const handleAddEmptyRow = () => {
-    if (addRowTriggeredRef.current) return;
-  addRowTriggeredRef.current = true;
-    const newRow = createEmptyRow();
-    onDataChange([...data, createEmptyRow()]);
-      onRowCreate?.(newRow); // ✅ Notify parent
+  // ✅ ALL EFFECTS AFTER STATE/REFS
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.ctrlKey && e.key.toLowerCase() === 'f') {
+        e.preventDefault();
         setTimeout(() => {
-    if (newRowRef.current) {
-      newRowRef.current.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+          searchInputRef.current?.focus();
+        }, 0);
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, []);
+
+  // Initialize column manager order
+  useEffect(() => {
+    if (columns.length > 0) {
+      setColumnManagerOrder(columns.map((col: any) => col.id || col.accessorKey));
     }
-    // Open the first editable cell of the new row
-    const lastRowIndex = table.getRowModel().rows.length;
-    const firstEditableCol = columns.find((col: any) => col.meta?.editable);
-if (firstEditableCol) {
-  setCurrentlyEditing({
-    rowIndex: lastRowIndex,
-    columnId: columns[0].id as keyof T, // use the first column's id
-  });
-}
-    // Find the first editable column
-   
-  }, 0);
+  }, [columns]);
 
-   setTimeout(() => {
-    addRowTriggeredRef.current = false;
-  }, 300);
+  // Reset order when modal opens
+  useEffect(() => {
+    if (isColumnModalOpen && columns.length > 0) {
+      setColumnManagerOrder(columns.map((col: any) => col.id || col.accessorKey));
+    }
+  }, [isColumnModalOpen, columns]);
 
-    setHasAdded(true);
-  };
-
-  // const table = useReactTable({
-  //   data,
-  //   columns,
-  //   getCoreRowModel: getCoreRowModel(),
-  //   getSortedRowModel: getSortedRowModel(),
-  //   state: { sorting, columnVisibility }, // <-- add columnVisibility
-  //   onSortingChange: setSorting,
-  //   onColumnVisibilityChange: setColumnVisibility, // <-- add handler
-  //   columnResizeMode: 'onChange', // Optional: useful for resizable support later
-
-  // });
-
-  const table = useReactTable({
-    data: filteredData,
-  columns,
-  getCoreRowModel: getCoreRowModel(),
-  getSortedRowModel: getSortedRowModel(),
-  state: { sorting, columnVisibility, columnSizing }, // <-- use destructured columnSizing
-  onSortingChange: setSorting,
-  onColumnVisibilityChange: setColumnVisibility,
-  columnResizeMode: 'onChange',
-  onColumnSizingChange: (updater) => {
-    // updater can be a function or an object
-    const newSizing = typeof updater === 'function' ? updater(columnSizing || {}) : updater;
-    // Find the changed column
-    const changed = Object.keys(newSizing).find(
-      key => !columnSizing || columnSizing[key] !== newSizing[key]
-    );
-    onColumnSizingChange?.(newSizing, changed || '');
-  },
-});
-
-
-
-
-  // UI for toggling columns (now as a modal)
-
-
-
-  const renderColumnManager = () => (
-    <>
-      <Button
-        type="primary"
-        onClick={() => setIsColumnModalOpen(true)}
-      >
-        Manage Columns
-      </Button>
-      <CustomModal
-        open={isColumnModalOpen}
-        onClose={() => setIsColumnModalOpen(false)}
-        footer={null}
-        title="Show/Hide Columns"
-      >
-        {table.getAllLeafColumns().map((column) => {
-          const visible = column.getIsVisible();
-          return (
-            <div
-              key={column.id}
-              style={{
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "space-between",
-                padding: "8px 0",
-                borderBottom: "1px solid #222",
-              }}
-            >
-              <span>{column.columnDef.header as string}</span>
-              <span
-                style={{ cursor: "pointer", fontSize: 18 }}
-                onClick={() => column.toggleVisibility()}
-                title={visible ? "Hide" : "Show"}
-              >
-                {visible ? <EyeOutlined /> : <EyeInvisibleOutlined />}
-              </span>
-            </div>
-          );
-        })}
-      </CustomModal>
-    </>
-  );
-
-  // Add a CSS media query for sticky/relative columns
-  React.useEffect(() => {
+  // CSS injection effect
+  useEffect(() => {
     const style = document.createElement('style');
     style.innerHTML = `
       @media (max-width: 600px) {
@@ -313,47 +144,222 @@ if (firstEditableCol) {
     };
   }, []);
 
-  // Debounce utility
-function useDebouncedCallback(callback: (...args: any[]) => void, delay: number) {
-  const timeout = useRef<ReturnType<typeof setTimeout> | null>(null);
-  return (...args: any[]) => {
-    if (timeout.current) clearTimeout(timeout.current);
-    timeout.current = setTimeout(() => callback(...args), delay);
-  };
-}
+  // ✅ MEMOIZED VALUES
+  const filteredData = React.useMemo(() => {
+    if (!searchText) return data;
+    const lower = searchText.toLowerCase();
 
-const debouncedHandleEdit = useDebouncedCallback(handleEdit, 500);
+    return data.filter(row => {
+      return Object.values(row).some(val => {
+        if (typeof val === 'string' || typeof val === 'number') {
+          return val.toString().toLowerCase().includes(lower);
+        }
+        if (Array.isArray(val) && val.length > 0 && typeof val[0] === 'object' && val[0] !== null) {
+          return val.some(obj =>
+            Object.values(obj).some(innerVal =>
+              innerVal && innerVal.toString().toLowerCase().includes(lower)
+            )
+          );
+        }
+        if (Array.isArray(val)) {
+          return val.some(item =>
+            item && item.toString().toLowerCase().includes(lower)
+          );
+        }
+        if (typeof val === 'object' && val !== null) {
+          return Object.values(val).some(innerVal =>
+            innerVal && innerVal.toString().toLowerCase().includes(lower)
+          );
+        }
+        return false;
+      });
+    });
+  }, [data, searchText]);
 
+  // ✅ TABLE INSTANCE
+  const table = useReactTable({
+    data: filteredData,
+    columns,
+    getCoreRowModel: getCoreRowModel(),
+    getSortedRowModel: getSortedRowModel(),
+    state: { sorting, columnVisibility, columnSizing },
+    onSortingChange: setSorting,
+    onColumnVisibilityChange: setColumnVisibility,
+    columnResizeMode: 'onChange',
+    onColumnSizingChange: (updater) => {
+      const newSizing = typeof updater === 'function' ? updater(columnSizing || {}) : updater;
+      const changed = Object.keys(newSizing).find(
+        key => !columnSizing || columnSizing[key] !== newSizing[key]
+      );
+      onColumnSizingChange?.(newSizing, changed || '');
+    },
+  });
 
-const handleDeleteRow = (rowIndex: number) => {
+  // ✅ CALLBACK FUNCTIONS
+  // const debouncedHandleEdit = React.useCallback(
+  //   (...args: any[]) => {
+  //     if (timeout.current) clearTimeout(timeout.current);
+  //     timeout.current = setTimeout(() => handleEdit(...args), 500);
+  //   },
+  //   []
+  // );
+
+  const handleEdit = React.useCallback((rowIndex: number, columnId: keyof T, value: any) => {
+    console.log('Editing row:', rowIndex, 'column:', columnId, 'value:', value);
+    const updated = [...data];
+    updated[rowIndex] = {
+      ...updated[rowIndex],
+      [columnId]: value,
+    };
+    onDataChange(updated);
+    onRowEdit?.(updated[rowIndex], rowIndex);
+  }, [data, onDataChange, onRowEdit]);
+
+  const handleAddEmptyRow = React.useCallback(() => {
+    if (addRowTriggeredRef.current) return;
+    addRowTriggeredRef.current = true;
+    const newRow = createEmptyRow();
+    onDataChange([...data, newRow]);
+    onRowCreate?.(newRow);
+    
+    setTimeout(() => {
+      if (newRowRef.current) {
+        newRowRef.current.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+      }
+      const lastRowIndex = table.getRowModel().rows.length;
+      const firstEditableCol = columns.find((col: any) => col.meta?.editable);
+      if (firstEditableCol) {
+        setCurrentlyEditing({
+          rowIndex: lastRowIndex,
+          columnId: columns[0].id as keyof T,
+        });
+      }
+    }, 0);
+
+    setTimeout(() => {
+      addRowTriggeredRef.current = false;
+    }, 300);
+
+    setHasAdded(true);
+  }, [data, createEmptyRow, onDataChange, onRowCreate, table, columns]);
+
+  const handleDeleteRow = React.useCallback((rowIndex: number) => {
     const updated = [...data];
     updated.splice(rowIndex, 1);
     if (onRowDelete) {
-      onRowDelete(rowIndex); // Call the optional callback if provided
+      onRowDelete(rowIndex);
     }
     onDataChange(updated);
-  };
+  }, [data, onRowDelete, onDataChange]);
 
+  const handleColumnManagerDragEnd = React.useCallback((event: any) => {
+    const { active, over } = event;
+    if (active.id !== over.id) {
+      const oldIndex = columnManagerOrder.indexOf(active.id);
+      const newIndex = columnManagerOrder.indexOf(over.id);
+      const newOrder = arrayMove(columnManagerOrder, oldIndex, newIndex);
+      setColumnManagerOrder(newOrder);
+      onColumnOrderChange && onColumnOrderChange(newOrder);
+    }
+  }, [columnManagerOrder, onColumnOrderChange]);
 
+  // ✅ COMPONENT FUNCTIONS
+  function SortableColumnRow({ column }: { column: any }) {
+    const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
+      id: column.id,
+    });
+    const visible = column.getIsVisible();
+    
+    return (
+      <div
+        ref={setNodeRef}
+        style={{
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "space-between",
+          padding: "8px 0",
+          borderBottom: "1px solid #222",
+          background: isDragging ? "#222" : undefined,
+          transform: CSS.Transform.toString(transform),
+          transition,
+          opacity: isDragging ? 0.5 : 1,
+          cursor: "grab",
+        }}
+        {...attributes}
+        {...listeners}
+      >
+        <span style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+          <MenuOutlined style={{ cursor: 'grab', color: '#888' }} />
+          {column.columnDef.header as string}
+        </span>
+        <span
+          style={{ cursor: "pointer", fontSize: 18 }}
+          onClick={() => column.toggleVisibility()}
+          title={visible ? "Hide" : "Show"}
+        >
+          {visible ? <EyeOutlined /> : <EyeInvisibleOutlined />}
+        </span>
+      </div>
+    );
+  }
 
+  const renderColumnManager = () => (
+    <>
+      <Button
+        type="primary"
+        onClick={() => setIsColumnModalOpen(true)}
+      >
+        Manage Columns
+      </Button>
+      <ManageColumn
+        isOpen={isColumnModalOpen}
+        onClose={() => setIsColumnModalOpen(false)}
+        table={table}
+        handleColumnManagerDragEnd={handleColumnManagerDragEnd}
+        columnManagerOrder={columnManagerOrder}
+      />
+    </>
+  );
+
+  const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 5 } }));
+
+  const tableContainerRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+  if (!currentlyEditing) return;
+
+  function handleClickOutside(event: MouseEvent) {
+    if (
+      tableContainerRef.current &&
+      !tableContainerRef.current.contains(event.target as Node)
+    ) {
+      setCurrentlyEditing(null);
+    }
+  }
+
+  document.addEventListener('mousedown', handleClickOutside);
+  return () => document.removeEventListener('mousedown', handleClickOutside);
+}, [currentlyEditing]);
+
+  // ✅ RENDER - All hooks are guaranteed to be called before this point
   return (
-    <styled.tableMainContainer>
-
+    <styled.tableMainContainer   ref={tableContainerRef}
+>
       <styled.tableActionsDiv>
-            {renderColumnManager()}
-
-            <CustomSearchInput
-              placeholder="Search"
-              allowClear
-              value={searchText}
-              onChange={e => setSearchText(e.target.value)}
+        {renderColumnManager()}
+        <CustomSearchInput
+          placeholder="Search"
+          allowClear
+          value={searchText}
+          onChange={e => setSearchText(e.target.value)}
           style={{ width: 200}}
         />
-        </styled.tableActionsDiv>
-    <div style={{ overflowX: 'auto', width: '100%', overflowY: 'auto' }}>
-      <table style={{ borderCollapse: 'collapse', tableLayout: 'fixed', position: 'sticky', zIndex: 120, top: 0 }}>
-        <thead>
-          <tr>
+      </styled.tableActionsDiv>
+      
+      <div style={{ overflowX: 'auto', width: '100%', overflowY: 'auto' }}>
+        <table style={{ borderCollapse: 'collapse', tableLayout: 'fixed', position: 'sticky', zIndex: 120, top: 0 }}>
+          <thead>
+            <tr>
               <th
                 style={{
                   width: actionCollapsed ? 30 : 48,
@@ -377,186 +383,181 @@ const handleDeleteRow = (rowIndex: number) => {
                 </span>
               </th>
 
-            {table.getHeaderGroups()[0].headers.map((header: any) => (
-              <th
-                key={header.id}
+              {table.getHeaderGroups()[0].headers.map((header: any) => (
+                <th
+                  key={header.id}
+                  style={{
+                    border: '3.5px solid rgb(32,32,32)',
+                    padding: '7.7px',
+                    width: header.column.getSize(),
+                    minWidth: header.column.getSize(),
+                    maxWidth: header.column.getSize(),
+                    position: header.index === 0 ? 'sticky' : 'relative',
+                    left: header.index === 0 ? actionCollapsed ? 30 : 40 : undefined,
+                    top: header.index === 0 ? 0 : undefined,
+                    background: '#1a1a1a',
+                    userSelect: 'none',
+                    zIndex: header.column.getIndex() === 0 ? 101 : undefined,
+                  }}
+                >
+                  <div style={{ display: 'flex', alignItems: 'center', width: '100%' }}>
+                    {header.isPlaceholder ? null : header.column.columnDef.header}
+                    {header.column.getCanResize() && (
+                      <div
+                        onMouseDown={header.getResizeHandler()}
+                        onTouchStart={header.getResizeHandler()}
+                        style={{
+                          cursor: 'col-resize',
+                          userSelect: 'none',
+                          width: '6px',
+                          height: '100%',
+                          position: 'absolute',
+                          right: 0,
+                          top: 0,
+                          zIndex: 10,
+                          background: 'rgb(25, 25, 25)',
+                        }}
+                        onDoubleClick={() => {
+                          const colId = header.column.id;
+                          const current = header.getSize();
+                          const min = header.column.columnDef.minSize ?? 40;
+                          const max = header.column.columnDef.maxSize ?? 600;
+                          const newSize = current < max ? max : min;
+                          const newSizing = { ...table.getState().columnSizing, [colId]: newSize };
+                          if (typeof onColumnSizingChange === 'function') {
+                            onColumnSizingChange(newSizing, colId);
+                          }
+                        }}
+                        title="Double click to maximize/minimize"
+                      />
+                    )}
+                  </div>
+                </th>
+              ))}
+            </tr>
+          </thead>
+        </table>
+        
+        <table>
+          <tbody style={{
+            display: 'block',
+            maxHeight: '60vh',
+          }}>
+            {table.getRowModel().rows.map((row) => (
+              <tr
+                key={row.id}
+                onMouseEnter={() => setHoveredRow(row.index)}
+                onMouseLeave={() => setHoveredRow(null)}
                 style={{
-                  border: '3.5px solid rgb(32,32,32)',
-                  padding: '7.7px',
-                      width: header.column.getSize(),
-                      minWidth: header.column.getSize(),
-                      maxWidth: header.column.getSize(),
-                      position: header.index === 0 ? 'sticky' : 'relative',
-                      left: header.index === 0 ? '30px' : undefined,
-                      top: header.index === 0 ? 0 : undefined,
-
-                      background: '#1a1a1a',
-                      userSelect: 'none',
-                      zIndex: header.column.getIndex() === 0 ? 101 : undefined, // slightly higher than td
-
-
+                  background: hoveredRow === row.index ? 'white' : undefined,
+                  transition: 'background 0.2s',
                 }}
               >
-                <div style={{ display: 'flex', alignItems: 'center', width: '100%' }}>
-                  {header.isPlaceholder ? null : header.column.columnDef.header}
-                  {/* Resizer handle */}
-                  {header.column.getCanResize() && (
-                    <div
-                      onMouseDown={header.getResizeHandler()}
-                      onTouchStart={header.getResizeHandler()}
+                <td
+                  style={{
+                    width: actionCollapsed ? 30 : 48,
+                    minWidth: actionCollapsed ? 30 : 48,
+                    maxWidth: actionCollapsed ? 30 : 48,
+                    border: 'none',
+                    padding: 0,
+                    textAlign: 'center',
+                    background: '#1a1a1a',
+                    verticalAlign: 'middle',
+                    position: 'sticky',
+                    left: 0,
+                    zIndex: 101,
+                  }}
+                >
+                  {!actionCollapsed && (
+                    <Tooltip title="Delete">
+                      <DeleteOutlined
+                        style={{
+                          color: '#ff4757',
+                          fontSize: 18,
+                          cursor: 'pointer',
+                          opacity: hoveredRow === row.index ? 1 : 0.3,
+                          transition: 'opacity 0.2s',
+                        }}
+                        onClick={e => {
+                          e.stopPropagation();
+                          handleDeleteRow(row.index);
+                        }}
+                      />
+                    </Tooltip>
+                  )}
+                </td>
+                
+                {row.getVisibleCells().map((cell: any) => {
+                  const columnId = cell.column.id as keyof T;
+                  const meta = cell.column.columnDef.meta as CustomColumnMeta | undefined;
+                  const isEditable = meta?.editable === true;
+                  const editorType = meta?.editorType || 'input';
+                  const selectOptions = meta?.selectOptions || [];
+                  const isCurrentlyEditing =
+                    currentlyEditing?.rowIndex === row.index &&
+                    currentlyEditing?.columnId === columnId;
+
+                  return (
+                    <td
+                      key={cell.id}
+                      className={cell.column.getIndex() === 0 ? 'custom-table-sticky-col' : ''}
                       style={{
-                        cursor: 'col-resize',
-                        userSelect: 'none',
-                        width: '6px',
-                        height: '100%',
-                        position: 'absolute',
-                        right: 0,
-                        top: 0,
-                        zIndex: 10,
-                        background: 'rgb(25, 25, 25)',
+                        border: '1px solid rgb(32,32,32)',
+                        padding: '8px',
+                        cursor: isEditable ? 'pointer' : 'default',
+                        width: cell.column.getSize(),
+                        minWidth: cell.column.getSize(),
+                        maxWidth: cell.column.getSize(),
+                        background: hoveredRow === row.index ? '#23272f' : '#1a1a1a',
+                        position: cell.column.getIndex() === 0 ? 'sticky' : 'relative',
+                        left: cell.column.getIndex() === 0 ? (actionCollapsed ? 30 : 40) : undefined,
+                        zIndex: cell.column.getIndex() === 0 ? 101 : undefined,
                       }}
-                      onDoubleClick={() => {
-                        const colId = header.column.id;
-                        const current = header.getSize();
-                        const min = header.column.columnDef.minSize ?? 40;
-                        const max = header.column.columnDef.maxSize ?? 600;
-                        const newSize = current < max ? max : min;
-                        const newSizing = { ...table.getState().columnSizing, [colId]: newSize };
-                        if (typeof onColumnSizingChange === 'function') {
-                          onColumnSizingChange(newSizing, colId);
+                      onClick={() => {
+                        if (columnId !== 'description' && isEditable) {
+                          setCurrentlyEditing({ rowIndex: row.index, columnId });
                         }
                       }}
-                      title="Double click to maximize/minimize"
-                    />
-                  )}
-                </div>
-              </th>
-            ))}
-          </tr>
-        </thead>
-
-        </table>
-        <table >
-        <tbody  style={{
-          display: 'block',
-          maxHeight: '60vh', // or '500px'
-        }}>
-          {table.getRowModel().rows.map((row) => (
-            <tr
-              key={row.id}
-              onMouseEnter={() => setHoveredRow(row.index)}
-              onMouseLeave={() => setHoveredRow(null)}
-              style={{
-                background: hoveredRow === row.index ? 'white' : undefined,
-                transition: 'background 0.2s',
-              }}
-            >
-                 <td
-                    style={{
-                      width: actionCollapsed ? 30 : 48,
-                      minWidth: actionCollapsed ? 30 : 48,
-                      maxWidth: actionCollapsed ? 30 : 48,
-                      border: 'none',
-                      padding: 0,
-                      textAlign: 'center',
-                      background: '#1a1a1a',
-                      verticalAlign: 'middle',
-                      position: 'sticky',
-                      left: 0,
-                      zIndex: 101,
-                    }}
-                  >
-                    {!actionCollapsed && (
-                      <Tooltip title="Delete">
-                        <DeleteOutlined
-                          style={{
-                            color: '#ff4757',
-                            fontSize: 18,
-                            cursor: 'pointer',
-                            opacity: hoveredRow === row.index ? 1 : 0.3,
-                            transition: 'opacity 0.2s',
-                          }}
-                          onClick={e => {
-                            e.stopPropagation();
-                            handleDeleteRow(row.index);
-                          }}
+                    >
+                      {isEditable && isCurrentlyEditing ? (
+                        <EditableCell
+                          value={cell.getValue()}
+                          editorType={editorType}
+                          selectOptions={selectOptions}
+                          onSave={val => handleEdit(row.index, columnId, val)}
+                          onCancel={() => setCurrentlyEditing(null)}
                         />
-                      </Tooltip>
-                    )}
-                  </td>
-              {row.getVisibleCells().map((cell: any) => {
-                const columnId = cell.column.id as keyof T;
-                const meta = cell.column.columnDef.meta as CustomColumnMeta | undefined;
-                const isEditable = meta?.editable === true;
-                const editorType = meta?.editorType || 'input';
-                const selectOptions = meta?.selectOptions || [];
-                const isCurrentlyEditing =
-                  currentlyEditing?.rowIndex === row.index &&
-                  currentlyEditing?.columnId === columnId;
+                      ) : (
+                        editorType === 'select'
+                          ? (selectOptions.find(opt => opt.value === cell.getValue())?.label || '')
+                          : flexRender(cell.column.columnDef.cell, cell.getContext())
+                      )}
+                    </td>
+                  );
+                })}
+              </tr>
+            ))}
 
-                return (
-                  <td
-                    key={cell.id}
-                    className={cell.column.getIndex() === 0 ? 'custom-table-sticky-col' : ''}
+            {isWithNewRow && (
+              <tr ref={newRowRef}>
+                <td colSpan={columns.length + 1} style={{ padding: '8px', position: 'sticky', bottom: 0, zIndex: 200 }}>
+                  <SharedStyledWhiteInput
+                    placeholder="+ New row"
+                    variant="underlined"
+                    onFocus={handleAddEmptyRow}
+                    onClick={handleAddEmptyRow}
                     style={{
-                      border: '1px solid rgb(32,32,32)',
-                      padding: '8px',
-                      cursor: isEditable ? 'pointer' : 'default',
-                      width: cell.column.getSize(),
-                      minWidth: cell.column.getSize(),
-                      maxWidth: cell.column.getSize(),
-                      background: hoveredRow === row.index ? '#23272f' : '#1a1a1a',
-                       position: cell.column.getIndex() === 0 ? 'sticky' : 'relative', // <-- make sticky for first column
-    left: cell.column.getIndex() === 0 ? '30px' : undefined,              // <-- align with header
-    zIndex: cell.column.getIndex() === 0 ? 101 : undefined,          // <-- keep above other cells
+                      width: '100%',
+                      cursor: 'text',
+                      background: '#202020',
                     }}
-                    onClick={() => {
-                      if (columnId !== 'description' && isEditable ) {
-                        setCurrentlyEditing({ rowIndex: row.index, columnId });
-                      }
-                    }}
-                  >
-                    {isEditable && isCurrentlyEditing ? (
-  <EditableCell
-    value={cell.getValue()}
-    editorType={editorType}
-    selectOptions={selectOptions}
-    onSave={val => handleEdit(row.index, columnId, val)}
-    onCancel={() => setCurrentlyEditing(null)}
-  />
-) : (
-  editorType === 'select'
-    ? (selectOptions.find(opt => opt.value === cell.getValue())?.label || '')
-    : flexRender(cell.column.columnDef.cell, cell.getContext())
-)}
-                  </td>
-                );
-              })}
-            </tr>
-          ))}
-
-          {isWithNewRow && (
-            <tr  ref={newRowRef}
->
-              <td colSpan={columns.length + 1} style={{ padding: '8px', position: 'sticky', bottom: 0, zIndex: 200 }}>
-                <SharedStyledWhiteInput
-  placeholder="+ New row"
-  variant="underlined"
-  onFocus={handleAddEmptyRow}
-  onClick={handleAddEmptyRow}
-  style={{
-    width: '100%',
-    cursor: 'text',
-    background: '#202020',
-  }}
-/>
-              </td>
-            </tr>
-          )}
-
-        </tbody>
-      </table>
-    </div>
+                  />
+                </td>
+              </tr>
+            )}
+          </tbody>
+        </table>
+      </div>
     </styled.tableMainContainer>
   );
 }
@@ -575,39 +576,6 @@ function EditableCell({
   onCancel: () => void;
 }) {
   const [editValue, setEditValue] = React.useState(value ?? '');
-
-    const [open, setOpen] = React.useState(false);
-
-    const [selectMenuOpen, setSelectMenuOpen] = React.useState(false);
-  const selectRef = useRef<HTMLDivElement>(null);
-
-     React.useEffect(() => {
-    if (editorType === 'date') {
-      setOpen(true);
-    }
-     if (editorType === 'select') {
-      setSelectMenuOpen(true);
-    }
-  }, [editorType]);
-
-   React.useEffect(() => {
-    const handleClickOutside = (event: MouseEvent) => {
-      if (selectRef.current && !selectRef.current.contains(event.target as Node)) {
-        if (selectMenuOpen) {
-          setSelectMenuOpen(false);
-          onCancel();
-        }
-      }
-    };
-
-    if (editorType === 'select' && selectMenuOpen) {
-      document.addEventListener('mousedown', handleClickOutside);
-      return () => {
-        document.removeEventListener('mousedown', handleClickOutside);
-      };
-    }
-  }, [editorType, selectMenuOpen, onCancel]);
-
 
   if (editorType === 'input') {
     return (
@@ -644,83 +612,42 @@ function EditableCell({
 
   if (editorType === 'date') {
   return (
-    // <Input
-    //   type="date"
-    //   autoFocus
-    //   value={editValue}
-    //   onChange={e => {
-    //     setEditValue(e.target.value);
-    //     onSave(e.target.value); // Call handleEdit immediately on date select
-    //     onCancel();             // Close the editor
-    //   }}
-    //   onBlur={() => {
-    //     onSave(editValue);
-    //     onCancel();
-    //   }}
-    //   style={{
-    //     width: '100%',
-    //     position: 'absolute',
-    //     top: 0,
-    //     left: 0,
-    //     zIndex: 2,
-    //     background: '#202020',
-    //     color: 'white',
-    //   }}
-    //   onFocus={e => {
-    //     e.target.showPicker && e.target.showPicker();
-    //   }}
-    // />
-
-     <Mui2InputWithDate
-      name=""
+    <Input
+      type="date"
+      autoFocus
       value={editValue}
       onChange={e => {
         setEditValue(e.target.value);
         onSave(e.target.value); // Call handleEdit immediately on date select
-       setTimeout(() => onCancel(), 0);
+        onCancel();             // Close the editor
       }}
       onBlur={() => {
         onSave(editValue);
         onCancel();
       }}
-       open={open}
-          setOpen={setOpen}
-    
-   
-     
+      style={{
+        width: '100%',
+        position: 'absolute',
+        top: 0,
+        left: 0,
+        zIndex: 2,
+        background: '#202020',
+        color: 'white',
+      }}
+      onFocus={e => {
+        e.target.showPicker && e.target.showPicker();
+      }}
     />
   );
 }
-
-if(editorType === 'datetime') {
-  return (
-    <MuiInputWithDateTime
-      name=""
-      value={editValue}
-      onChange={e => {
-        setEditValue(e.target.value);
-        onSave(e.target.value);
-        // setTimeout(() => onCancel(), 0);
-      }}
-      onBlur={() => {
-        onSave(editValue);
-        onCancel();
-      }}
-     
-    />
-  );
-}
-
-
 
   if (editorType === 'select') {
     return (
-      <div ref={selectRef}>
-        <CustomSelect
-          autoFocus
-          value={selectOptions?.find(opt => opt.value === editValue) || null}
-          style={{
-            width: '100%',
+      <CustomSelect
+        autoFocus
+        value={selectOptions?.find(opt => opt.value === editValue) || null}
+        style={{
+          width: '100%',
           position: 'absolute',
           top: 0,
           left: 0,
@@ -739,10 +666,10 @@ if(editorType === 'datetime') {
         placeholder="Select..."
         menuIsOpen
       />
-      </div>
     );
   }
 
   return null;
 }
+
 

@@ -17,23 +17,15 @@ const App: React.FC = () => {
   const [api, contextHolder] = notification.useNotification();
   const [canPlaySound, setCanPlaySound] = useState(false);
 
-  // Enable sound after first user interaction
-  useEffect(() => {
-    const enableSound = () => setCanPlaySound(true);
-    window.addEventListener('click', enableSound, { once: true });
-    window.addEventListener('keydown', enableSound, { once: true });
-    return () => {
-      window.removeEventListener('click', enableSound);
-      window.removeEventListener('keydown', enableSound);
-    };
-  }, []);
+  
 
   const openNotification = (message: string, placement: NotificationPlacement) => {
     api.info({
       message: message,
       placement: placement,
+      duration: 0, // Stays until user closes
+
     });
-    console.log('Notification:', canPlaySound);
     if (canPlaySound) {
       notificationSound.currentTime = 0;
       notificationSound.play().catch(() => {});
@@ -42,48 +34,49 @@ const App: React.FC = () => {
 
   const userid = localStorage.getItem('userid');
   const wsUrl = userid
-    ? `ws://localhost:2432?userId=${userid}`
-    : 'ws://localhost:2432';
+    ? `wss://api.zealweb.in/?userId=${userid}`
+    : 'wss://api.zealweb.in/';
 
-  useEffect(() => {
-    let ws: WebSocket | null = null;
-    let reconnectTimeout: ReturnType<typeof setTimeout> | null = null;
+  // useEffect(() => {
+  //   let ws: WebSocket | null = null;
+  //   let reconnectTimeout: ReturnType<typeof setTimeout> | null = null;
 
-    const connect = () => {
-      ws = new WebSocket(wsUrl);
+  //   const connect = () => {
+  //     ws = new WebSocket(wsUrl);
 
-      ws.onopen = () => {
-        console.log('WebSocket connected');
-      };
 
-      ws.onmessage = (event) => {
-        try {
-          const data = JSON.parse(event.data);
-          openNotification(data.message || 'Notification', 'topRight');
-        } catch {
-          openNotification(String(event.data), 'topRight');
-        }
-      };
+  //     ws.onopen = () => {
+  //       console.log('WebSocket connected');
+  //     };
 
-      ws.onclose = () => {
-        console.log('WebSocket disconnected, attempting to reconnect...');
-        reconnectTimeout = setTimeout(connect, 3000);
-      };
+  //     ws.onmessage = (event) => {
+  //       try {
+  //         const data = JSON.parse(event.data);
+  //         openNotification(data.message || 'Notification', 'topRight');
+  //       } catch {
+  //         openNotification(String(event.data), 'topRight');
+  //       }
+  //     };
 
-      ws.onerror = (error) => {
-        console.error('WebSocket error:', error);
-        ws?.close();
-      };
-    };
+  //     // ws.onclose = () => {
+  //     //   console.log('WebSocket disconnected, attempting to reconnect...');
+  //     //   reconnectTimeout = setTimeout(connect, 3000);
+  //     // };
 
-    connect();
+  //     // ws.onerror = (error) => {
+  //     //   console.error('WebSocket error:', error);
+  //     //   ws?.close();
+  //     // };
+  //   };
 
-    return () => {
-      ws?.close();
-      if (reconnectTimeout) clearTimeout(reconnectTimeout);
-    };
-    // eslint-disable-next-line
-  }, [wsUrl]);
+  //   connect();
+
+  //   return () => {
+  //     ws?.close();
+  //     if (reconnectTimeout) clearTimeout(reconnectTimeout);
+  //   };
+  //   // eslint-disable-next-line
+  // }, [wsUrl]);
 
   return (
     <>

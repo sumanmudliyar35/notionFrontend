@@ -157,7 +157,7 @@ const DescriptionCell = ({ value = '', onChange, leadid, assigneeOptions = [] }:
             onChange={handleInputChange}
             onBlur={handleBlur}
             onKeyDown={handleKeyDown}
-            style={{ width: '100%', background: '#202020', color: 'white', minHeight: 40, resize: 'vertical' }}
+            style={{ width: '100%', background: '#202020', color: 'white', minHeight: 40, resize: 'vertical', fontFamily: 'sans-serif' }}
           />
           {showDropdown && createPortal(
             <div

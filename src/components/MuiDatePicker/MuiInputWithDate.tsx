@@ -3,6 +3,7 @@ import dayjs from "dayjs";
 import { AdapterDayjs } from '@mui/x-date-pickers/AdapterDayjs';
 import { LocalizationProvider } from '@mui/x-date-pickers/LocalizationProvider';
 import { DatePicker } from '@mui/x-date-pickers/DatePicker';
+import *  as styled from "./style";
 
 interface MuiInputWithDateProps {
   label?: string;
@@ -33,7 +34,7 @@ const MuiInputWithDate: React.FC<MuiInputWithDateProps> = ({
 
   return (
   <LocalizationProvider dateAdapter={AdapterDayjs}>
-    <div>
+    <styled.mainContainer>
       {label && (
         <label htmlFor={name} style={{ color: "#fff", display: "block" }}>
           {label} {required && <span style={{ color: "red" }}>*</span>}
@@ -144,7 +145,7 @@ const MuiInputWithDate: React.FC<MuiInputWithDateProps> = ({
       },
       InputProps: {
         sx: {
-          width:'200px',
+          width:'100%',
           color: 'white', // <-- ensure input root is white
 
           height: 35, // also ensure the input root is tall enough
@@ -159,7 +160,7 @@ const MuiInputWithDate: React.FC<MuiInputWithDateProps> = ({
           },
         }}
       />
-    </div>
+    </styled.mainContainer>
   </LocalizationProvider>
   );
 };
