@@ -13,6 +13,7 @@ import { SharedInputWrapper } from '../../../../style/sharedStyle';
 import InputWithDate from '../../../../components/InputWithDate/InputWithDate';
 import MuiInputWithDate from '../../../../components/MuiDatePicker/MuiInputWithDate';
 import CustomSelectWithAllOption from '../../../../components/CustomSelectWithAllOption/CustomSelectWithAllOption';
+import DateInput from '../../../../components/CustomDateInput/CustomDateInput';
 
 interface EventModalProps {
   open: boolean;
@@ -153,22 +154,21 @@ useEffect(() => {
 /> */}
 
 
-<MuiInputWithDate
+<DateInput
   label="Date"
-  name="date"
   value={formik.values.date}
-  onChange={formik.handleChange}
- error={
-    formik.touched.date && formik.errors.date
-      ? typeof formik.errors.date === 'string'
-        ? formik.errors.date
-        : Array.isArray(formik.errors.date)
-          ? formik.errors.date.join(', ')
-          : JSON.stringify(formik.errors.date)
-      : ''
-  }
- 
-  />
+  onChange={date => formik.setFieldValue('date', date && date.isValid() ? date.format('YYYY-MM-DD') : '')}
+  placeholder="Enter event date"
+/>
+{formik.touched.date && formik.errors.date ? (
+  <div style={{ color: 'red', fontSize: 12, marginTop: 2 }}>
+    {typeof formik.errors.date === 'string'
+      ? formik.errors.date
+      : Array.isArray(formik.errors.date)
+        ? formik.errors.date.join(', ')
+        : JSON.stringify(formik.errors.date)}
+  </div>
+) : null}
 
 
 

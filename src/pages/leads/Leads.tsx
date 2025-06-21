@@ -36,6 +36,8 @@ import CommentCell from "./components/CommentCell/CommentCell";
 import DateTimeModal from "./components/DateTimeModal/DateTimeModal";
 import ReminderModal from "../../components/reminderModal/ReminderModal";
 import { useCreateReminder } from "../../api/post/newReminder";
+import DateInput from "../../components/CustomDateInput/CustomDateInput";
+import dayjs from "dayjs";
 
 
 interface Doc {
@@ -493,7 +495,7 @@ cell: ({ row }) => {
           >
             {isEditing ? (
               <div style={{ display: 'flex', flexDirection: 'column', gap: 8, width: '100%' }}>
-                <Mui2InputWithDate
+                {/* <Mui2InputWithDate
                   name="eventDate"
                   value={localEditValue.eventDate}
                   onChange={e =>
@@ -505,7 +507,17 @@ cell: ({ row }) => {
                   placeholder="Select date"
                   required={false}
                   error={undefined}
-                />
+                /> */}
+                <DateInput
+  value={localEditValue.eventDate || ''}
+  onChange={date =>
+    setLocalEditValue((prev: any) => ({
+      ...prev,
+      eventDate: date && dayjs(date).isValid() ? date.format('YYYY-MM-DD') : ''
+    }))
+  }
+  placeholder="Select date"
+/>
                 <CustomInput
                   placeholder="Event Name"
                   value={localEditValue.eventName}
@@ -651,12 +663,12 @@ cell: ({ row }) => {
   },
 
             {
-      header: 'Assignee',
+      header: 'Created By',
       accessorKey: 'assignedTo', // or 'assignedTo' if that's your field
       meta: {
-        editable: true,
-        editorType: 'select',
-        selectOptions: assigneeOptions,
+        editable: false,
+        // editorType: 'select',
+        // selectOptions: assigneeOptions,
       },
       cell: ({ getValue }) => {
         const value = getValue();
@@ -1533,33 +1545,64 @@ onChange={val => {
       {followupType === 'between' ? (
         <>
         <styled.singleDateDiv>
-          <MuiInputWithDate
+          {/* <MuiInputWithDate
             name="followupStart"
             value={filters.followupStart || ''}
             onChange={e => setFilters(prev => ({ ...prev, followupStart: e.target.value }))}
           
             placeholder="Start date"
-          />
+          /> */}
+          <DateInput
+  value={filters.followupStart || ''}
+  onChange={date =>
+    setFilters(prev => ({
+      ...prev,
+      followupStart: date && dayjs(date).isValid() ? date.format('YYYY-MM-DD') : ''
+    }))
+  }
+  placeholder="Start date"
+/>
           </styled.singleDateDiv>
           <styled.singleDateDiv>
-          <MuiInputWithDate
+          {/* <MuiInputWithDate
             name="followupEnd"
             value={filters.followupEnd || ''}
             onChange={e => setFilters(prev => ({ ...prev, followupEnd: e.target.value }))}
             placeholder="End date"
-          />
+          /> */}
+          <DateInput
+  value={filters.followupEnd || ''}
+  onChange={date =>
+    setFilters(prev => ({
+      ...prev,
+      followupEnd: date && dayjs(date).isValid() ? date.format('YYYY-MM-DD') : ''
+    }))
+  }
+  placeholder="End date"
+/>
         </styled.singleDateDiv>
         </>
       ) : (
         <styled.singleDateDiv>
-          <MuiInputWithDate
+          {/* <MuiInputWithDate
             name={key}
             value={filters[key] || ''}
             onChange={e => handleFilterChange(key, e.target.value)}
             placeholder="Select date"
             required={false}
             error={undefined}
-          />
+          /> */}
+
+       <DateInput
+  value={filters[key] || ''}
+  onChange={date =>
+    handleFilterChange(
+      key,
+      date && dayjs(date).isValid() ? date.format('YYYY-MM-DD') : ''
+    )
+  }
+  placeholder="Select date"
+/>
         </styled.singleDateDiv>
       )}
       <span
@@ -1628,25 +1671,48 @@ onChange={val => {
             <>
 
              <styled.singleDateDiv>
-              <MuiInputWithDate
+              {/* <MuiInputWithDate
                name="eventDataStart"
                 value={filters.eventDataStart || ''}
                 onChange={e => setFilters(prev => ({ ...prev, eventDataStart: e.target.value }))}
                 
                 placeholder="Start date"
-              />
+              /> */}
+
+              <DateInput
+  value={filters.eventDataStart || ''}
+  onChange={date =>
+    setFilters(prev => ({
+      ...prev,
+      eventDataStart: date && dayjs(date).isValid() ? date.format('YYYY-MM-DD') : ''
+    }))
+  }
+  placeholder="Start date"
+/>
+              
 
               </styled.singleDateDiv>
 
               <styled.singleDateDiv>
 
               
-              <MuiInputWithDate
+              {/* <MuiInputWithDate
 name="eventDataEnd"
                 value={filters.eventDataEnd || ''}
                 onChange={e => setFilters(prev => ({ ...prev, eventDataEnd: e.target.value }))}
                 placeholder="End date"
-              />
+              /> */}
+
+              <DateInput
+  value={filters.eventDataEnd || ''}
+  onChange={date =>
+    setFilters(prev => ({
+      ...prev,
+      eventDataEnd: date && dayjs(date).isValid() ? date.format('YYYY-MM-DD') : ''
+    }))
+  }
+  placeholder="End date"
+/>
 
                             </styled.singleDateDiv>
 
@@ -1656,7 +1722,7 @@ name="eventDataEnd"
             <styled.singleDateDiv>
 
 
-  <MuiInputWithDate
+  {/* <MuiInputWithDate
   name={key}
   value={filters[key] || ''}
   onChange={e => handleFilterChange(key, e.target.value)}
@@ -1664,6 +1730,17 @@ name="eventDataEnd"
   required={false}
   error={undefined}
 
+/> */}
+
+<DateInput
+  value={filters[key] || ''}
+  onChange={date =>
+    handleFilterChange(
+      key,
+      date && dayjs(date).isValid() ? date.format('YYYY-MM-DD') : ''
+    )
+  }
+  placeholder="Select date"
 />
             </styled.singleDateDiv>
 

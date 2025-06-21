@@ -48,6 +48,7 @@ const DateTimeModal = ({ open, onClose, title, onSave, leadID, data }: DateTimeM
           <DatePicker
             onChange={handleDateChange}
             value={selectedDate ? dayjs(selectedDate) : null  }
+            format="DD-MM-YYYY"
             style={{
               width: '100%',
               borderRadius: 4,

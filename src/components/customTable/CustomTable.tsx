@@ -227,13 +227,19 @@ export function CustomTable<T extends object>(props: EditableTableProps<T>) {
         newRowRef.current.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
       }
       const lastRowIndex = table.getRowModel().rows.length;
+      console.log('Last row index:', lastRowIndex);
       const firstEditableCol = columns.find((col: any) => col.meta?.editable);
-      if (firstEditableCol) {
-        setCurrentlyEditing({
-          rowIndex: lastRowIndex,
-          columnId: columns[0].id as keyof T,
-        });
-      }
+      // if (firstEditableCol) {
+      //   console.log('First editable column:', table.getHeaderGroups()[0].headers[0].id
+      
+      // );
+      //   setCurrentlyEditing({
+      //     rowIndex: lastRowIndex,
+      //     columnId: table.getHeaderGroups()[0].headers[0].id as keyof T,
+      //   });
+      // } else {
+      //   console.log('No editable column found');
+      // }
     }, 0);
 
     setTimeout(() => {
@@ -242,6 +248,23 @@ export function CustomTable<T extends object>(props: EditableTableProps<T>) {
 
     setHasAdded(true);
   }, [data, createEmptyRow, onDataChange, onRowCreate, table, columns]);
+
+
+  const prevRowCount = useRef(data.length);
+useEffect(() => {
+  // Only run if not initial mount and a row was added
+  if (prevRowCount.current !== 0 && data.length > prevRowCount.current) {
+    const lastRowIndex = table.getRowModel().rows.length - 1;
+    const firstEditableCol = columns.find((col: any) => col.meta?.editable);
+    if (firstEditableCol) {
+      setCurrentlyEditing({
+        rowIndex: lastRowIndex,
+        columnId: table.getHeaderGroups()[0].headers[0].id as keyof T,
+      });
+    }
+  }
+  prevRowCount.current = data.length;
+}, [data.length, columns, table]);
 
   const handleDeleteRow = React.useCallback((rowIndex: number) => {
     const updated = [...data];
@@ -356,7 +379,9 @@ export function CustomTable<T extends object>(props: EditableTableProps<T>) {
         />
       </styled.tableActionsDiv>
       
-      <div style={{ overflowX: 'auto', width: '100%', overflowY: 'auto' }}>
+      <div style={{ overflowX: 'auto', width: '100%', overflowY: 'auto'
+        
+       }}>
         <table style={{ borderCollapse: 'collapse', tableLayout: 'fixed', position: 'sticky', zIndex: 120, top: 0 }}>
           <thead>
             <tr>
@@ -366,7 +391,7 @@ export function CustomTable<T extends object>(props: EditableTableProps<T>) {
                   minWidth: actionCollapsed ? 30 : 48,
                   maxWidth: actionCollapsed ? 30 : 48,
                   background: '#1a1a1a',
-                  border: '3.5px solid rgb(32,32,32)',
+                  // border: '3.5px solid rgb(32,32,32)',
                   textAlign: 'center',
                   position: 'sticky',
                   left: 0,
@@ -387,8 +412,9 @@ export function CustomTable<T extends object>(props: EditableTableProps<T>) {
                 <th
                   key={header.id}
                   style={{
-                    border: '3.5px solid rgb(32,32,32)',
-                    padding: '7.7px',
+                     border: '1px solid rgb(32,32,32)',
+                     borderRight:'2px solid rgb(32,32,32)',
+                    padding: '8px',
                     width: header.column.getSize(),
                     minWidth: header.column.getSize(),
                     maxWidth: header.column.getSize(),
@@ -438,10 +464,10 @@ export function CustomTable<T extends object>(props: EditableTableProps<T>) {
           </thead>
         </table>
         
-        <table>
+        <table  style={{borderSpacing: 0}}>
           <tbody style={{
-            display: 'block',
-            maxHeight: '60vh',
+          //  overflowY: 'auto',
+            maxHeight: '60vh', minHeight: 100,display: 'block'
           }}>
             {table.getRowModel().rows.map((row) => (
               <tr
@@ -493,9 +519,11 @@ export function CustomTable<T extends object>(props: EditableTableProps<T>) {
                   const isEditable = meta?.editable === true;
                   const editorType = meta?.editorType || 'input';
                   const selectOptions = meta?.selectOptions || [];
+                
                   const isCurrentlyEditing =
                     currentlyEditing?.rowIndex === row.index &&
                     currentlyEditing?.columnId === columnId;
+
 
                   return (
                     <td
@@ -541,17 +569,21 @@ export function CustomTable<T extends object>(props: EditableTableProps<T>) {
             {isWithNewRow && (
               <tr ref={newRowRef}>
                 <td colSpan={columns.length + 1} style={{ padding: '8px', position: 'sticky', bottom: 0, zIndex: 200 }}>
-                  <SharedStyledWhiteInput
-                    placeholder="+ New row"
-                    variant="underlined"
+                  <Button
+                    name="+ New row"
                     onFocus={handleAddEmptyRow}
                     onClick={handleAddEmptyRow}
                     style={{
                       width: '100%',
-                      cursor: 'text',
                       background: '#202020',
+                      display: 'flex',
+                      justifyContent:'flex-start',
+                      color: 'white',
+                      border: 'none',
                     }}
-                  />
+                  >
+                    New row</Button>
+
                 </td>
               </tr>
             )}
