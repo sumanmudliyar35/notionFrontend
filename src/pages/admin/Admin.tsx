@@ -120,6 +120,8 @@ const Admin = () => {
                     isWithNewRow={false}
                     onDataChange={() => {}}
                     createEmptyRow={() => ({})}
+                    isDownloadable={false}
+            
 
 
                     />

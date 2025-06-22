@@ -26,6 +26,8 @@ import { arrayMove, SortableContext, useSortable, verticalListSortingStrategy } 
 import { CSS } from '@dnd-kit/utilities';
 import { MenuOutlined } from '@ant-design/icons';
 import ManageColumn from '../../pages/leads/components/ManageColumn/ManageColumn';
+import { DownloadOutlined } from '@ant-design/icons';
+
 
 interface CustomColumnMeta {
   editable?: boolean;
@@ -49,6 +51,9 @@ columns: ColumnDef<T>[];
   onColumnSizingChange?: (newSizing: Record<string, number>, columnId: string) => void;
 onRowDelete?: (rowIndex: number) => void; // Optional callback for row deletion
 onColumnOrderChange?: (newOrder: string[]) => void;
+downloadData?: () => void; // Optional callback for downloading data
+isDownloadable?: boolean; // Optional prop to control download button visibility
+handleColumnVisibilityChange?: (columnId: string, visible: boolean) => void; // Optional prop for column visibility changes
 
 
 }
@@ -88,8 +93,13 @@ export function CustomTable<T extends object>(props: EditableTableProps<T>) {
     isWithNewRow,
     columnSizing = {},
     onColumnSizingChange,
-    onColumnOrderChange
+    onColumnOrderChange,
+    downloadData,
+    isDownloadable = true, // Default to true if not provided
+    handleColumnVisibilityChange,
   } = props;
+
+
 
   // ✅ ALL EFFECTS AFTER STATE/REFS
   useEffect(() => {
@@ -176,10 +186,58 @@ export function CustomTable<T extends object>(props: EditableTableProps<T>) {
     });
   }, [data, searchText]);
 
+  useEffect(() => {
+  // Build visibility state from columns' isVisible
+  const visibility: VisibilityState = {};
+  columns.forEach((col: any) => {
+    const id = col.id || col.accessorKey;
+    if (id) {
+      visibility[id] = col.isVisible !== false;
+    }
+  });
+  setColumnVisibility(visibility);
+}, [columns]);
+
+  const sortedColumns = React.useMemo(() => {
+  // If all columns have orderId, sort by it; otherwise, keep original order
+  if (columns.every((col: any) => typeof col.orderId === 'number')) {
+    return [...columns].sort((a: any, b: any) => a.orderId - b.orderId);
+  }
+  return columns;
+}, [columns]);
+
+  const orderedColumns = React.useMemo(() => {
+  if (!columnManagerOrder.length) return columns;
+  // Map for quick lookup
+  const colMap = columns.reduce((acc, col) => {
+    const id = (col as any).id || (col as any).accessorKey;
+    acc[id] = col;
+    return acc;
+  }, {} as Record<string, ColumnDef<T>>);
+
+  // Order as per columnManagerOrder, filter out missing, then add any columns not in order at the end
+  const ordered = columnManagerOrder
+    .map(id => colMap[id])
+    .filter(Boolean);
+
+  // Add any columns not present in columnManagerOrder (e.g. new columns)
+  const remaining = columns.filter(
+    col => !columnManagerOrder.includes((col as any).id || (col as any).accessorKey)
+  );
+
+  return [...ordered, ...remaining];
+}, [sortedColumns, columnManagerOrder]);
+
+
+
+
+
+
   // ✅ TABLE INSTANCE
   const table = useReactTable({
     data: filteredData,
-    columns,
+    columns : orderedColumns,
+    // columns,
     getCoreRowModel: getCoreRowModel(),
     getSortedRowModel: getSortedRowModel(),
     state: { sorting, columnVisibility, columnSizing },
@@ -192,7 +250,9 @@ export function CustomTable<T extends object>(props: EditableTableProps<T>) {
         key => !columnSizing || columnSizing[key] !== newSizing[key]
       );
       onColumnSizingChange?.(newSizing, changed || '');
+
     },
+    
   });
 
   // ✅ CALLBACK FUNCTIONS
@@ -340,6 +400,9 @@ useEffect(() => {
         table={table}
         handleColumnManagerDragEnd={handleColumnManagerDragEnd}
         columnManagerOrder={columnManagerOrder}
+          onVisibilityChange={(columnId, visible) => {
+           handleColumnVisibilityChange && handleColumnVisibilityChange(columnId, visible);
+          }}
       />
     </>
   );
@@ -364,6 +427,18 @@ useEffect(() => {
   return () => document.removeEventListener('mousedown', handleClickOutside);
 }, [currentlyEditing]);
 
+// const handleDownload = () => {
+//     const dataStr = JSON.stringify(data, null, 2);
+//     const blob = new Blob([dataStr], { type: "application/json" });
+//     const url = URL.createObjectURL(blob);
+
+//     const a = document.createElement("a");
+//     a.href = url;
+//     a.download = "table-data.json";
+//     a.click();
+//     URL.revokeObjectURL(url);
+//   };
+
   // ✅ RENDER - All hooks are guaranteed to be called before this point
   return (
     <styled.tableMainContainer   ref={tableContainerRef}
@@ -377,6 +452,16 @@ useEffect(() => {
           onChange={e => setSearchText(e.target.value)}
           style={{ width: 200}}
         />
+      
+      {isDownloadable && (
+         <Button
+          icon={<DownloadOutlined />}
+          onClick={downloadData ? () => downloadData() : undefined}
+          style={{ marginLeft: 8 }}
+        >
+          Download
+        </Button>
+      )}
       </styled.tableActionsDiv>
       
       <div style={{ overflowX: 'auto', width: '100%', overflowY: 'auto'

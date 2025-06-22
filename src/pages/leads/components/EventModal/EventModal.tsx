@@ -66,7 +66,7 @@ useEffect(() => {
   
   const validationSchema = Yup.object({
 
-    date: Yup.string().required('Date is required'),
+    // date: Yup.string().required('Date is required'),
  
   });
 

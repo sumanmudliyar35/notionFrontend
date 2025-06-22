@@ -38,6 +38,13 @@ import ReminderModal from "../../components/reminderModal/ReminderModal";
 import { useCreateReminder } from "../../api/post/newReminder";
 import DateInput from "../../components/CustomDateInput/CustomDateInput";
 import dayjs from "dayjs";
+import { useGetLeadsTablePreference } from "../../api/get/getLeadstablePreference";
+import { useUpdateUsersTablePreference } from "../../api/put/updateUsersTablePreference";
+import { useDownloadLeadsCSV } from "../../api/get/getLeadsCSV";
+import Papa from "papaparse"; // Add at the top if not already imported
+import { useUpdateBulkUsersTablePreference } from "../../api/put/updateBulkUpdateUsersTablePreference";
+
+
 
 
 interface Doc {
@@ -88,6 +95,19 @@ const Leads = () => {
   const roleid = localStorage.getItem('roleid');
 
     const {data: LeadsData, refetch: refetchLeadsData} = useGetLeadsByUser(Number(userid));
+
+    const {data: leadsTablePreference, refetch: refetchLeadsTablePreference} = useGetLeadsTablePreference(userid);
+
+
+
+    const columnWidthMap = useMemo(() => {
+  if (!leadsTablePreference) return {};
+  return leadsTablePreference.reduce((acc: any, pref: any) => {
+    acc[pref.accessorKey] = pref.width;
+    acc[pref.orderId] = pref.orderId;
+    return acc;
+  }, {});
+}, [leadsTablePreference]);
 
     const {data: allMembersData} = useGetAllUsers();
     const { data: allReferencesData } = useGetAllReferences();
@@ -595,9 +615,12 @@ cell: ({ row }) => {
                         })()
                       : ''}
                   </div>
-                  <div>
-                    <b>Guests:</b> {event.noOfGuests}
-                  </div>
+             {event.noOfGuests !== undefined && event.noOfGuests !== null && event.noOfGuests !== 0 && (
+  <div>
+    <b>Guests:</b> {event.noOfGuests}
+  </div>
+)}
+                
                   {event.crew && (
                     <div>
                       <b>Crew:</b> {event.crew || 0}
@@ -644,7 +667,7 @@ cell: ({ row }) => {
 }
 },
   {
-    header: 'Amount',
+    header: 'Budget',
     accessorKey: 'amount',
     enableResizing: true ,
     meta: { editable: true },
@@ -815,20 +838,20 @@ cell: ({ row }) => {
 
 
  
-      { header: 'Reminder', accessorKey: 'reminder',
+  //     { header: 'Reminder', accessorKey: 'reminder',
 
-        cell: (getValue: any) => {
-    const value = getValue.getValue();
-    return (
-      <span
-        style={{ cursor: 'pointer', color: '#fff' }}
-        onClick={() => handleOpenReminderModal(getValue.row.original.id, value,)}
-      >
-        {value || <span style={{ color: '#888' }}>Set reminder</span>}
-      </span>
-    );
-  },
-       },
+  //       cell: (getValue: any) => {
+  //   const value = getValue.getValue();
+  //   return (
+  //     <span
+  //       style={{ cursor: 'pointer', color: '#fff' }}
+  //       onClick={() => handleOpenReminderModal(getValue.row.original.id, value,)}
+  //     >
+  //       {value || <span style={{ color: '#888' }}>Set reminder</span>}
+  //     </span>
+  //   );
+  // },
+  //      },
       
         { header: 'Comments', accessorKey: 'comment',   size: 200,
     minSize: 80,
@@ -1087,6 +1110,32 @@ cell: ({ row }) => {
         
 ];
 
+
+// const columnsWithWidth = columns.map((col: any) => ({
+//   ...col,
+//   size: columnWidthMap[col.accessorKey as string] || col.size || 200,
+//   orderId: leadsTablePreference?.find((p: any) => p.accessorKey === col.accessorKey)?.orderId ?? col.orderId,
+
+// }));
+
+
+const columnsWithWidth = columns
+  .map((col: any) => ({
+    ...col,
+    size: columnWidthMap[col.accessorKey as string] || col.size || 200,
+    orderId: leadsTablePreference?.find((p: any) => p.accessorKey === col.accessorKey)?.orderId ?? col.orderId,
+    isVisible: leadsTablePreference?.find((p: any) => p.accessorKey === col.accessorKey)?.isVisible ?? col.isVisible,
+
+
+  }))
+  .sort((a, b) => {
+    // If both have orderId, sort numerically; otherwise, keep original order
+    if (typeof a.orderId === "number" && typeof b.orderId === "number") {
+      return a.orderId - b.orderId;
+    }
+    return 0;
+  });
+
 const createEmptyDoc = (): Doc => {
   const now = new Date().toLocaleString();
   return {
@@ -1189,18 +1238,35 @@ const createEmptyDoc = (): Doc => {
     };
 
 
-    const handleColumnOrder= (newOrder: string[]) => {
+
+    const updateBulkUsersTablePreferences = useUpdateBulkUsersTablePreference();
+
+    const handleColumnOrder= async(newOrder: string[]) => {
       const updatedColumns = newOrder.map((key) => {
         const col = columns.find((c: any) => c.accessorKey === key);
         return col ? { ...col, order: newOrder.indexOf(key) } : null;
       }).filter(Boolean) as ColumnDef<Doc>[];
 
 
-      console.log("Updated columns:", updatedColumns);
+
+       const orderPayload = updatedColumns.map((col:any) => ({
+    accessorKey: col.accessorKey,
+    orderId: col.order
+  }));
+
+    const result = await updateBulkUsersTablePreferences.mutateAsync([orderPayload, "lead", userid]);
+      refetchLeadsTablePreference();
       
       // setColumns(updatedColumns);
       // onColumnOrderChange?.(newOrder);
     };
+
+
+    const handleColumnVisibility = async (columnKey: string, isVisible: boolean) => {
+
+
+
+      };
 
 
 
@@ -1240,7 +1306,9 @@ const reminderMutate = useCreateReminder();
   "mentions",
   "converted",
   "eventData",
-  "leads"
+  "leads",
+  "shootId",
+
 ];
 
 // const availableFilterColumns = columns.filter(
@@ -1506,6 +1574,83 @@ return eventDates.some((d: any) => {
   });
 });
 }, [tableData, filters]);
+
+
+  const updateTablePreferences = useUpdateUsersTablePreference();
+
+  const handleColumnResize = (columnId: string, newSize: number) => {
+    const body={
+      width: newSize,
+
+    }
+    
+const response = updateTablePreferences.mutateAsync([body, columnId,"lead", userid]);
+
+  };
+
+
+
+  const downloadLeadsMutate = useDownloadLeadsCSV();
+
+
+  const downloadCSV = async () => {
+  // Fetch the data
+  const result = await downloadLeadsMutate.mutateAsync([]);
+
+  // If your API returns { success, data }, use result.data
+  const leads = result?.data || result;
+
+  // Keys to remove from CSV
+  const keysToRemove = [
+    "category",
+    "updatedAt",
+    "deletedAt",
+    "assignedTo",
+    "referenceId",
+    "eventCount",
+    "shootId",
+    "id"
+  ];
+
+  // Flatten nested arrays/objects for CSV and remove unwanted keys
+  const flatten = (row: any) => {
+    const flat: any = {};
+    Object.entries(row).forEach(([key, value]) => {
+      if (keysToRemove.includes(key)) return;
+      if (Array.isArray(value) || (typeof value === "object" && value !== null)) {
+        flat[key] = JSON.stringify(value);
+      } else {
+        flat[key] = value;
+      }
+    });
+    return flat;
+  };
+
+  const csv = Papa.unparse(leads.map(flatten));
+
+  // Download as CSV
+  const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = "leads.csv";
+  a.click();
+  URL.revokeObjectURL(url);
+};
+
+
+const handleColumnVisibilityChange = async(columnKey: string, isVisible: boolean) => {
+  console.log("Column visibility change:", columnKey, isVisible);
+  const body = {
+    isVisible: isVisible,
+  };
+  const updatedResult = await updateTablePreferences.mutateAsync([body, columnKey, "lead", userid]);
+
+  refetchLeadsTablePreference();
+
+}
+
+
 
 
 
@@ -1785,7 +1930,7 @@ onClick={() => {
     }
 
 
-  
+
   
 
     
@@ -1872,7 +2017,10 @@ onClick={() => {
         <CustomTable
          data={filteredData || []}
           onDataChange={setTableData}
-          columns={columns}
+          // columns={columns}
+          columns={columnsWithWidth}
+
+          
           createEmptyRow={createEmptyDoc}
           onRowCreate={handleRowCreate} // ✅ hook for API
           onRowEdit={handleRowEdit} // ✅ added
@@ -1881,11 +2029,14 @@ onClick={() => {
   onColumnSizingChange={(newSizing, columnId) => {
     setColumnSizing(newSizing);
     // You can also call any callback here with columnId and newSizing[columnId]
-    console.log('Resized:', columnId, newSizing[columnId]);
+    handleColumnResize(columnId, newSizing[columnId]);
     
   }}
   onRowDelete={handleRowDelete} // ✅ added
   onColumnOrderChange={handleColumnOrder} // ✅ added
+  downloadData={downloadCSV}
+  isDownloadable={true}
+  handleColumnVisibilityChange={handleColumnVisibilityChange}
 
         />
 

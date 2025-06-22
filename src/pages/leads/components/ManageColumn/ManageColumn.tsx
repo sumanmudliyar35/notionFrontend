@@ -12,6 +12,7 @@ interface ManageColumnProps {
   handleColumnManagerDragEnd: (event: any) => void;
   columnManagerOrder: string[];
   table: any;
+  onVisibilityChange?: (columnId: string, visible: boolean) => void; // <-- add this
 }
 
 const ManageColumn: React.FC<ManageColumnProps> = ({
@@ -20,6 +21,7 @@ const ManageColumn: React.FC<ManageColumnProps> = ({
   handleColumnManagerDragEnd,
   columnManagerOrder,
   table,
+  onVisibilityChange, // <-- add this
 }) => {
 
     const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 5 } }));
@@ -54,7 +56,13 @@ const ManageColumn: React.FC<ManageColumnProps> = ({
       </span>
       <span
         style={{ cursor: "pointer", fontSize: 18 }}
-        onClick={() => column.toggleVisibility()}
+        onClick={() => {
+          // column.toggleVisibility();
+          // Notify parent of visibility change
+          if (typeof onVisibilityChange === "function") {
+            onVisibilityChange(column.id, !visible);
+          }
+        }}
         title={visible ? "Hide" : "Show"}
       >
         {visible ? <EyeOutlined /> : <EyeInvisibleOutlined />}
