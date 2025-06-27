@@ -264,15 +264,34 @@ export function CustomTable<T extends object>(props: EditableTableProps<T>) {
   //   []
   // );
 
-  const handleEdit = React.useCallback((rowIndex: number, columnId: keyof T, value: any) => {
-    console.log('Editing row:', rowIndex, 'column:', columnId, 'value:', value);
-    const updated = [...data];
-    updated[rowIndex] = {
-      ...updated[rowIndex],
-      [columnId]: value,
-    };
-    onDataChange(updated);
-    onRowEdit?.(updated[rowIndex], rowIndex);
+  const handleEdit = React.useCallback((rowIndex: any, row: any, columnId: keyof T, value: any) => {
+    console.log('Editing row:', rowIndex, 'column:',  columnId, 'value:', value, 'data:', row);
+    // const updated = [...data];
+
+    
+    // updated[row.rowIndex] = {
+    //   ...updated[row.rowIndex],
+    //   [columnId]: value,
+    // };
+    // onDataChange(updated);
+    // onRowEdit?.(updated[row.id], row.id);
+
+    const index = data.findIndex((d: any) => d.id === row.id);
+
+if (index !== -1) {
+  const updated = [...data];
+  updated[index] = {
+    ...updated[index],
+    [columnId]: value,
+  };
+  onDataChange(updated);
+  onRowEdit?.(updated[index], index);
+
+};
+
+
+
+
   }, [data, onDataChange, onRowEdit]);
 
   const handleAddEmptyRow = React.useCallback(() => {
@@ -287,7 +306,6 @@ export function CustomTable<T extends object>(props: EditableTableProps<T>) {
         newRowRef.current.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
       }
       const lastRowIndex = table.getRowModel().rows.length;
-      console.log('Last row index:', lastRowIndex);
       const firstEditableCol = columns.find((col: any) => col.meta?.editable);
       // if (firstEditableCol) {
       //   console.log('First editable column:', table.getHeaderGroups()[0].headers[0].id
@@ -427,6 +445,19 @@ useEffect(() => {
   return () => document.removeEventListener('mousedown', handleClickOutside);
 }, [currentlyEditing]);
 
+
+useEffect(() => {
+  const handleKeyDown = (e: KeyboardEvent) => {
+    if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'f') {
+      e.preventDefault();
+      searchInputRef.current?.focus();
+    }
+  };
+  window.addEventListener('keydown', handleKeyDown);
+  return () => window.removeEventListener('keydown', handleKeyDown);
+}, []);
+
+
 // const handleDownload = () => {
 //     const dataStr = JSON.stringify(data, null, 2);
 //     const blob = new Blob([dataStr], { type: "application/json" });
@@ -451,6 +482,8 @@ useEffect(() => {
           value={searchText}
           onChange={e => setSearchText(e.target.value)}
           style={{ width: 200}}
+            ref={searchInputRef}
+
         />
       
       {isDownloadable && (
@@ -464,7 +497,9 @@ useEffect(() => {
       )}
       </styled.tableActionsDiv>
       
-      <div style={{ overflowX: 'auto', width: '100%', overflowY: 'auto'
+      <div style={{ overflow: 'auto', width: '100%',
+      scrollbarWidth: 'none', // Firefox
+    msOverflowStyle: 'none',
         
        }}>
         <table style={{ borderCollapse: 'collapse', tableLayout: 'fixed', position: 'sticky', zIndex: 120, top: 0 }}>
@@ -552,7 +587,10 @@ useEffect(() => {
         <table  style={{borderSpacing: 0}}>
           <tbody style={{
           //  overflowY: 'auto',
-            maxHeight: '60vh', minHeight: 100,display: 'block'
+            maxHeight: 'calc(100vh - 260px)',
+
+            // maxHeight: '60vh',
+            display: 'block'
           }}>
             {table.getRowModel().rows.map((row) => (
               <tr
@@ -609,6 +647,7 @@ useEffect(() => {
                     currentlyEditing?.rowIndex === row.index &&
                     currentlyEditing?.columnId === columnId;
 
+                
 
                   return (
                     <td
@@ -637,7 +676,7 @@ useEffect(() => {
                           value={cell.getValue()}
                           editorType={editorType}
                           selectOptions={selectOptions}
-                          onSave={val => handleEdit(row.index, columnId, val)}
+                          onSave={val => handleEdit(row.index, row.original, columnId, val)}
                           onCancel={() => setCurrentlyEditing(null)}
                         />
                       ) : (

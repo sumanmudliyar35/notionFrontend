@@ -10,6 +10,6 @@ const fetchLeadsTablePreference = async ({ queryKey }: QueryFunctionContext) => 
 };
 
 // Custom hook
-export const useGetLeadsTablePreference = (userId: number | string) => {
+export const useGetLeadsTablePreference = (userId: any) => {
   return useQuery(["leadsTablePreference", userId], fetchLeadsTablePreference);
 };

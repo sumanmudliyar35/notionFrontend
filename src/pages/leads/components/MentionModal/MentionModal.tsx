@@ -1,9 +1,11 @@
+import { UserOutlined } from "@ant-design/icons";
 import React, { useEffect, useState } from "react";
 import CustomModal from "../../../../components/customModal/CustomModal";
 import { useGetAllUsers } from "../../../../api/get/getAllMember";
 import { useCreateMention } from "../../../../api/post/newMention";
 import Select from 'react-select';
 import { Button, message } from "antd";
+import CustomSelect from "../../../../components/customSelect/CustomSelect";
 
 // Add custom styles for react-select dropdown
 const customSelectStyles = {
@@ -72,15 +74,16 @@ const MentionModal: React.FC<MentionModalProps> = ({ open, onClose, title, leadI
   const [assigneeOptions, setAssigneeOptions] = useState<{ label: string; value: string }[]>([]);
   const [selectedAssignees, setSelectedAssignees] = useState<{ label: string; value: string }[]>([]);
   const [loading, setLoading] = useState(false);
+  const [searchTerm, setSearchTerm] = useState("");
 
   useEffect(() => {
     if (allMembersData) {
       setAssigneeOptions(
         allMembersData
-          .filter((u: any) => u.name && u.userId)
-          .map((u: any) => ({
-            label: u.name,
-            value: u.userId,
+          ?.filter((u: any) => u?.name && u?.userId)
+          ?.map((u: any) => ({
+            label: u?.name,
+            value: u?.userId,
           }))
       );
     }
@@ -100,10 +103,11 @@ const MentionModal: React.FC<MentionModalProps> = ({ open, onClose, title, leadI
             {
               leadId,
               userId: assignee.value,
+              type: "tag",
               createdBy: userid, // Assuming 1 is the ID of the user creating the mention
               // Add other fields as needed, e.g. message, mentionedBy, etc.
             },
-            1 // userId or any other param if needed
+            userid// userId or any other param if needed
           ])
         )
       );
@@ -118,17 +122,89 @@ const MentionModal: React.FC<MentionModalProps> = ({ open, onClose, title, leadI
     }
   };
 
+  // Filter and highlight
+  const filteredOptions = assigneeOptions.filter(opt =>
+    opt.label.toLowerCase().includes(searchTerm.toLowerCase())
+  );
+
+  const highlight = (text: string, term: string) => {
+    if (!term) return text;
+    const parts = text.split(new RegExp(`(${term})`, "gi"));
+    return (
+      <>
+        {parts.map((part, i) =>
+          part.toLowerCase() === term.toLowerCase() ? (
+            <span key={i} style={{ background: "#faad14", color: "#222" }}>{part}</span>
+          ) : (
+            part
+          )
+        )}
+      </>
+    );
+  };
+
   return (
     <CustomModal open={open} onClose={onClose} title={title} footer={null}>
-      <div style={{ marginBottom: 16 }}>Select one or more people to mention:</div>
-      <Select
+      <div style={{ marginBottom: 16 }}>Select one or more people to tag:</div>
+      <CustomSelect
         isMulti
-        options={assigneeOptions}
+        options={filteredOptions}
         value={selectedAssignees}
         onChange={(val) => setSelectedAssignees(val as any)}
         placeholder="Search for a person..."
-        styles={customSelectStyles}
+        menuIsOpen={false}
+        inputValue={searchTerm}
+        onInputChange={(val: any) => setSearchTerm(val)}
       />
+      {/* Remove the separate <input> for search */}
+      <div style={{ margin: '12px 0', maxHeight: 200, overflowY: 'auto', background: '#181818', borderRadius: 4, padding: 8 }}>
+        {filteredOptions.length === 0 && <div style={{ color: '#888' }}>No assignees found.</div>}
+        {filteredOptions.map(opt => (
+          <div
+            key={opt.value}
+            style={{
+              display: "flex",
+              alignItems: "center",
+              gap: 10,
+              padding: '6px 8px',
+              margin: '2px 0',
+              borderRadius: 4,
+              background: selectedAssignees.some(sel => sel.value === opt.value) ? '#23272f' : 'transparent',
+              color: '#fff',
+              cursor: 'pointer',
+              transition: "background 0.2s",
+            }}
+            onClick={() => {
+              // Toggle selection
+              if (selectedAssignees.some(sel => sel.value === opt.value)) {
+                setSelectedAssignees(selectedAssignees.filter(sel => sel.value !== opt.value));
+              } else {
+                setSelectedAssignees([...selectedAssignees, opt]);
+              }
+            }}
+            onMouseOver={e => (e.currentTarget.style.background = "#2a2f3a")}
+            onMouseOut={e => (e.currentTarget.style.background = selectedAssignees.some(sel => sel.value === opt.value) ? '#23272f' : 'transparent')}
+          >
+            <div style={{
+              width: 28,
+              height: 28,
+              borderRadius: "50%",
+              background: "#444",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              fontWeight: 600,
+              fontSize: 14,
+              color: "#faad14"
+            }}>
+              {opt.label[0]?.toUpperCase() || <UserOutlined />}
+            </div>
+            <div>
+              <div style={{ fontWeight: 500 }}>{highlight(opt.label, searchTerm)}</div>
+            </div>
+          </div>
+        ))}
+      </div>
       <Button
         type="primary"
         style={{ marginTop: 16, width: "100%" }}

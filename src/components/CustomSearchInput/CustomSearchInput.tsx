@@ -8,6 +8,7 @@ interface CustomSearchInputProps {
   placeholder?: string;
   style?: React.CSSProperties;
   allowClear?: boolean;
+  ref?: React.Ref<HTMLInputElement>;
 }
 
 const CustomSearchInput: React.FC<CustomSearchInputProps> = ({
@@ -16,6 +17,7 @@ const CustomSearchInput: React.FC<CustomSearchInputProps> = ({
   placeholder = 'Search...',
   style,
   allowClear = true,
+  ref,
 }) => {
   return (
     <styled.InputWrapper style={{ position: 'relative', ...style }}>
@@ -24,6 +26,7 @@ const CustomSearchInput: React.FC<CustomSearchInputProps> = ({
         onChange={onChange}
         placeholder={placeholder}
         style={{ paddingRight: 32 }}
+        ref={ref}
       />
       <span
         style={{

@@ -4,18 +4,14 @@ import React, { useEffect, useState, useMemo, useRef } from "react";
 import { useGetLeadsByUser } from "../../api/get/getLeadsByUser";
 import { useCreateLead } from "../../api/post/newLead";
 import { useUpdateLead } from "../../api/put/updateLead";
-import * as styled from './style';
+import * as styled from './style'
 import { Button, Input, message, Select } from "antd";
-import EventModal from "./components/EventModal/EventModal";
 import { DeleteOutlined, PlusOutlined } from "@ant-design/icons";
-import CommentModal from "./components/CommentModal/CommentModal";
 import { useGetAllUsers } from "../../api/get/getAllMember";
-import MentionModal from "./components/MentionModal/MentionModal";
 import CustomTag from "../../components/customTag/CustomTag";
 import { useGetAllReferences } from "../../api/get/getAllReference";
 import CustomSelect from "../../components/customSelect/CustomSelect";
 import { useGetAllShoots } from "../../api/get/getAllShoot"; // <-- Add this import
-import VoiceModal from "./components/VoiceModal/VoiceModal"; // adjust path if needed
 import { useCreateVoiceRecord } from "../../api/post/newVoiceRecord";
 import { ref } from "yup";
 import { useUpdateComment } from "../../api/put/updateComment";
@@ -28,12 +24,9 @@ import CustomTextArea from "../../components/customTextArea/CustomTextArea";
 import { useDeleteEvent } from "../../api/delete/deleteEvent";
 import CustomModal from "../../components/customModal/CustomModal";
 import { useGetAllEventList } from "../../api/get/getAllEventList";
-import DescriptionCell from "./components/DescriptionCell/DescriptionCell";
 import MuiInputWithDate from "../../components/MuiDatePicker/MuiInputWithDate";
 import Mui2InputWithDate from "../../components/Mui2InputWithDate/Mui2InputWithDate";
 import { createPortal } from "react-dom";
-import CommentCell from "./components/CommentCell/CommentCell";
-import DateTimeModal from "./components/DateTimeModal/DateTimeModal";
 import ReminderModal from "../../components/reminderModal/ReminderModal";
 import { useCreateReminder } from "../../api/post/newReminder";
 import DateInput from "../../components/CustomDateInput/CustomDateInput";
@@ -43,9 +36,19 @@ import { useUpdateUsersTablePreference } from "../../api/put/updateUsersTablePre
 import { useDownloadLeadsCSV } from "../../api/get/getLeadsCSV";
 import Papa from "papaparse"; // Add at the top if not already imported
 import { useUpdateBulkUsersTablePreference } from "../../api/put/updateBulkUpdateUsersTablePreference";
-import CustomSelectWithAllOption from "../../components/CustomSelectWithAllOption/CustomSelectWithAllOption";
-import { useUpdateMention } from "../../api/put/updateMention";
-import CustomChip from "../../components/customChip/CustomChip";
+import DescriptionCell from "./components/DescriptionCell/DescriptionCell";
+import CommentCell from "./components/CommentCell/CommentCell";
+import DateTimeModal from "../leads/components/DateTimeModal/DateTimeModal";
+import CommentModal from "../leads/components/CommentModal/CommentModal";
+import VoiceModal from "../leads/components/VoiceModal/VoiceModal";
+import { useGetTasksByUser } from "../../api/get/getAllTaskByUser";
+import { useCreateTask } from "../../api/post/newTask";
+import { useUpdateTask } from "../../api/put/updateTask";
+import SharedCommentModal from "../../components/SharedCommentModal/SharedCommentModal";
+import { useCreateComment } from "../../api/post/newComment";
+import { useCreateTaskVoiceRecord } from "../../api/post/newTaskVoiceRecord";
+import { useParams } from 'react-router-dom';
+import { useGetTaskTablePreference } from "../../api/get/getTaskTablesPreference";
 
 
 
@@ -53,7 +56,9 @@ import CustomChip from "../../components/customChip/CustomChip";
 interface Doc {
   id: any;
   name: string;
+  dueDate?: string; // Ensure this matches your API
   category: string;
+  project?: string; // Ensure this matches your API
   createdBy: string;
   createdAt: string;
   updatedBy: string;
@@ -92,31 +97,31 @@ const DROPDOWN_HEIGHT = 150; // px
 
 
 
-const Leads = () => {
+const Tasks = () => {
 
-  const userid = Number(localStorage.getItem('userid'));
+  // const userid = Number(localStorage.getItem('userid'));
+
+const { userid } = useParams(); // If your route is defined as /user/:userId/recursive-task
   const roleid = localStorage.getItem('roleid');
+  const loggedInUserId = Number(localStorage.getItem('userid'));
 
-    const {data: LeadsData, refetch: refetchLeadsData} = useGetLeadsByUser(Number(userid));
+    const {data: TaskData, refetch: refetchTasksData} = useGetTasksByUser(Number(userid));
 
-    const {data: leadsTablePreference, refetch: refetchLeadsTablePreference} = useGetLeadsTablePreference(userid);
+    const {data: taskTablePreference, refetch: refetchTaskTablePreference} = useGetTaskTablePreference(userid);
 
-
- 
 
 
     const columnWidthMap = useMemo(() => {
-  if (!leadsTablePreference) return {};
-  return leadsTablePreference.reduce((acc: any, pref: any) => {
+  if (!taskTablePreference) return {};
+  return taskTablePreference.reduce((acc: any, pref: any) => {
     acc[pref.accessorKey] = pref.width;
     acc[pref.orderId] = pref.orderId;
     return acc;
   }, {});
-}, [leadsTablePreference]);
+}, [taskTablePreference]);
 
     const {data: allMembersData} = useGetAllUsers();
-    const { data: allReferencesData } = useGetAllReferences();
-    const { data: allShootsData } = useGetAllShoots();
+ 
 
   // Store userId and name in state
   const [assigneeOptions, setAssigneeOptions] = useState<{ label: string; value: any }[]>([]);
@@ -151,31 +156,7 @@ const Leads = () => {
     }
   }, [allMembersData]);
 
-  useEffect(() => {
-    if (allReferencesData) {
-      setReferenceOptions(
-        allReferencesData
-          .filter((ref: any) => ref.name && ref.id)
-          .map((ref: any) => ({
-            label: ref.name,
-            value: ref.id,
-          }))
-      );
-    }
-  }, [allReferencesData]);
-
-  useEffect(() => {
-    if (allShootsData) {
-      setShootOptions(
-        allShootsData
-          .filter((shoot: any) => shoot.name && shoot.id)
-          .map((shoot: any) => ({
-            label: shoot.name,
-            value: shoot.id,
-          }))
-      );
-    }
-  }, [allShootsData]);
+ 
 
   useEffect(() => {
   if (roleid === "3") {
@@ -204,9 +185,9 @@ const Leads = () => {
 
             const [isMentionModalOpen, setIsMentionModalOpen] = useState(false);
 
-        const [tableData, setTableData] = useState<any[]>(LeadsData?.data);
+        const [tableData, setTableData] = useState<any[]>(TaskData?.data);
 
-        const [selectedLeadId, setSelectedLeadId] = useState<number>();
+        const [selectedTaskId, setSelectedTaskId] = useState<number>();
 
         const [editingEvent, setEditingEvent] = useState<{ rowId: any; eventId: any } | null>(null);
 const [editingEventValue, setEditingEventValue] = useState<any>({});
@@ -224,40 +205,26 @@ const [editingEventValue, setEditingEventValue] = useState<any>({});
 const [editingCommentValue, setEditingCommentValue] = useState<string>('');
 
 
- const {data: eventList, refetch: refetchEventList} = useGetAllEventList();
 const [eventOptions, setEventOptions] = useState<{ label: string; value: string }[]>([]);
 
-useEffect(() => {
-  if (eventList && Array.isArray(eventList)) {
-    setEventOptions(
-      eventList?.map((event: any) => ({
-        label: event?.eventName,
-        value: event?.id,
-      }))
-    );
-  }
-}, [eventList]);
-
-        // useEffect(()=>{
-        //   setTableData(LeadsData?.data)
-
-        // },[LeadsData]);
 
 
-        useEffect(() => {
-  if (!editingComment) {
-    setTableData(LeadsData?.data);
-  }
-}, [LeadsData, editingComment]);
+        useEffect(()=>{
+          setTableData(TaskData?.data)
+
+        },[TaskData]);
+
+
+       
 
          const openEventModal = (rowData: Doc) => {
-          setSelectedLeadId(rowData?.id)
+          setSelectedTaskId(rowData?.id)
 
     setIsEventModalOpen(true);
   };
 
     const openCommentModal = (rowData: Doc) => {
-          setSelectedLeadId(rowData?.id)
+          setSelectedTaskId(rowData?.id)
           setIsCommentModalOpen(true);
   };
 
@@ -273,7 +240,7 @@ useEffect(() => {
 
 
   const handleOpenReminderModal = (rowId: any, reminder: any) => {
-    setSelectedLeadId(rowId);
+    setSelectedTaskId(rowId);
     setIsReminderModalOpen(true);
   };
 
@@ -281,6 +248,20 @@ useEffect(() => {
 
   const handleEditComment = async(rowId: any, commentId: any, commentText: string, mentionedMember: any) => {
 
+      // setTableData(prev =>
+      //                     prev.map(row =>
+      //                       row.id === rowId
+      //                         ? {
+      //                             ...row,
+      //                             comments: row.comments.map((com: any, i: number) =>
+      //                               (com.id || i) === (commentId)
+      //                                 ? { ...com, comment: commentText }
+      //                                 : com
+      //                             ),
+      //                           }
+      //                         : row
+      //                     )
+      //                   );
     console.log("Editing comment:", rowId, commentId, commentText, mentionedMember);
     // setEditingComment({ rowId, commentId });
     const body={
@@ -288,7 +269,7 @@ useEffect(() => {
       mentionedMember: mentionedMember,
     }
     const response = await useUpdateCommentMutate.mutateAsync([body, commentId, userid]);
-    refetchLeadsData();
+    refetchTasksData();
     setEditingComment(null);
 
   
@@ -303,24 +284,12 @@ const handleDeleteComment = async (rowId: any, commentId: any) => {
   }
   console.log("commentid", commentId)
   const reponse = await useDeleteCommentMutate.mutateAsync([body,commentId]);
-    refetchLeadsData();
+    refetchTasksData();
 
 
 
 
 }
-
-
-const updateMentionMutate = useUpdateMention();
-const handleRemoveTags=async ( userid: any, leadId: any) => {
-  const body = {
-    deletedAt: new Date(),
-   
-  };
-  await updateMentionMutate.mutateAsync([body, userid, leadId, "tag"]);
-  refetchLeadsData();
-}
-
 
 const [editingRow, setEditingRow] = useState<any>(null);
 const [editingRowValue, setEditingRowValue] = useState<any>({});
@@ -341,7 +310,7 @@ const handleDescriptionChange = async (value: string, rowId: any, mentionedMembe
   };
 
   const response = await updateLeadMutate.mutateAsync([body,rowId, userid]);
-      refetchLeadsData();
+      refetchTasksData();
 
 
 }
@@ -350,26 +319,16 @@ const updateEventMutate = useUpdateEvent();
 
 const handleUpdateEvent = async (rowId: any, eventId: any, eventData: any) => {
   console.log("Updating event:", rowId, eventId, eventData);
-  // const body = {  
-  //   date: eventData.eventDate,
-  //   eventName: eventData.eventName, 
-  //   numberOfGuests: eventData.noOfGuests,
-  //   note: eventData.note,
-  //   crew: eventData.crew,
-  //   eventListId: eventData.eventListId, // Ensure this is included
-  // }
+  const body = {  
+    date: eventData.eventDate,
+    eventName: eventData.eventName, 
+    numberOfGuests: eventData.noOfGuests,
+    note: eventData.note,
+    crew: eventData.crew,
 
-  const body = {
-  date: eventData.eventDate,
-  eventName: eventData.eventListId == 4 ? null : eventData.eventName,
-  numberOfGuests: eventData.noOfGuests,
-  note: eventData.note,
-  crew: eventData.crew,
-  eventListId: eventData.eventListId,
-  ...(eventData.eventListId == 4 && { others: eventData.eventName }),
-};
+  }
   await updateEventMutate.mutateAsync([body, eventId]);
-  refetchLeadsData();
+  refetchTasksData();
 };
 
 const deleteEventMutate = useDeleteEvent();
@@ -380,7 +339,7 @@ const handleDeleteEvent = async (rowId: any, eventId: any) => {
       deletedAt: new Date(),
     };
     await deleteEventMutate.mutateAsync([body, eventId]);
-    refetchLeadsData();
+    refetchTasksData();
   } catch (error) {
     console.error("Failed to delete event:", error);
   }
@@ -397,7 +356,7 @@ const handleDeleteLead = async (leadId: any) => {
 
   };
   await updateLeadMutate.mutateAsync([body, leadId, userid]);
-  refetchLeadsData();
+  refetchTasksData();
 };
 
 
@@ -418,33 +377,7 @@ const handleDeleteLead = async (leadId: any) => {
 
 
 
-  const initialDocs: Doc[] = [
-  {
-    id: "",
-    name: 'Company mission and strategy',
-    category: 'Strategy doc',
-    createdBy: 'Suman Mudliyar',
-    createdAt: 'May 24, 2025 9:43 PM',
-    updatedBy: 'Suman Mudliyar',
-    updatedAt: 'May 24, 2025 9:43 PM',
-    event: '',
-    contact: '',
-    description: '',
-    status: '',
-    voice: '',
-    followup: '',
-    reminder: '',
-    comment: '',
-    mentions: '',
-    converted: '',
-    leads: '',
-    eventCount:0,
-    commentCount:0,
-    reference: '',
-    visible: true
-  },
-];
-
+  
 
 
 const columns: ColumnDef<Doc>[] = [
@@ -464,261 +397,31 @@ const columns: ColumnDef<Doc>[] = [
         </div>
       ),
   },
- {
-  header: 'Event',
-  accessorKey: 'eventData',
-  enableResizing: true ,
 
-  meta: {
-    editable: false,
-    editorType: 'eventData',
-    visible: true,
-  },
-cell: ({ row }) => {
-  const events = row.original.eventData || [];
-  const rowId = row.original.id;
-
-  // State for editing event (move this to your parent component if you want to edit only one event at a time for the whole table)
-  const [editingIdx, setEditingIdx] = useState<number | null>(null);
-  const [localEditValue, setLocalEditValue] = useState<any>(null);
-
-  // When entering edit mode, set the local edit value
-  const startEdit = (event: any, idx: number) => {
-    setEditingIdx(idx);
-    setLocalEditValue({
-      eventDate: event?.eventDate,
-      eventName: event?.eventName || '',
-      noOfGuests: event?.noOfGuests,
-      note: event?.note || '',
-      crew: event?.crew || '',
-      eventListId: event?.eventListId || null, // Add this line to handle eventListId
-    });
-  };
-
-  // When saving, call your handler and reset editing state
-  const saveEdit = async (eventId: any) => {
-    await handleUpdateEvent(rowId, eventId, localEditValue);
-    setEditingIdx(null);
-    setLocalEditValue(null);
-  };
-
-  // When canceling, reset editing state
-  const cancelEdit = () => {
-    setEditingIdx(null);
-    setLocalEditValue(null);
-  };
-
-  return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-      {events.length === 0 && (
-        <span style={{ color: '#aaa' }}>No Events</span>
-      )}
-      {events.map((event: any, idx: number) => {
-        const isEditing = editingIdx === idx;
-
-        console.log("Event data:", localEditValue);
-
-        return (
-          <div
-            key={event.eventId || idx}
-            style={{
-              borderBottom: '1px solid #eee',
-              paddingBottom: 2,
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'space-between',
-            }}
-          >
-            {isEditing ? (
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 8, width: '100%' }}>
-                {/* <Mui2InputWithDate
-                  name="eventDate"
-                  value={localEditValue.eventDate}
-                  onChange={e =>
-                    setLocalEditValue((prev: any) => ({
-                      ...prev,
-                      eventDate: e.target.value,
-                    }))
-                  }
-                  placeholder="Select date"
-                  required={false}
-                  error={undefined}
-                /> */}
-                <DateInput
-  value={localEditValue.eventDate || ''}
-  onChange={date =>
-    setLocalEditValue((prev: any) => ({
-      ...prev,
-      eventDate: date && dayjs(date).isValid() ? date.format('YYYY-MM-DD') : ''
-    }))
-  }
-  placeholder="Select date"
-/>
-
-<CustomSelectWithAllOption
-  name="eventId"
-  placeholder='Select an event'
-  options={eventOptions}
-  value={eventOptions.find(option => option.value === localEditValue.eventListId) || null}
-  onChange={(inputValue: any) => {
-    setLocalEditValue((prev: any) => ({
-      ...prev,
-      eventListId: inputValue.value, // Use value from the selected option
-    }));
-  }}
-  />
-  {localEditValue.eventListId == 4 && (
-                <CustomInput
-                  placeholder="Event Name"
-                  value={localEditValue.eventName}
-                  onChange={e =>
-                    setLocalEditValue((prev: any) => ({
-                      ...prev,
-                      eventName: e.target.value,
-                    }))
-                  }
-                />
-                 )}
-                <CustomInput
-                  type="number"
-                  placeholder="No. of Guests"
-                  value={localEditValue.noOfGuests}
-                  onChange={e =>
-                    setLocalEditValue((prev: any) => ({
-                      ...prev,
-                      noOfGuests: e.target.value,
-                    }))
-                  }
-                />
-                <CustomInput
-                  type="text"
-                  placeholder="No. of Crew"
-                  value={localEditValue.crew}
-                  onChange={e =>
-                    setLocalEditValue((prev: any) => ({
-                      ...prev,
-                      crew: e.target.value,
-                    }))
-                  }
-                />
-                <CustomTextArea
-                  value={localEditValue.note}
-                  onChange={val =>
-                    setLocalEditValue((prev: any) => ({
-                      ...prev,
-                      note: val,
-                    }))
-                  }
-                />
-                <div>
-                  <Button
-                    size="small"
-                    type="primary"
-                    onClick={() => saveEdit(event.eventId)}
-                    style={{ marginRight: 8 }}
-                  >
-                    Save
-                  </Button>
-                  <Button size="small" onClick={cancelEdit}>
-                    Cancel
-                  </Button>
-                </div>
-              </div>
-            ) : (
-              <>
-                <div
-                  style={{ cursor: 'pointer', flex: 1 }}
-                  onClick={() => startEdit(event, idx)}
-                >
-                  <div>
-                    <b>{event.eventName} on</b>{' '}
-                    {event.eventDate
-                      ? (() => {
-                          if (/^\d{2}[-/]\d{2}[-/]\d{4}$/.test(event.eventDate)) {
-                            return event.eventDate.replace(/\//g, '-');
-                          }
-                          const d = new Date(event.eventDate);
-                          if (isNaN(d.getTime())) return event.eventDate;
-                          const day = String(d.getDate()).padStart(2, '0');
-                          const month = String(d.getMonth() + 1).padStart(2, '0');
-                          const year = d.getFullYear();
-                          return `${day}-${month}-${year}`;
-                        })()
-                      : ''}
-                  </div>
-             {event.noOfGuests !== undefined && event.noOfGuests !== null && event.noOfGuests !== 0 && (
-  <div>
-    <b>Guests:</b> {event.noOfGuests}
-  </div>
-)}
-                
-                  {event.crew && (
-                    <div>
-                      <b>Crew:</b> {event.crew || 0}
-                    </div>
-                  )}
-                  {event.note && (
-                    <div>
-                      <b>Note:</b> {event.note}
-                    </div>
-                  )}
-                </div>
-                <Button
-                  size="small"
-                  danger
-                  icon={
-                    <DeleteOutlined
-                      style={{
-                        filter: 'brightness(0.7) grayscale(0.7)',
-                      }}
-                    />
-                  }
-                  onClick={e => {
-                    e.stopPropagation();
-                    handleDeleteEvent(rowId, event.eventId);
-                  }}
-                  style={{
-                    marginLeft: 8,
-                    background: 'lightgray',
-                    borderColor: 'lightgray',
-                  }}
-                />
-              </>
-            )}
-          </div>
-        );
-      })}
-      <Button
-        size="small"
-        icon={<PlusOutlined />}
-        onClick={() => openEventModal(row.original)}
-      />
-    </div>
-  );
-}
+   {
+    header: 'Created Date',
+    accessorKey: 'createdAt',
+    enableSorting: true,
+    meta: { editable: false },
+  cell: (getValue: any) => {
+  const value = getValue.getValue();
+  if (!value) return '';
+  const dateObj = new Date(value);
+  const dateStr = `${dateObj.getDate().toString().padStart(2, '0')}-${(dateObj.getMonth() + 1)
+    .toString()
+    .padStart(2, '0')}-${dateObj.getFullYear()}`;
+  let hours = dateObj.getHours();
+  const minutes = dateObj.getMinutes().toString().padStart(2, '0');
+  const ampm = hours >= 12 ? 'pm' : 'am';
+  hours = hours % 12;
+  hours = hours ? hours : 12; // the hour '0' should be '12'
+  const timeStr = `${hours.toString().padStart(2, '0')}:${minutes} ${ampm}`;
+  return `${dateStr} ${timeStr}`;
 },
-  {
-    header: 'Budget',
-    accessorKey: 'amount',
-    enableResizing: true ,
-    meta: { editable: true },
-      enableSorting: true,
-    cell: ({ getValue }) => {
-     let value = getValue();
-  if (typeof value === 'string') {
-    // Remove spaces and commas, then parse as number
-    value = Number(value.replace(/[\s,]/g, ''));
-  }
-  return typeof value === 'number' && !isNaN(value)
-    ? value.toLocaleString('en-IN', { maximumFractionDigits: 0 })
-    : value;
-},
-
   },
-
-            {
+    {
       header: 'Created By',
-      accessorKey: 'assignedTo', // or 'assignedTo' if that's your field
+      accessorKey: 'createdBy', // or 'assignedTo' if that's your field
       meta: {
         editable: false,
         // editorType: 'select',
@@ -731,48 +434,77 @@ cell: ({ row }) => {
         return option ? option.label : '';
       },
     },
-  { header: 'Contact', 
-    accessorKey: 'contact',
-    meta: { editable: true },
-     cell: ( getValue: any) => {
-  ;
+ 
+
+  {
+    header: 'Due Date',
+    accessorKey: 'dueDate',
+    enableSorting: true,
+    meta: { editable: true, editorType: 'date' },
+    cell: (row: any) => {
+  const dueDateValue = row.row.original.dueDate;
+  const createdAtValue = row.row.original.createdAt;
+  if (!dueDateValue || !createdAtValue) return '';
+
+  const dueDate = new Date(dueDateValue);
+  const createdAt = new Date(createdAtValue);
+
+  // Format date as dd-mm-yyyy
+  const formatDate = (date: Date) =>
+    `${date.getDate().toString().padStart(2, '0')}-${(date.getMonth() + 1)
+      .toString()
+      .padStart(2, '0')}-${date.getFullYear()}`;
+
+  // Calculate difference in days
+  const diffTime = dueDate.getTime() - createdAt.getTime();
+  const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+
+  if (isNaN(diffDays)) return '';
+
+  if (diffDays >= 0) {
     return (
-      <span style={{ whiteSpace: 'pre-line' }}>
-        {getValue.getValue()}
+      <span style={{ color: 'green', fontWeight: 500 }}>
+        {formatDate(dueDate)} ({diffDays} day{diffDays !== 1 ? 's' : ''})
       </span>
     );
-  },
- },
-  { header: 'Description', 
-    accessorKey: 'description', 
-    meta: { editable: true },
-     cell: ({row}) => {
-
-    const value = row.original.description;
+  } else {
     return (
-      // <span style={{ whiteSpace: 'pre-line' }}>
-      //   {value}
-      // </span>
-     <DescriptionCell
-      value={value}
-      onChange={handleDescriptionChange}
-            leadid={row.original.id}
-            assigneeOptions={assigneeOptions}
-
-
-    />
-
-     
+      <span style={{ color: 'red', fontWeight: 500 }}>
+        {formatDate(dueDate)} ({Math.abs(diffDays)} day{Math.abs(diffDays) !== 1 ? 's' : ''})
+      </span>
     );
+  }
+},
   },
- },
+ 
+
+            {
+      header: 'Assignee',
+      accessorKey: 'assignedTo', // or 'assignedTo' if that's your field
+      meta: {
+        editable: roleid ==="1" ? true : false, // Only allow editing for admin
+        editorType: 'select',
+        selectOptions: assigneeOptions,
+      },
+      cell: ({ getValue }) => {
+        const value = getValue();
+    
+        const option = assigneeOptions.find(opt => opt.value == value);
+        return option ? option.label : '';
+      },
+    },
+
+ 
+  
   { header: 'Status', accessorKey: 'status',
      meta: {
       editable: true,
       editorType: 'select',
       selectOptions: [
-        { label: 'Open', value: 'open' },
-        { label: 'Closed', value: 'closed' },
+        { label: 'Not Started', value: 'notStarted' },
+        { label: 'In Progress', value: 'inProgress' },
+        { label: 'For Approval', value: 'forApproval' },
+        { label: 'Done', value: 'completed' },
       ],
     },
  },
@@ -819,53 +551,7 @@ cell: ({ row }) => {
     );
   },
 },
-    { header: 'Follow up', accessorKey: 'followup',     
-      meta: { editorType: 'datetime', // <-- add this
- }
- ,
-    cell: (getValue: any) => {
-  const { followup, followupTime } = getValue.row.original;
-  // if (!followup) return  <span style={{ color: '#888' }}>Set follow up</span>;
-
-  // Combine date and time as a string in local time
-  const dateTimeString = `${followup}T${followupTime || '00:00'}`;
-  const d = new Date(dateTimeString);
-
-  let displayValue = '';
-  if (isNaN(d.getTime())) {
-    displayValue = followup;
-  } else {
-    // Format as DD/MM/YYYY, hh:mm AM/PM (no timezone conversion)
-    const day = String(d.getDate()).padStart(2, '0');
-    const month = String(d.getMonth() + 1).padStart(2, '0');
-    const year = d.getFullYear();
-
-    let hour = d.getHours();
-    const minute = String(d.getMinutes()).padStart(2, '0');
-    const ampm = hour >= 12 ? 'PM' : 'AM';
-    hour = hour % 12;
-    hour = hour ? hour : 12; // the hour '0' should be '12'
-
-    displayValue = `${day}/${month}/${year}, ${String(hour).padStart(2, '0')}:${minute} ${ampm}`;
-  }
-
-  return (
-    <span
-      style={{ cursor: 'pointer', color: '#fff' }}
-      onClick={() =>
-        handleOpenDateTimeModal(
-          getValue.row.original.id,
-          followup,
-          followupTime
-        )
-      }
-    >
-      {displayValue || <span style={{ color: '#888' }}>Set follow up</span>}
-    </span>
-  );
-},
-
-},
+   
 
 
  
@@ -889,7 +575,6 @@ cell: ({ row }) => {
     maxSize: 400,
     enableResizing: true, 
 
-
 cell: ({ row }) => {
   const comments = row.original.comments || [];
   const rowId = row.original.id;
@@ -910,100 +595,20 @@ cell: ({ row }) => {
 
 
 },
-          {
-  header: 'Tags',
-  accessorKey: 'mentions',
-  meta: {
-    editable: false,
-    visible: true,
-    orderId: 14,
-  },
-  cell: ({ row }) => {
-    const mentions = row.original.mentions;
-    return (
-      <div
-        style={{
-          cursor: 'pointer',
-          color: '#52c41a',
-          minHeight: 32,
-          display: 'flex',
-          alignItems: 'center',
-          gap: 4,
-          flexWrap: 'wrap',
-        }}
-        onClick={() => openMentionModal(row.original)}
-      >
-        {Array.isArray(mentions) && mentions.length > 0 ? (
-          mentions.map((m: any) => (
-            <CustomTag key={m.userId} name={m.userName} onClose={() => handleRemoveTags(m.userId, row.original.id)} />
-            // <CustomChip key={m.userId} label={m?.userName} onDelete={() => handleRemoveTags(m.userId, row.original.id)} />
 
-             
-          ))
-        ) : (
-          <span style={{ color: '#aaa' }}>Tag</span>
-        )}
-      </div>
-    );
-  },
-},
-            { header: 'Converted', accessorKey: 'converted',
+            { header: 'Project', accessorKey: 'project',
                meta: {
       editable: true,
       editorType: 'select',
       selectOptions: [
-        { label: 'Yes', value: 'yes' },
-        { label: 'No', value: 'no' },
+        { label: 'To Start', value: 'toStart' },
+        { label: 'Current Working', value: 'ongoing' },
       ],
     }
 
              },
-             {
-  header: 'Leads',
-  accessorKey: 'leads',
-  meta: {
-    editable: true,
-    editorType: 'select',
-    selectOptions:leadsOption,
-  },
-  
-},
-              {
-  header: 'Reference',
-  accessorKey: 'referenceId', // Make sure your data has this field
-  meta: {
-    editable: true,
-    editorType: 'select',
-    selectOptions: referenceOptions,
-  },
-  cell: ({ getValue }) => {
-    const value = getValue();
-    const option = referenceOptions.find(opt => String(opt.value) === String(value));
-    return option ? (
-      <CustomTag name={option.label} />
-    ) : (
-      <span style={{ color: '#aaa' }}>No Reference</span>
-    );
-  },
-},
-{
-  header: 'Shoot',
-  accessorKey: 'shootId',
-  meta: {
-    editable: true,
-    editorType: 'select',
-    selectOptions: shootOptions,
-  },
-  cell: ({ getValue }) => {
-    const value = getValue();
-    const option = shootOptions.find(opt => String(opt.value) === String(value));
-    return option ? (
-      <CustomTag name={option.label} />
-    ) : (
-      <span style={{ color: '#aaa' }}>No Shoot</span>
-    );
-  },
-},
+          
+
     
               
 
@@ -1023,8 +628,8 @@ const columnsWithWidth = columns
   .map((col: any) => ({
     ...col,
     size: columnWidthMap[col.accessorKey as string] || col.size || 200,
-    orderId: leadsTablePreference?.find((p: any) => p.accessorKey === col.accessorKey)?.orderId ?? col.orderId,
-    isVisible: leadsTablePreference?.find((p: any) => p.accessorKey === col.accessorKey)?.isVisible ?? col.isVisible,
+    orderId: taskTablePreference?.find((p: any) => p.accessorKey === col.accessorKey)?.orderId ?? col.orderId,
+    // isVisible: leadsTablePreference?.find((p: any) => p.accessorKey === col.accessorKey)?.isVisible ?? col.isVisible,
 
 
   }))
@@ -1062,63 +667,49 @@ const createEmptyDoc = (): Doc => {
 };
 
 
-    const newLeadsMutate = useCreateLead();
+    const newTaskMutate = useCreateTask();
     const handleRowCreate=async(newRow: Doc)=>{
       const body={
         name: newRow.name,
-        createdBy:userid,
-        assignedTo: newRow.assignedTo,
+        createdBy: loggedInUserId,
+        assignedTo: userid,
+        status:"notStarted",
 
       };
-      const response = await newLeadsMutate.mutateAsync([body, userid]);
-      refetchLeadsData();
+      const response = await newTaskMutate.mutateAsync([body, userid]);
+      refetchTasksData();
 
     };
 
 
 
+
+    const updateTaskMutate = useUpdateTask()
     
 
     const handleRowEdit=async(updatedRow: Doc, rowIndex: number)=>{
       const body={
-               name: updatedRow?.name,
-               contact:updatedRow.contact,
-               description: updatedRow.description,
-               status: updatedRow.status,
-               converted: updatedRow.converted,
-               mentionedMembers:[],
-              amount: (() => {
-  if (typeof updatedRow.amount === 'number') {
-    return updatedRow.amount.toLocaleString('en-IN');
-  }
-  if (typeof updatedRow.amount === 'string') {
-    // Remove commas/spaces, parse as number, then format
-    const num = Number((updatedRow.amount !== undefined && updatedRow.amount !== null ? updatedRow.amount : '').toString().replace(/[\s,]/g, ''));
-    return !isNaN(num) ? num.toLocaleString('en-IN') : updatedRow.amount;
-  }
-  return updatedRow.amount;
-})(),
-               leads: updatedRow.leads,
-               followup: updatedRow.followup,
-               assignedTo: updatedRow.assignedTo,
-               referenceId: updatedRow.referenceId || null, // Ensure this matches your API
-               shootId: updatedRow.shootId || null, // <-- Add this line
+              name: updatedRow?.name,
+              dueDate: updatedRow?.dueDate,
+              project: updatedRow?.project,
+              status: updatedRow?.status,
+              assignedTo: updatedRow?.assignedTo,
+            
       };
 
 
 
-      const response = await updateLeadMutate.mutateAsync([body, updatedRow.id, userid]);
-      refetchLeadsData();
+      const response = await updateTaskMutate.mutateAsync([body, updatedRow.id, userid]);
+      refetchTasksData();
 
     };
 
 
     const handleRowDelete = async (rowIndex: number) => {
 
-      const leadId = tableData[rowIndex].id;
-      if (!leadId) return;
-      await updateLeadMutate.mutateAsync([{deletedAt: new Date(), mentionedMembers: []}, leadId, userid]);
-      refetchLeadsData();
+      const taskid = tableData[rowIndex].id;
+      await updateTaskMutate.mutateAsync([{deletedAt: new Date()}, taskid, userid]);
+      refetchTasksData();
 
     }
 
@@ -1132,7 +723,7 @@ const createEmptyDoc = (): Doc => {
       try {
         await updateLeadMutate.mutateAsync([body, leadID, userid]);
 
-        refetchLeadsData();
+        refetchTasksData();
       } catch (error) {
         console.error("Error updating followup:", error);
       }
@@ -1156,19 +747,13 @@ const createEmptyDoc = (): Doc => {
     orderId: col.order
   }));
 
-    const result = await updateBulkUsersTablePreferences.mutateAsync([orderPayload, "lead", userid]);
-      refetchLeadsTablePreference();
-      
-      // setColumns(updatedColumns);
-      // onColumnOrderChange?.(newOrder);
+    const result = await updateBulkUsersTablePreferences.mutateAsync([orderPayload, "task", userid]);
+      refetchTaskTablePreference();
+
     };
 
 
-    const handleColumnVisibility = async (columnKey: string, isVisible: boolean) => {
-
-
-
-      };
+   
 
 
 
@@ -1183,14 +768,14 @@ const reminderMutate = useCreateReminder();
       const body = {
         reminderDate: date,
         reminderTime: time,
-        leadId: selectedLeadId,
+        leadId: selectedTaskId,
         userId: userid,
         message: title,
       };
       try {
-        await reminderMutate.mutateAsync([body, selectedLeadId]);
-        refetchLeadsData();
-        setSelectedLeadId(0);
+        await reminderMutate.mutateAsync([body, selectedTaskId]);
+        refetchTasksData();
+        setSelectedTaskId(0);
         setIsReminderModalOpen(false);
       } catch (error) {
         console.error("Error creating reminder:", error);
@@ -1203,13 +788,10 @@ const reminderMutate = useCreateReminder();
 
     const filterableKeys = [
   "status",
-  "referenceId",
-  "followup",
-  "mentions",
-  "converted",
-  "eventData",
-  "leads",
-  "shootId",
+  "createdBy",
+  "project",
+  "dueDate",
+ 
 
 ];
 
@@ -1238,7 +820,23 @@ const handleAddFilter = (columnKey: any) => {
 };
 
 
-const createVoiceRecordMutation  = useCreateVoiceRecord();
+const commentMutate = useCreateComment();
+const handleComment= async(data: any) => {
+  console.log("Comment data:", data);
+
+  const body = {
+    comment: data.comment,
+    mentionedMembers: data.mentionedMembers || [],
+    taskId: selectedTaskId,
+    givenBy: userid,
+  }
+
+  const response = await commentMutate.mutateAsync([body, userid]);
+  refetchTasksData();
+}
+
+
+const createVoiceRecordMutation  = useCreateTaskVoiceRecord();
 const handleSaveVoice = async(audioBlob: Blob) => {
   if (selectedVoiceRow) {
     const url = URL.createObjectURL(audioBlob);
@@ -1252,11 +850,11 @@ const handleSaveVoice = async(audioBlob: Blob) => {
 
      createVoiceRecordMutation.mutate({
       blob: audioBlob,
-      leadId: selectedVoiceRow?.id, // assuming you have this
-      createdBy: userid, // or get it from auth/user state
+      taskId: selectedVoiceRow?.id, // assuming you have this
+      createdBy: Number(userid), // or get it from auth/user state
     }, {
       onSuccess: () => {
-        refetchLeadsData();
+        refetchTasksData();
         console.log("Voice record created successfully.");
       },
       onError: (error) => {
@@ -1372,44 +970,17 @@ return eventDates.some((d: any) => {
 
     // Followup filter
 
-  
-    if (key === 'followup' || key === 'followupType' || key ==='followupStart' || key ==="followupEnd") {
+
+    if (key === 'dueDate' || key === 'followupType' || key ==='followupStart' || key ==="followupEnd") {
             if (!followupType || !val) return true;
 
-      const followupDate = row.followup?.slice(0, 10);
+      const followupDate = row.dueDate?.slice(0, 10);
 
       console.log("key", key, "followupDate", followupDate, followupType);
 
             // if (!followupDate || !filters.followup) return false;
 
 
-    
-
-  //     if (followupType === 'between') {
-
-  //      const start = filters.followupStart;
-  // const end = filters.followupEnd;
-
-
-
-  // if (!start || !end || !followupDate) return false; // All must be present
-
-  // // Convert to Date objects for accurate comparison
-  // const date = new Date(followupDate);
-  // const startDate = new Date(start);
-  // const endDate = new Date(end);
-  // console.log("startDate", startDate, "endDate", endDate, "date", date);
-  // console.log("dsds", date >= startDate, date <= endDate);
-
-
-
-  // // Check for valid dates
-  // if (isNaN(date.getTime()) || isNaN(startDate.getTime()) || isNaN(endDate.getTime())) return false;
-
-
-
-  // return date >= startDate && date <= endDate;
-  //     }
 
 
   if (followupType === 'between' && filters.followupStart && filters.followupEnd) {
@@ -1434,23 +1005,23 @@ return eventDates.some((d: any) => {
       // }
 
 
-      if (followupType === 'before' && filters.followup) {
+      if (followupType === 'before' && filters.dueDate) {
 
         console.log("inside before");
-        console.log("followupDate", followupDate, "filters.followup", filters.followup, followupDate < filters.followup);
+        console.log("followupDate", followupDate, "filters.dueDate", filters.dueDate, followupDate < filters.dueDate);
 
-        return followupDate < filters.followup;
+        return followupDate < filters.dueDate;
       }
-      if (followupType === 'after' && filters.followup) {
+      if (followupType === 'after' && filters.dueDate) {
 
         console.log("inside after");
-        console.log("followupDate", followupDate, "filters.followup", filters.followup, followupDate> filters.followup);
-        return followupDate > filters.followup;
+        console.log("followupDate", followupDate, "filters.dueDate", filters.dueDate, followupDate > filters.dueDate);
+        return followupDate > filters.dueDate;
       }
-      if (followupType === 'on' && filters.followup) {
-                console.log("followupDate", followupDate, "filters.followup", filters.followup, followupDate=== filters.followup);
+      if (followupType === 'on' && filters.dueDate) {
+        console.log("followupDate", followupDate, "filters.dueDate", filters.dueDate, followupDate === filters.dueDate);
 
-        return followupDate === filters.followup;
+        return followupDate === filters.dueDate;
       }
       return true;
     }
@@ -1486,7 +1057,9 @@ return eventDates.some((d: any) => {
 
     }
     
-const response = updateTablePreferences.mutateAsync([body, columnId,"lead", userid]);
+const response = updateTablePreferences.mutateAsync([body, columnId,"task", userid]);
+refetchTaskTablePreference();
+
 
   };
 
@@ -1546,9 +1119,9 @@ const handleColumnVisibilityChange = async(columnKey: string, isVisible: boolean
   const body = {
     isVisible: isVisible,
   };
-  const updatedResult = await updateTablePreferences.mutateAsync([body, columnKey, "lead", userid]);
+  const updatedResult = await updateTablePreferences.mutateAsync([body, columnKey, "task", userid]);
 
-  refetchLeadsTablePreference();
+  // refetchLeadsTablePreference();
 
 }
 
@@ -1568,7 +1141,7 @@ const handleColumnVisibilityChange = async(columnKey: string, isVisible: boolean
 
     const meta: { editorType?: string; selectOptions?: Array<{ label: string; value: any }> } = col.meta || {};
 
-  if (key === 'followup') {
+  if (key === 'dueDate') {
   const followupType = filters.followupType;
   return (
     <styled.FilterTag key={key} active={!!filters[key]} style={{ background: 'rgb(25, 25, 25)' }}>
@@ -1592,13 +1165,7 @@ onChange={val => {
       {followupType === 'between' ? (
         <>
         <styled.singleDateDiv>
-          {/* <MuiInputWithDate
-            name="followupStart"
-            value={filters.followupStart || ''}
-            onChange={e => setFilters(prev => ({ ...prev, followupStart: e.target.value }))}
           
-            placeholder="Start date"
-          /> */}
           <DateInput
   value={filters.followupStart || ''}
   onChange={date =>
@@ -1611,12 +1178,7 @@ onChange={val => {
 />
           </styled.singleDateDiv>
           <styled.singleDateDiv>
-          {/* <MuiInputWithDate
-            name="followupEnd"
-            value={filters.followupEnd || ''}
-            onChange={e => setFilters(prev => ({ ...prev, followupEnd: e.target.value }))}
-            placeholder="End date"
-          /> */}
+          
           <DateInput
   value={filters.followupEnd || ''}
   onChange={date =>
@@ -1631,14 +1193,7 @@ onChange={val => {
         </>
       ) : (
         <styled.singleDateDiv>
-          {/* <MuiInputWithDate
-            name={key}
-            value={filters[key] || ''}
-            onChange={e => handleFilterChange(key, e.target.value)}
-            placeholder="Select date"
-            required={false}
-            error={undefined}
-          /> */}
+          
 
        <DateInput
   value={filters[key] || ''}
@@ -1655,8 +1210,8 @@ onChange={val => {
       <span
        onClick={() => {
   console.log("Removing filter for key:", key);
-  if (key === 'followup') {
-    handleRemoveFilter('followup');
+  if (key === 'dueDate') {
+    handleRemoveFilter('dueDate');
     handleRemoveFilter('followupType');
     handleRemoveFilter('followupStart');
     handleRemoveFilter('followupEnd');
@@ -1664,21 +1219,11 @@ onChange={val => {
     
   } else if (key === 'followupType') {
     handleRemoveFilter('followupType');
-    handleRemoveFilter('followup');
+    handleRemoveFilter('dueDate');
      handleRemoveFilter('followupStart');
     handleRemoveFilter('followupEnd');
 
-  } else if (key === 'eventData') {
-    handleRemoveFilter('eventData');
-    handleRemoveFilter('eventType');
-    handleRemoveFilter('eventDataStart');
-    handleRemoveFilter('eventDataEnd');
-  } else if (key === 'eventType') {
-    handleRemoveFilter('eventType');
-    handleRemoveFilter('eventData');
-    handleRemoveFilter('eventDataStart');
-    handleRemoveFilter('eventDataEnd');
-  } else {
+  }  else {
     handleRemoveFilter(key);
   }
 }}    
@@ -1718,13 +1263,7 @@ onChange={val => {
             <>
 
              <styled.singleDateDiv>
-              {/* <MuiInputWithDate
-               name="eventDataStart"
-                value={filters.eventDataStart || ''}
-                onChange={e => setFilters(prev => ({ ...prev, eventDataStart: e.target.value }))}
-                
-                placeholder="Start date"
-              /> */}
+            
 
               <DateInput
   value={filters.eventDataStart || ''}
@@ -1743,12 +1282,7 @@ onChange={val => {
               <styled.singleDateDiv>
 
               
-              {/* <MuiInputWithDate
-name="eventDataEnd"
-                value={filters.eventDataEnd || ''}
-                onChange={e => setFilters(prev => ({ ...prev, eventDataEnd: e.target.value }))}
-                placeholder="End date"
-              /> */}
+            
 
               <DateInput
   value={filters.eventDataEnd || ''}
@@ -1769,15 +1303,7 @@ name="eventDataEnd"
             <styled.singleDateDiv>
 
 
-  {/* <MuiInputWithDate
-  name={key}
-  value={filters[key] || ''}
-  onChange={e => handleFilterChange(key, e.target.value)}
-  placeholder="Select date"
-  required={false}
-  error={undefined}
 
-/> */}
 
 <DateInput
   value={filters[key] || ''}
@@ -1857,7 +1383,7 @@ onClick={() => {
         placeholder={col.header?.toString()}
         size="small"
         value={filters[key]}
-        onChange={(e) => handleFilterChange(key, e.target.value)}
+        onChange={(e: any) => handleFilterChange(key, e.target.value)}
         style={{
           width: 150,
           background: 'rgb(25, 25, 25)',
@@ -1921,8 +1447,6 @@ onClick={() => {
           onDataChange={setTableData}
           // columns={columns}
           columns={columnsWithWidth}
-
-          
           createEmptyRow={createEmptyDoc}
           onRowCreate={handleRowCreate} // ✅ hook for API
           onRowEdit={handleRowEdit} // ✅ added
@@ -1937,45 +1461,36 @@ onClick={() => {
   onRowDelete={handleRowDelete} // ✅ added
   onColumnOrderChange={handleColumnOrder} // ✅ added
   downloadData={downloadCSV}
-  isDownloadable={true}
+  isDownloadable={false}
   handleColumnVisibilityChange={handleColumnVisibilityChange}
 
         />
 
 
-        {isEventModalOpen && (
-          <EventModal
-          open={isEventModalOpen}
-        onClose={() => setIsEventModalOpen(false)}
-        title="Add Events"
-        leadId={selectedLeadId || 0}
-        refetch={refetchLeadsData}
-    
-          />
-        )}
+      
 
 
            {isCommentModalOpen && (
-          <CommentModal
+          <SharedCommentModal
         open={isCommentModalOpen}
         onClose={() => setIsCommentModalOpen(false)}
         title="Add Comments"
-        leadId={selectedLeadId || 0}
-        refetch={refetchLeadsData}
+        Id={selectedTaskId || 0}
+        refetch={refetchTasksData}
         assigneeOptions={assigneeOptions}
-    
-          />
+        onSave={handleComment}
+      />
         )}
 
-        {isMentionModalOpen && (
+        {/* {isMentionModalOpen && (
   <MentionModal
     open={isMentionModalOpen}
     onClose={() => setIsMentionModalOpen(false)}
-    title="Tag Someone"
+    title="Mention Someone"
     leadId={selectedMentionLeadId || 0}
-    refetch={refetchLeadsData}
+    refetch={refetchTasksData}
   />
-)}
+)} */}
 
 
  {isTimeDateModalOpen && (
@@ -1995,7 +1510,7 @@ onClick={() => {
     onClose={() => setIsReminderModalOpen(false)}
     title="Add Reminder"
     onSave={handleReminderChange}
-    leadID={selectedLeadId}
+    leadID={selectedTaskId}
   />
 )}
 
@@ -2016,4 +1531,4 @@ onClick={() => {
   )
 }
 
-export default Leads
+export default Tasks;

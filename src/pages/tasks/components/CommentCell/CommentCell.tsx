@@ -121,21 +121,9 @@ const CommentCell: React.FC<CommentCellProps> = ({
                 }}
               >
                 <div>
-                  {/* <span style={{ whiteSpace: "pre-line" }}>
+                  <span style={{ whiteSpace: "pre-line" }}>
                     <strong>{c.comment}</strong>
-                  </span> */}
-                  <span
-  style={{ whiteSpace: "pre-line" }}
-  dangerouslySetInnerHTML={{
-    __html: String(c?.comment).replace(
-      /((https?:\/\/|www\.)[^\s]+)/g,
-      url => {
-        const href = url.startsWith('http') ? url : `https://${url}`;
-        return `<a href="${href}" target="_blank" rel="noopener noreferrer" style="color:#4fa3ff;text-decoration:underline;">${url}</a>`;
-      }
-    )
-  }}
-/>
+                  </span>
                   <div style={{ fontSize: 12, color: "#aaa" }}>
                     By: {c.givenBy || "Unknown"} | At:{" "}
                     {c.givenAt

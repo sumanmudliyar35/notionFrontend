@@ -8,6 +8,8 @@ import Layout from './components/layout/Layout';
 import Admin from './pages/admin/Admin';
 import Notification from './pages/notification/Notification';
 import type { NotificationArgsProps } from 'antd';
+import Tasks from './pages/tasks/Tasks';
+import RecursiveTask from './pages/recursiveTask/RecursiveTask';
 
 type NotificationPlacement = NotificationArgsProps['placement'];
 
@@ -89,6 +91,11 @@ const App: React.FC = () => {
             <Route path="/leads" element={<Leads />} />
             <Route path="/admin" element={<Admin />} />
             <Route path="/notifications" element={<Notification />} />
+            {/* <Route path="/tasks" element={<Tasks />} /> */}
+            <Route path="/user/:userid/task" element={<Tasks />} />
+            <Route path="/user/:userid/recursive-task" element={<RecursiveTask />} />
+
+            
           </Route>
         </Routes>
       </Router>

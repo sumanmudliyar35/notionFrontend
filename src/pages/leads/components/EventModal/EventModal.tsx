@@ -46,8 +46,8 @@ const [eventOptions, setEventOptions] = useState<{ label: string; value: string 
 useEffect(() => {
   if (eventList && Array.isArray(eventList)) {
     setEventOptions(
-      eventList.map((event: any) => ({
-        label: event.eventName,
+      eventList?.map((event: any) => ({
+        label: event?.eventName,
         value: event.id,
       }))
     );

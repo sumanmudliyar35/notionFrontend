@@ -12,10 +12,17 @@ export const useMention = (options: any[], initialValues: any) => {
   const [mentionedUserIds, setMentionedUserIds] = useState<string[]>([]);
 
   const filteredOptions = useMemo(() => {
-    if (!searchText) return options;
-    const search = searchText.replace('@', '').toLowerCase();
-    return options.filter((option: any) => option.label.toLowerCase().includes(search));
-  }, [searchText, options]);
+    if (!showDropdown) return [];
+    // Find the last @ and get the text after it
+    const cursorPos = inputRef.current?.selectionStart || inputValue.length;
+    const textBeforeCursor = inputValue.slice(0, cursorPos);
+    const match = textBeforeCursor.match(/@([^@\s]*)$/);
+    const search = match ? match[1].toLowerCase() : '';
+    if (!search) return options;
+    return options.filter((option: any) =>
+      option.label.toLowerCase().includes(search)
+    );
+  }, [showDropdown, inputValue, options]);
 
   const showDropdownDynamic = () => {
     if (inputRef.current) {
@@ -42,15 +49,13 @@ export const useMention = (options: any[], initialValues: any) => {
     setInputValue(val);
     const cursorPos = e.target.selectionStart || 0;
     const textBeforeCursor = val.slice(0, cursorPos);
-    const matches = textBeforeCursor.match(/@([^@\s]*)$/);
+    const match = textBeforeCursor.match(/@([^@\s]*)$/);
 
-    if (val[cursorPos - 1] === '@') {
+    if (match) {
       setShowDropdown(true);
       showDropdownDynamic();
-      setSearchText(matches ? matches[0] : '');
     } else {
       setShowDropdown(false);
-      setSearchText('');
     }
   };
 
@@ -59,16 +64,28 @@ export const useMention = (options: any[], initialValues: any) => {
     if (!inputRef.current) return;
     const input = inputRef.current;
     const cursorPos = input.selectionStart || 0;
-    const before = inputValue.slice(0, cursorPos - 1); // remove '@'
-    const after = inputValue.slice(cursorPos);
+    const textBeforeCursor = inputValue.slice(0, cursorPos);
+    const match = textBeforeCursor.match(/@([^@\s]*)$/);
+
+    let before = inputValue;
+    let after = '';
+    if (match) {
+      const atIndex = textBeforeCursor.lastIndexOf('@');
+      before = inputValue.slice(0, atIndex);
+      after = inputValue.slice(cursorPos);
+    }
     const newValue = `${before}@${member.label} ${after}`;
 
-    setMentionedUserIds((prev) => (prev.includes(member.value) ? prev : [...prev, member.value]));
+    setMentionedUserIds((prev) =>
+      prev.includes(member.value) ? prev : [...prev, member.value]
+    );
     setInputValue(newValue);
     setShowDropdown(false);
     setTimeout(() => {
       input.focus();
-      input.setSelectionRange(before.length + member.label.length + 2, before.length + member.label.length + 2);
+      // Place cursor after the inserted mention
+      const pos = (before + '@' + member.label + ' ').length;
+      input.setSelectionRange(pos, pos);
     }, 0);
 
     setTimeout(() => {
