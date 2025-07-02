@@ -46,6 +46,13 @@ import { useUpdateBulkUsersTablePreference } from "../../api/put/updateBulkUpdat
 import CustomSelectWithAllOption from "../../components/CustomSelectWithAllOption/CustomSelectWithAllOption";
 import { useUpdateMention } from "../../api/put/updateMention";
 import CustomChip from "../../components/customChip/CustomChip";
+import { useUpdateBulkLead } from "../../api/put/updateBulkLead";
+import { formatDisplayDate } from "../../utils/commonFunction";
+import { usePostGetCommentByLead } from "../../api/get/postGetCommentByLead";
+import { useCreateComment } from "../../api/post/newComment";
+import SharedCommentModal from "../../components/SharedCommentModal/SharedCommentModal";
+import { useCreateEvent } from "../../api/post/newEvent";
+import { usePostGetEventByLead } from "../../api/get/postGetEventsByLead";
 
 
 
@@ -208,6 +215,8 @@ const Leads = () => {
 
         const [selectedLeadId, setSelectedLeadId] = useState<number>();
 
+        const [selectedMentions, setSelectedMentions] = useState<any[]>([]);
+
         const [editingEvent, setEditingEvent] = useState<{ rowId: any; eventId: any } | null>(null);
 const [editingEventValue, setEditingEventValue] = useState<any>({});
 
@@ -238,17 +247,19 @@ useEffect(() => {
   }
 }, [eventList]);
 
-        // useEffect(()=>{
-        //   setTableData(LeadsData?.data)
+        useEffect(()=>{
+          console.log("suman");
+          setTableData(LeadsData?.data)
 
-        // },[LeadsData]);
+        },[LeadsData]);
 
 
-        useEffect(() => {
-  if (!editingComment) {
-    setTableData(LeadsData?.data);
-  }
-}, [LeadsData, editingComment]);
+//         useEffect(() => {
+//   if (!editingComment) {
+//     console.log("Setting table data from LeadsData");
+//     setTableData(LeadsData?.data);
+//   }
+// }, [LeadsData, editingComment]);
 
          const openEventModal = (rowData: Doc) => {
           setSelectedLeadId(rowData?.id)
@@ -262,8 +273,17 @@ useEffect(() => {
   };
 
   const openMentionModal = (rowData: Doc) => {
-          setSelectedMentionLeadId(rowData?.id);
-          setIsMentionModalOpen(true);
+          let mentions = rowData.mentions;
+  if (!Array.isArray(mentions)) {
+    try {
+      mentions = mentions && typeof mentions === 'string' ? JSON.parse(mentions) : [];
+    } catch {
+      mentions = "";
+    }
+  }
+  setSelectedMentionLeadId(rowData?.id);
+  setSelectedMentions(Array.isArray(mentions) ? mentions : []); // Store the current mentions as array
+  setIsMentionModalOpen(true);
   };
 
   const openVoiceModal = (rowData: Doc) => {
@@ -279,6 +299,8 @@ useEffect(() => {
 
   const useUpdateCommentMutate = useUpdateComment();
 
+  const usePostGetComment = usePostGetCommentByLead();
+
   const handleEditComment = async(rowId: any, commentId: any, commentText: string, mentionedMember: any) => {
 
     console.log("Editing comment:", rowId, commentId, commentText, mentionedMember);
@@ -288,8 +310,15 @@ useEffect(() => {
       mentionedMember: mentionedMember,
     }
     const response = await useUpdateCommentMutate.mutateAsync([body, commentId, userid]);
-    refetchLeadsData();
+    // refetchLeadsData();
+    const commentsResponse = await usePostGetComment.mutateAsync([rowId]);
+    setTableData(prev =>
+      prev.map(row =>
+        row.id === rowId ? { ...row, comments: commentsResponse } : row
+      )
+    );
     setEditingComment(null);
+
 
   
   };
@@ -303,8 +332,12 @@ const handleDeleteComment = async (rowId: any, commentId: any) => {
   }
   console.log("commentid", commentId)
   const reponse = await useDeleteCommentMutate.mutateAsync([body,commentId]);
-    refetchLeadsData();
-
+ const commentsResponse = await usePostGetComment.mutateAsync([rowId]);
+      setTableData(prev =>
+        prev.map(row =>
+          row.id === rowId ? { ...row, comments: commentsResponse } : row
+        )
+      );
 
 
 
@@ -341,7 +374,14 @@ const handleDescriptionChange = async (value: string, rowId: any, mentionedMembe
   };
 
   const response = await updateLeadMutate.mutateAsync([body,rowId, userid]);
-      refetchLeadsData();
+
+  setTableData(prev =>
+    prev.map(row =>
+      row.id === rowId ? { ...row, description: value } : row
+    )
+  );
+
+
 
 
 }
@@ -349,7 +389,6 @@ const handleDescriptionChange = async (value: string, rowId: any, mentionedMembe
 const updateEventMutate = useUpdateEvent();
 
 const handleUpdateEvent = async (rowId: any, eventId: any, eventData: any) => {
-  console.log("Updating event:", rowId, eventId, eventData);
   // const body = {  
   //   date: eventData.eventDate,
   //   eventName: eventData.eventName, 
@@ -361,12 +400,13 @@ const handleUpdateEvent = async (rowId: any, eventId: any, eventData: any) => {
 
   const body = {
   date: eventData.eventDate,
+  others: eventData.others,
   eventName: eventData.eventListId == 4 ? null : eventData.eventName,
   numberOfGuests: eventData.noOfGuests,
   note: eventData.note,
   crew: eventData.crew,
   eventListId: eventData.eventListId,
-  ...(eventData.eventListId == 4 && { others: eventData.eventName }),
+  eventIds: eventData.allEvents?.map((event: any) => event).join(',') || '', // returns "3,1" or ""  ...(eventData.eventListId == 4 && { others: eventData.eventName }),
 };
   await updateEventMutate.mutateAsync([body, eventId]);
   refetchLeadsData();
@@ -380,7 +420,14 @@ const handleDeleteEvent = async (rowId: any, eventId: any) => {
       deletedAt: new Date(),
     };
     await deleteEventMutate.mutateAsync([body, eventId]);
-    refetchLeadsData();
+    const eventsResponse = await getEventByLeadId.mutateAsync([rowId]);
+    setTableData(prev =>
+      prev.map(row =>
+        row.id === rowId ? { ...row, eventData: eventsResponse } : row
+      )
+    );
+
+
   } catch (error) {
     console.error("Failed to delete event:", error);
   }
@@ -388,15 +435,77 @@ const handleDeleteEvent = async (rowId: any, eventId: any) => {
 
 
 
-    const updateLeadMutate = useUpdateLead()
 
-const handleDeleteLead = async (leadId: any) => {
-  const body = {
-    deletedAt: new Date(),
-    mentions: [],
 
-  };
-  await updateLeadMutate.mutateAsync([body, leadId, userid]);
+
+  const createEventMutate = useCreateEvent();
+
+  const getEventByLeadId = usePostGetEventByLead();
+
+const handleAddEvent = async (eventData: any, rowId: any) => {
+
+
+
+
+ 
+  await createEventMutate.mutateAsync([eventData, rowId]);
+  const eventsResponse = await getEventByLeadId.mutateAsync([rowId]);
+  setTableData(prev =>
+    prev.map(row =>
+      row.id === rowId ? { ...row, eventData: eventsResponse } : row
+    )
+  );
+
+
+};
+
+
+
+
+  const createCommentMutate = useCreateComment();
+
+
+const handleComment= async(data: any)=>{
+
+  const body={
+
+        leadId: selectedLeadId,
+        comment: data.comment,
+        mentionedMembers: data.mentionedMembers,
+        givenBy: userid,
+        
+      }
+
+      const response = await createCommentMutate.mutateAsync([body,userid]);
+
+      const commentsResponse = await usePostGetComment.mutateAsync([selectedLeadId]);
+      setTableData(prev =>
+        prev.map(row =>
+          row.id === selectedLeadId ? { ...row, comments: commentsResponse } : row
+        )
+      );
+
+}
+
+
+
+    const updateLeadMutate = useUpdateLead();
+
+    const updateBulkLeadMutate = useUpdateBulkLead();
+
+const handleDeleteLead = async (allLeads: any) => {
+  const now = new Date();
+
+
+
+  // Add deletedAt to each lead
+  const leadsWithDeletedAt = allLeads.map((lead: any) => ({
+    id: lead?.original?.id,
+    data: { deletedAt: new Date() },
+  }));
+
+
+  await updateBulkLeadMutate.mutateAsync([leadsWithDeletedAt, userid]);
   refetchLeadsData();
 };
 
@@ -485,9 +594,15 @@ cell: ({ row }) => {
   // When entering edit mode, set the local edit value
   const startEdit = (event: any, idx: number) => {
     setEditingIdx(idx);
+
+
     setLocalEditValue({
       eventDate: event?.eventDate,
-      eventName: event?.eventName || '',
+      // eventName: event?.eventName || '',
+            others: event?.eventName || '',
+
+      allEvents: event?.allEvents || [], // Use allEvents to store multiple selected events
+      eventId: event?.eventId || null,
       noOfGuests: event?.noOfGuests,
       note: event?.note || '',
       crew: event?.crew || '',
@@ -497,6 +612,8 @@ cell: ({ row }) => {
 
   // When saving, call your handler and reset editing state
   const saveEdit = async (eventId: any) => {
+
+
     await handleUpdateEvent(rowId, eventId, localEditValue);
     setEditingIdx(null);
     setLocalEditValue(null);
@@ -515,8 +632,6 @@ cell: ({ row }) => {
       )}
       {events.map((event: any, idx: number) => {
         const isEditing = editingIdx === idx;
-
-        console.log("Event data:", localEditValue);
 
         return (
           <div
@@ -555,10 +670,11 @@ cell: ({ row }) => {
   placeholder="Select date"
 />
 
-<CustomSelectWithAllOption
+{/* <CustomSelectWithAllOption
   name="eventId"
   placeholder='Select an event'
   options={eventOptions}
+  isMulti={true}
   value={eventOptions.find(option => option.value === localEditValue.eventListId) || null}
   onChange={(inputValue: any) => {
     setLocalEditValue((prev: any) => ({
@@ -566,19 +682,40 @@ cell: ({ row }) => {
       eventListId: inputValue.value, // Use value from the selected option
     }));
   }}
+  /> */}
+
+  <CustomSelectWithAllOption
+  name="eventId"
+  placeholder="Select an event"
+  options={eventOptions}
+  isMulti={true}
+  value={
+    Array.isArray(localEditValue.allEvents)
+      ? eventOptions.filter(option => localEditValue.allEvents.includes(String(option.value)))
+      : []
+  }
+  onChange={(inputValue: any) => {
+    // inputValue will be an array of selected option objects
+    setLocalEditValue((prev: any) => ({
+      ...prev,
+      allEvents: inputValue ? inputValue.map((opt: any) => String(opt.value)) : [],
+    }));
+  }}
+/>
+
+
+{Array.isArray(localEditValue.allEvents) && localEditValue.allEvents.includes("4") && (
+  <CustomInput
+    placeholder="Event Name"
+    value={localEditValue.others}
+    onChange={e =>
+      setLocalEditValue((prev: any) => ({
+        ...prev,
+        others: e.target.value,
+      }))
+    }
   />
-  {localEditValue.eventListId == 4 && (
-                <CustomInput
-                  placeholder="Event Name"
-                  value={localEditValue.eventName}
-                  onChange={e =>
-                    setLocalEditValue((prev: any) => ({
-                      ...prev,
-                      eventName: e.target.value,
-                    }))
-                  }
-                />
-                 )}
+)}
                 <CustomInput
                   type="number"
                   placeholder="No. of Guests"
@@ -631,8 +768,9 @@ cell: ({ row }) => {
                   onClick={() => startEdit(event, idx)}
                 >
                   <div>
-                    <b>{event.eventName} on</b>{' '}
-                    {event.eventDate
+                    <b>{ event?.allEventData  || event?.eventName} on</b>{' '}
+                    {formatDisplayDate(event?.eventDate)}
+                    {/* {event?.eventDate
                       ? (() => {
                           if (/^\d{2}[-/]\d{2}[-/]\d{4}$/.test(event.eventDate)) {
                             return event.eventDate.replace(/\//g, '-');
@@ -644,7 +782,7 @@ cell: ({ row }) => {
                           const year = d.getFullYear();
                           return `${day}-${month}-${year}`;
                         })()
-                      : ''}
+                      : ''} */}
                   </div>
              {event.noOfGuests !== undefined && event.noOfGuests !== null && event.noOfGuests !== 0 && (
   <div>
@@ -915,38 +1053,51 @@ cell: ({ row }) => {
   accessorKey: 'mentions',
   meta: {
     editable: false,
-    visible: true,
+    // visible: true,
+    // editorType: 'select',
+    selectOptions: assigneeOptions, // No options needed for tags
     orderId: 14,
+    
+    
+    
   },
   cell: ({ row }) => {
-    const mentions = row.original.mentions;
-    return (
-      <div
-        style={{
-          cursor: 'pointer',
-          color: '#52c41a',
-          minHeight: 32,
-          display: 'flex',
-          alignItems: 'center',
-          gap: 4,
-          flexWrap: 'wrap',
-        }}
-        onClick={() => openMentionModal(row.original)}
-      >
-        {Array.isArray(mentions) && mentions.length > 0 ? (
-          mentions.map((m: any) => (
-            <CustomTag key={m.userId} name={m.userName} onClose={() => handleRemoveTags(m.userId, row.original.id)} />
-            // <CustomChip key={m.userId} label={m?.userName} onDelete={() => handleRemoveTags(m.userId, row.original.id)} />
+    let mentions = row.original.mentions;
 
-             
-          ))
-        ) : (
-          <span style={{ color: '#aaa' }}>Tag</span>
-        )}
-      </div>
-    );
-  },
+  // Ensure mentions is always an array
+  if (!Array.isArray(mentions)) {
+    try {
+      // Try to parse if it's a JSON string
+      mentions = mentions && typeof mentions === 'string' ? JSON.parse(mentions) : [];
+    } catch {
+      mentions = "";
+    }
+  }
+
+  return (
+    <div
+      style={{
+        cursor: 'pointer',
+        color: '#52c41a',
+        minHeight: 32,
+        display: 'flex',
+        alignItems: 'center',
+        gap: 4,
+        flexWrap: 'wrap',
+      }}
+      onClick={() => openMentionModal(row.original)}
+    >
+      {Array.isArray(mentions) && mentions.length > 0 ? (
+        mentions.map((m: any) => (
+          <CustomTag key={m.userId} name={m.userName} onClose={() => handleRemoveTags(m.userId, row.original.id)} />
+        ))
+      ) : (
+        <span style={{ color: '#aaa' }}>Tag</span>
+      )}
+    </div>
+  );
 },
+          },
             { header: 'Converted', accessorKey: 'converted',
                meta: {
       editable: true,
@@ -1108,7 +1259,15 @@ const createEmptyDoc = (): Doc => {
 
 
       const response = await updateLeadMutate.mutateAsync([body, updatedRow.id, userid]);
-      refetchLeadsData();
+
+      console.log("Response from updateLeadMutate:", response);
+
+setTableData(prev =>
+    prev.map(row =>
+      row.id === response.id ? { ...row, ...response } : row
+    )
+  );
+      // refetchLeadsData();
 
     };
 
@@ -1197,9 +1356,16 @@ const reminderMutate = useCreateReminder();
       }
     };
 
-    const [filters, setFilters] = useState<Record<string, string>>({});
-
+const [filters, setFilters] = useState<Record<string, string | string[]>>({});
     const [activeFilters, setActiveFilters] = useState<string[]>([]);
+
+
+    useEffect(() => {
+  const savedFilters = localStorage.getItem('leadsFilters');
+  const savedActiveFilters = localStorage.getItem('leadsActiveFilters');
+  if (savedFilters) setFilters(JSON.parse(savedFilters));
+  if (savedActiveFilters) setActiveFilters(JSON.parse(savedActiveFilters));
+}, []);
 
     const filterableKeys = [
   "status",
@@ -1225,7 +1391,7 @@ const availableFilterColumns = columns.filter(
     !activeFilters.includes(col.accessorKey as string)
 );
 
-const handleFilterChange = (key: string, value: string) => {
+const handleFilterChange = (key: string, value: any) => {
   setFilters((prev) => ({
     ...prev,
     [key]: value,
@@ -1234,8 +1400,19 @@ const handleFilterChange = (key: string, value: string) => {
 
 const handleAddFilter = (columnKey: any) => {
   console.log("Adding filter for column:", columnKey);
+   if (columnKey.value === 'referenceId') {
+    setFilters(prev => ({ ...prev, referenceId: [] }));
+  }
   setActiveFilters((prev) => [...prev, columnKey.value]);
 };
+
+useEffect(() => {
+  localStorage.setItem('leadsFilters', JSON.stringify(filters));
+}, [filters]);
+
+useEffect(() => {
+  localStorage.setItem('leadsActiveFilters', JSON.stringify(activeFilters));
+}, [activeFilters]);
 
 
 const createVoiceRecordMutation  = useCreateVoiceRecord();
@@ -1320,33 +1497,29 @@ console.log("Filters", hasActiveFilters, filters);
     // Event Data filter
 
 
-    console.log("key", key, "val", val);
 
     if (key === 'eventData' || key ==="eventDataStart" || key === "eventDataEnd") {
 
-      console.log("eventTypeFilter", eventTypeFilter);
 
 
-      console.log("eventDataFilter", eventDateFilter, "val", val, "event",key);
 
             if (!eventTypeFilter || !val) return true;
 
-console.log("eventTypeFilter after");
 
       const eventDates = (row.eventData || []).map((e: any) => e.eventDate?.slice(0, 10));
 
-      console.log("eventDates",eventDates);
 
 
       if (!eventDates.length || !filters.eventType) return false;
 
-      console.log("aftersuman",);
 
       if (eventTypeFilter === 'before') {
 return eventDates.some((d: any) => {
     if (!d || !val) return false;
     const dateD = new Date(d);
-    const dateVal = new Date(val);
+    // const dateVal = new Date(val);
+    const dateVal = Array.isArray(val) ? new Date(val[0]) : new Date(val);
+
     if (isNaN(dateD.getTime()) || isNaN(dateVal.getTime())) return false;
     return dateD < dateVal;
   });      }
@@ -1354,8 +1527,7 @@ return eventDates.some((d: any) => {
 return eventDates.some((d: any) => {
   if (!d || !val) return false;
   const dateD = new Date(d);
-  const dateVal = new Date(val);
-  if (isNaN(dateD.getTime()) || isNaN(dateVal.getTime())) return false;
+const dateVal = Array.isArray(val) ? new Date(val[0]) : new Date(val);  if (isNaN(dateD.getTime()) || isNaN(dateVal.getTime())) return false;
   return dateD > dateVal;
 });        }
       if (eventTypeFilter === 'on') {
@@ -1378,39 +1550,10 @@ return eventDates.some((d: any) => {
 
       const followupDate = row.followup?.slice(0, 10);
 
-      console.log("key", key, "followupDate", followupDate, followupType);
-
-            // if (!followupDate || !filters.followup) return false;
-
-
-    
-
-  //     if (followupType === 'between') {
-
-  //      const start = filters.followupStart;
-  // const end = filters.followupEnd;
 
 
 
-  // if (!start || !end || !followupDate) return false; // All must be present
-
-  // // Convert to Date objects for accurate comparison
-  // const date = new Date(followupDate);
-  // const startDate = new Date(start);
-  // const endDate = new Date(end);
-  // console.log("startDate", startDate, "endDate", endDate, "date", date);
-  // console.log("dsds", date >= startDate, date <= endDate);
-
-
-
-  // // Check for valid dates
-  // if (isNaN(date.getTime()) || isNaN(startDate.getTime()) || isNaN(endDate.getTime())) return false;
-
-
-
-  // return date >= startDate && date <= endDate;
-  //     }
-
+ 
 
   if (followupType === 'between' && filters.followupStart && filters.followupEnd) {
 
@@ -1429,22 +1572,16 @@ return eventDates.some((d: any) => {
   return followupDate >= start && followupDate <= end;
 }
 
-      // if(filters.followup!=="between"){
-
-      // }
+    
 
 
       if (followupType === 'before' && filters.followup) {
 
-        console.log("inside before");
-        console.log("followupDate", followupDate, "filters.followup", filters.followup, followupDate < filters.followup);
 
         return followupDate < filters.followup;
       }
       if (followupType === 'after' && filters.followup) {
 
-        console.log("inside after");
-        console.log("followupDate", followupDate, "filters.followup", filters.followup, followupDate> filters.followup);
         return followupDate > filters.followup;
       }
       if (followupType === 'on' && filters.followup) {
@@ -1461,15 +1598,44 @@ return eventDates.some((d: any) => {
 
 
     if (key === 'assignedTo') {
-      return val ? String(row[key as keyof Doc] || '').includes(val) : true;
+      if (Array.isArray(val)) {
+        // If val is an array, check if any value matches
+        return val.some(v => String(row[key as keyof Doc] || '').includes(String(v)));
+      }
+      return val ? String(row[key as keyof Doc] || '').includes(String(val)) : true;
     }
     if (key === 'mentions') {
+
+      console.log("Row mentions", row, "val", val);
       return Array.isArray(row.mentions)
-        ? row.mentions.some((m: any) =>
-            m.userName && m.userName.toLowerCase().includes(String(val).toLowerCase())
-          )
-        : false;
+  ? row.mentions.some((m: any) =>
+      m.userId && String(m.userId).includes(String(val))
+    )
+  : false;
     }
+
+    if (key === 'referenceId') {
+  if (Array.isArray(val) && val.length > 0) {
+    return val.includes(row.referenceId);
+  }
+  return true;
+}
+
+if(key === 'shootId') {
+  if (Array.isArray(val) && val.length > 0) {
+
+    return val.includes(row.shootId);
+  }
+}
+
+if(key === 'leads') {
+  if (Array.isArray(val) && val.length > 0) {
+
+    return val.includes(row.leads);
+  }
+}
+
+
     return val
       ? String(row[key as keyof Doc] || '').toLowerCase().includes(String(val).toLowerCase())
       : true;
@@ -1541,6 +1707,7 @@ const response = updateTablePreferences.mutateAsync([body, columnId,"lead", user
 };
 
 
+
 const handleColumnVisibilityChange = async(columnKey: string, isVisible: boolean) => {
   console.log("Column visibility change:", columnKey, isVisible);
   const body = {
@@ -1551,6 +1718,9 @@ const handleColumnVisibilityChange = async(columnKey: string, isVisible: boolean
   refetchLeadsTablePreference();
 
 }
+
+
+
 
 
 
@@ -1592,13 +1762,7 @@ onChange={val => {
       {followupType === 'between' ? (
         <>
         <styled.singleDateDiv>
-          {/* <MuiInputWithDate
-            name="followupStart"
-            value={filters.followupStart || ''}
-            onChange={e => setFilters(prev => ({ ...prev, followupStart: e.target.value }))}
-          
-            placeholder="Start date"
-          /> */}
+         
           <DateInput
   value={filters.followupStart || ''}
   onChange={date =>
@@ -1611,12 +1775,7 @@ onChange={val => {
 />
           </styled.singleDateDiv>
           <styled.singleDateDiv>
-          {/* <MuiInputWithDate
-            name="followupEnd"
-            value={filters.followupEnd || ''}
-            onChange={e => setFilters(prev => ({ ...prev, followupEnd: e.target.value }))}
-            placeholder="End date"
-          /> */}
+         
           <DateInput
   value={filters.followupEnd || ''}
   onChange={date =>
@@ -1631,14 +1790,7 @@ onChange={val => {
         </>
       ) : (
         <styled.singleDateDiv>
-          {/* <MuiInputWithDate
-            name={key}
-            value={filters[key] || ''}
-            onChange={e => handleFilterChange(key, e.target.value)}
-            placeholder="Select date"
-            required={false}
-            error={undefined}
-          /> */}
+        
 
        <DateInput
   value={filters[key] || ''}
@@ -1717,15 +1869,9 @@ onChange={val => {
           {eventType === 'between' ? (
             <>
 
-             <styled.singleDateDiv>
-              {/* <MuiInputWithDate
-               name="eventDataStart"
-                value={filters.eventDataStart || ''}
-                onChange={e => setFilters(prev => ({ ...prev, eventDataStart: e.target.value }))}
-                
-                placeholder="Start date"
-              /> */}
 
+              <styled.singleDateDiv>
+              
               <DateInput
   value={filters.eventDataStart || ''}
   onChange={date =>
@@ -1743,12 +1889,7 @@ onChange={val => {
               <styled.singleDateDiv>
 
               
-              {/* <MuiInputWithDate
-name="eventDataEnd"
-                value={filters.eventDataEnd || ''}
-                onChange={e => setFilters(prev => ({ ...prev, eventDataEnd: e.target.value }))}
-                placeholder="End date"
-              /> */}
+            
 
               <DateInput
   value={filters.eventDataEnd || ''}
@@ -1769,15 +1910,7 @@ name="eventDataEnd"
             <styled.singleDateDiv>
 
 
-  {/* <MuiInputWithDate
-  name={key}
-  value={filters[key] || ''}
-  onChange={e => handleFilterChange(key, e.target.value)}
-  placeholder="Select date"
-  required={false}
-  error={undefined}
-
-/> */}
+ 
 
 <DateInput
   value={filters[key] || ''}
@@ -1843,7 +1976,22 @@ onClick={() => {
     <span style={{ color: '#bbb', marginRight: 6, fontWeight: 500 }}>
     {col.header?.toString()}:
   </span>
-    {meta?.editorType === 'select' ? (
+
+{key === 'referenceId' || key ==="shootId" || key ==="leads" || key ==="mentions" ? (
+  <CustomSelect
+    placeholder={col.header?.toString()}
+    isMulti={true}
+    value={meta?.selectOptions?.filter((opt: any) =>
+      Array.isArray(filters[key]) ? filters[key].includes(opt.value) : false
+    )}
+    onChange={(options: any[]) =>
+      handleFilterChange(key, options ? options.map(opt => opt.value) : [])
+    }
+    options={meta?.selectOptions || []}
+  />
+) 
+
+     : meta?.editorType === 'select' ? (
       <CustomSelect
         placeholder={col.header?.toString()}
         isMulti={false}
@@ -1930,7 +2078,6 @@ onClick={() => {
           columnSizing={columnSizing}
   onColumnSizingChange={(newSizing, columnId) => {
     setColumnSizing(newSizing);
-    // You can also call any callback here with columnId and newSizing[columnId]
     handleColumnResize(columnId, newSizing[columnId]);
     
   }}
@@ -1939,8 +2086,11 @@ onClick={() => {
   downloadData={downloadCSV}
   isDownloadable={true}
   handleColumnVisibilityChange={handleColumnVisibilityChange}
+   onSelectionChange={handleDeleteLead}
 
         />
+
+
 
 
         {isEventModalOpen && (
@@ -1949,20 +2099,21 @@ onClick={() => {
         onClose={() => setIsEventModalOpen(false)}
         title="Add Events"
         leadId={selectedLeadId || 0}
-        refetch={refetchLeadsData}
-    
-          />
+        refetch={[]}
+        onSave={handleAddEvent}
+      />
         )}
 
 
            {isCommentModalOpen && (
-          <CommentModal
+          <SharedCommentModal
         open={isCommentModalOpen}
         onClose={() => setIsCommentModalOpen(false)}
         title="Add Comments"
-        leadId={selectedLeadId || 0}
+        Id={selectedLeadId || 0}
         refetch={refetchLeadsData}
         assigneeOptions={assigneeOptions}
+        onSave={handleComment}
     
           />
         )}
@@ -1974,6 +2125,8 @@ onClick={() => {
     title="Tag Someone"
     leadId={selectedMentionLeadId || 0}
     refetch={refetchLeadsData}
+        mentions={selectedMentions} // Pass the tagged users here
+
   />
 )}
 

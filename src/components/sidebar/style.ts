@@ -46,3 +46,14 @@ export const MenuItem = styled.div`
     color: white;
   }
 `;
+
+
+
+export const menuChildren = styled.div`
+display: flex;
+flex-direction: column;
+gap: 8px;
+  padding-left: 24px;
+
+
+  `;

@@ -9,6 +9,7 @@ interface EventItem {
   numberOfGuests?: number;
   note?: string;
   givenBy?: string; // Add this line
+  allEventData?: string; // Assuming this is a string representation of the event data
 }
 
 interface EventListProps {
@@ -24,7 +25,7 @@ const EventList: React.FC<EventListProps> = ({ events }) => {
       <styled.List>
         {events.map((event) => (
           <styled.ListItem key={event.id}>
-            <strong>{event.eventName}</strong> —{' '}
+            <strong>{event.allEventData}</strong> —{' '}
             {new Date(event.date).toLocaleDateString()} (Guests: {event.numberOfGuests ?? 0})
             {event.note && (
               <>

@@ -19,6 +19,17 @@
 
 
 
+
+.ant-mentions,
+.ant-mentions input,
+.ant-mentions textarea,
+.ant-mentions .ant-mentions-editor {
+  color: #fff !important;
+  background: rgb(25, 25, 25) !important;
+}
+
+
+
 @keyframes logo-spin {
   from {
     transform: rotate(0deg);

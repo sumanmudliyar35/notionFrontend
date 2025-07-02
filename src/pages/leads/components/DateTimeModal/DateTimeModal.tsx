@@ -17,7 +17,6 @@ interface DateTimeModalProps {
 
 const DateTimeModal = ({ open, onClose, title, onSave, leadID, data }: DateTimeModalProps) => {
 
-  console.log('DateTimeModal data:', data);
   const [selectedDate, setSelectedDate] = useState<string | null>(data?.date || null);
   const [selectedTime, setSelectedTime] = useState<string | null>(data?.time || null);
 
@@ -26,8 +25,7 @@ const DateTimeModal = ({ open, onClose, title, onSave, leadID, data }: DateTimeM
   };
 
   const handleSave = () => {
-    console.log('Selected Date:', selectedDate);
-    console.log('Selected Time:', selectedTime);
+    
     if (onSave) {
       onSave(selectedDate, selectedTime, leadID);
     }

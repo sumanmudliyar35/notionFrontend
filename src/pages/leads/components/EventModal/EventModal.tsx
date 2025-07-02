@@ -23,7 +23,8 @@ interface EventModalProps {
   width?: number | string;
   leadId: number;
   refetch: any;
-  
+  onSave?: (eventData: any, leadId: number) => void;
+
 }
 
 const EventModal: React.FC<EventModalProps> = ({
@@ -33,7 +34,8 @@ const EventModal: React.FC<EventModalProps> = ({
   footer = null,
   width = 600,
   leadId,
-  refetch
+  refetch,
+  onSave = () => {}, // Default no-op function
 }) => {
 
 
@@ -61,7 +63,8 @@ useEffect(() => {
     date: '',
     numberOfGuests: '',
     note:'',
-    crew: ''
+    crew: '',
+    eventIds: '',
   };
   
   const validationSchema = Yup.object({
@@ -81,7 +84,8 @@ useEffect(() => {
     onSubmit: async (values : any, {resetForm}) => {
       const body={
         others: formik.values.eventName,
-        eventListId: values.eventListId.value,
+        // eventListId: values.eventListId.value,
+        eventIds: formik.values.eventIds.map((event: any) => event.value).join(','),
         date: formik.values.date,
         numberOfGuests: formik.values.numberOfGuests,
         note: formik.values.note,
@@ -90,10 +94,15 @@ useEffect(() => {
         crew: formik.values.crew,
       };
 
-      const response = await createEventMutate.mutateAsync([body, userid]);
-      refetchEvent();
-      refetch();
+
+      onSave(body, leadId); // Call the onSave function with the body and leadId
       resetForm();
+
+      // const response = await createEventMutate.mutateAsync([body, userid]);
+      //       resetForm();
+
+      // refetchEvent();
+      // refetch();
 
       
     },
@@ -111,48 +120,7 @@ useEffect(() => {
       <form onSubmit={formik.handleSubmit}>
         <SharedInputWrapper>
 
-         {/* <InputWithLabel
-  label="Date"
-  name="date"
-  placeholder="Enter event date"
-  type="date"
-  value={formik.values.date}
-  onChange={formik.handleChange}
-  onBlur={formik.handleBlur}
-  error={
-    formik.touched.date && formik.errors.date
-      ? typeof formik.errors.date === 'string'
-        ? formik.errors.date
-        : Array.isArray(formik.errors.date)
-          ? formik.errors.date.join(', ')
-          : JSON.stringify(formik.errors.date)
-      : ''
-  }
-  inputProps={{
-    onFocus: e => {
-      // Open native date picker on focus (supported in Chrome, Edge, etc.)
-      e.target.showPicker && e.target.showPicker();
-    }
-  }}
-/> */}
-
-{/* <InputWithDate
-  label="Date"
-  name="date"
-  value={formik.values.date}
-  onChange={formik.handleChange}
-  onBlur={formik.handleBlur}
-  error={
-    formik.touched.date && formik.errors.date
-      ? typeof formik.errors.date === 'string'
-        ? formik.errors.date
-        : Array.isArray(formik.errors.date)
-          ? formik.errors.date.join(', ')
-          : JSON.stringify(formik.errors.date)
-      : ''
-  }
-/> */}
-
+      
 
 <DateInput
   label="Date"
@@ -178,28 +146,31 @@ useEffect(() => {
   name="eventId"
   placeholder='Select an event'
   options={eventOptions}
-  value={formik.values.eventListId}
+  value={formik.values.eventIds}
+  isMulti={true}
   onChange={(inputValue: any) => {
-    formik.setFieldValue('eventListId', inputValue);
+    formik.setFieldValue('eventIds', inputValue);
+
   }}
   onBlur={formik.handleBlur}
-  error={formik.touched.eventListId && formik.errors.eventListId ? formik.errors.eventListId : ''}
+  error={formik.touched.eventIds && formik.errors.eventIds ? formik.errors.eventIds : ''}
  
 />
 
 
-{formik.values.eventListId && formik.values.eventListId.label === "Others" && (
+{Array.isArray(formik.values.eventIds) &&
+  formik.values.eventIds.some((ev: any) => String(ev.value) === "4") && (
+    <InputWithLabel
+      label="Event Name"
+      name="eventName"
+      placeholder="Enter event name"
+      value={formik.values.eventName}
+      onChange={formik.handleChange}
+      onBlur={formik.handleBlur}
+    />
+)}
 
-         <InputWithLabel
-          label="Event Name"
-          name="eventName"
-          placeholder="Enter event name"
-          value={formik.values.eventName}
-          onChange={formik.handleChange}
-          onBlur={formik.handleBlur}
-        />
-
-         )}
+         
 
         {/* <InputWithLabel
           label="Date"
@@ -259,7 +230,7 @@ useEffect(() => {
 
       </form>
 
-      <EventList events={events} />
+      {/* <EventList events={events} /> */}
 
     </CustomModal>
   );

@@ -49,6 +49,8 @@ import { useCreateComment } from "../../api/post/newComment";
 import { useCreateTaskVoiceRecord } from "../../api/post/newTaskVoiceRecord";
 import { useParams } from 'react-router-dom';
 import { useGetTaskTablePreference } from "../../api/get/getTaskTablesPreference";
+import { useUpdateBulkTask } from "../../api/put/updateBulkTask";
+import { usePostGetByTask } from "../../api/get/postGetCommentByTask";
 
 
 
@@ -105,9 +107,26 @@ const { userid } = useParams(); // If your route is defined as /user/:userId/rec
   const roleid = localStorage.getItem('roleid');
   const loggedInUserId = Number(localStorage.getItem('userid'));
 
-    const {data: TaskData, refetch: refetchTasksData} = useGetTasksByUser(Number(userid));
+const [offset, setOffset] = useState(0);
+
+        const [tableData, setTableData] = useState<any[]>([]);
+
+    const {data: TaskData, refetch: refetchTasksData} = useGetTasksByUser(Number(userid), offset);
 
     const {data: taskTablePreference, refetch: refetchTaskTablePreference} = useGetTaskTablePreference(userid);
+
+    useEffect(() => {
+  if (TaskData?.data) {
+    console.log("TaskData:", offset);
+    setTableData(prev => {
+      if (offset === 0) return TaskData.data;
+      console.log("Previous Table Data:", prev);
+      console.log("Appending TaskData:", Array.isArray(prev), TaskData.data);
+      return Array.isArray(prev) ? [...prev, ...TaskData.data] : [...TaskData.data];
+    });
+  }
+}, [TaskData, offset]);
+
 
 
 
@@ -125,21 +144,12 @@ const { userid } = useParams(); // If your route is defined as /user/:userId/rec
 
   // Store userId and name in state
   const [assigneeOptions, setAssigneeOptions] = useState<{ label: string; value: any }[]>([]);
-  const [referenceOptions, setReferenceOptions] = useState<{ label: string; value: string }[]>([]);
 
-  const leadsOption =[
-    {label: 'Excited', value: 'excited'},
-     { label: 'Warm', value: 'warm' },
-      { label: 'Cold', value: 'cold' },
-  ]
-  const [shootOptions, setShootOptions] = useState<{ label: string; value: string }[]>([]);
+ 
 
-  const [editingEventCell, setEditingEventCell] = useState<{ rowId: any; eventId: any } | null>(null);
     const [columnSizing, setColumnSizing] = useState({});
 
-    const inputRef = useRef<HTMLInputElement>(null);
 
-    const eventInputRef = useRef<HTMLInputElement>(null);
 
 
 
@@ -185,12 +195,10 @@ const { userid } = useParams(); // If your route is defined as /user/:userId/rec
 
             const [isMentionModalOpen, setIsMentionModalOpen] = useState(false);
 
-        const [tableData, setTableData] = useState<any[]>(TaskData?.data);
+        // const [tableData, setTableData] = useState<any[]>(TaskData?.data);
 
         const [selectedTaskId, setSelectedTaskId] = useState<number>();
 
-        const [editingEvent, setEditingEvent] = useState<{ rowId: any; eventId: any } | null>(null);
-const [editingEventValue, setEditingEventValue] = useState<any>({});
 
         const [selectedMentionLeadId, setSelectedMentionLeadId] = useState<number>();
 
@@ -202,26 +210,20 @@ const [editingEventValue, setEditingEventValue] = useState<any>({});
         const [selectedVoiceRow, setSelectedVoiceRow] = useState<any>(null);
 
         const [editingComment, setEditingComment] = useState<{ rowId: any; commentId: any } | null>(null);
-const [editingCommentValue, setEditingCommentValue] = useState<string>('');
-
-
-const [eventOptions, setEventOptions] = useState<{ label: string; value: string }[]>([]);
 
 
 
-        useEffect(()=>{
-          setTableData(TaskData?.data)
 
-        },[TaskData]);
+
+        // useEffect(()=>{
+        //   setTableData(TaskData?.data)
+
+        // },[TaskData]);
 
 
        
 
-         const openEventModal = (rowData: Doc) => {
-          setSelectedTaskId(rowData?.id)
-
-    setIsEventModalOpen(true);
-  };
+       
 
     const openCommentModal = (rowData: Doc) => {
           setSelectedTaskId(rowData?.id)
@@ -248,29 +250,21 @@ const [eventOptions, setEventOptions] = useState<{ label: string; value: string 
 
   const handleEditComment = async(rowId: any, commentId: any, commentText: string, mentionedMember: any) => {
 
-      // setTableData(prev =>
-      //                     prev.map(row =>
-      //                       row.id === rowId
-      //                         ? {
-      //                             ...row,
-      //                             comments: row.comments.map((com: any, i: number) =>
-      //                               (com.id || i) === (commentId)
-      //                                 ? { ...com, comment: commentText }
-      //                                 : com
-      //                             ),
-      //                           }
-      //                         : row
-      //                     )
-      //                   );
-    console.log("Editing comment:", rowId, commentId, commentText, mentionedMember);
-    // setEditingComment({ rowId, commentId });
+  
     const body={
       comment: commentText,
       mentionedMember: mentionedMember,
     }
     const response = await useUpdateCommentMutate.mutateAsync([body, commentId, userid]);
-    refetchTasksData();
+
+    // refetchTasksData();
     setEditingComment(null);
+    const commentsResponse = await postGetComment.mutateAsync([rowId]);
+    setTableData(prev =>
+      prev.map(row =>
+        row.id === rowId ? { ...row, comments: commentsResponse } : row
+      )
+    );
 
   
   };
@@ -284,7 +278,13 @@ const handleDeleteComment = async (rowId: any, commentId: any) => {
   }
   console.log("commentid", commentId)
   const reponse = await useDeleteCommentMutate.mutateAsync([body,commentId]);
-    refetchTasksData();
+    // refetchTasksData();
+    const commentsResponse = await postGetComment.mutateAsync([rowId]);
+    setTableData(prev =>
+      prev.map(row =>
+        row.id === rowId ? { ...row, comments: commentsResponse } : row
+      )
+    );
 
 
 
@@ -301,64 +301,12 @@ const handleOpenDateTimeModal = (row: any, date: any, time: any) => {
   setIsTimeDateModalOpen(true)
 };
 
-const handleDescriptionChange = async (value: string, rowId: any, mentionedMembers: any[] ) => {
-  console.log("Description changed for row:", rowId, "New value:", value);
-  const body = {
-    description: value,
-    mentionedMembers: mentionedMembers
-
-  };
-
-  const response = await updateLeadMutate.mutateAsync([body,rowId, userid]);
-      refetchTasksData();
-
-
-}
-
-const updateEventMutate = useUpdateEvent();
-
-const handleUpdateEvent = async (rowId: any, eventId: any, eventData: any) => {
-  console.log("Updating event:", rowId, eventId, eventData);
-  const body = {  
-    date: eventData.eventDate,
-    eventName: eventData.eventName, 
-    numberOfGuests: eventData.noOfGuests,
-    note: eventData.note,
-    crew: eventData.crew,
-
-  }
-  await updateEventMutate.mutateAsync([body, eventId]);
-  refetchTasksData();
-};
-
-const deleteEventMutate = useDeleteEvent();
-
-const handleDeleteEvent = async (rowId: any, eventId: any) => {
-  try {
-    const body = {
-      deletedAt: new Date(),
-    };
-    await deleteEventMutate.mutateAsync([body, eventId]);
-    refetchTasksData();
-  } catch (error) {
-    console.error("Failed to delete event:", error);
-  }
-};
 
 
 
-    const updateLeadMutate = useUpdateLead()
 
-const handleDeleteLead = async (leadId: any) => {
-  const body = {
-    deletedAt: new Date(),
-    mentions: [],
 
-  };
-  await updateLeadMutate.mutateAsync([body, leadId, userid]);
-  refetchTasksData();
-};
-
+ 
 
 
  useEffect(() => {
@@ -629,7 +577,7 @@ const columnsWithWidth = columns
     ...col,
     size: columnWidthMap[col.accessorKey as string] || col.size || 200,
     orderId: taskTablePreference?.find((p: any) => p.accessorKey === col.accessorKey)?.orderId ?? col.orderId,
-    // isVisible: leadsTablePreference?.find((p: any) => p.accessorKey === col.accessorKey)?.isVisible ?? col.isVisible,
+    isVisible: taskTablePreference?.find((p: any) => p.accessorKey === col.accessorKey)?.isVisible ?? col.isVisible,
 
 
   }))
@@ -668,6 +616,9 @@ const createEmptyDoc = (): Doc => {
 
 
     const newTaskMutate = useCreateTask();
+
+    const postGetComment = usePostGetByTask();
+
     const handleRowCreate=async(newRow: Doc)=>{
       const body={
         name: newRow.name,
@@ -677,10 +628,15 @@ const createEmptyDoc = (): Doc => {
 
       };
       const response = await newTaskMutate.mutateAsync([body, userid]);
-      refetchTasksData();
+
+  refetchTasksData(); // ADD THIS LINE
+
+
 
     };
 
+
+    console.log("Table Data:", tableData);  
 
 
 
@@ -688,6 +644,7 @@ const createEmptyDoc = (): Doc => {
     
 
     const handleRowEdit=async(updatedRow: Doc, rowIndex: number)=>{
+      console.log("Updated Row:", updatedRow);
       const body={
               name: updatedRow?.name,
               dueDate: updatedRow?.dueDate,
@@ -713,6 +670,7 @@ const createEmptyDoc = (): Doc => {
 
     }
 
+    const updateLeadMutate = useUpdateLead();
 
     const handleFollowupChange = async (date: any,time: any, leadID: any) => {
       const body = {
@@ -822,7 +780,6 @@ const handleAddFilter = (columnKey: any) => {
 
 const commentMutate = useCreateComment();
 const handleComment= async(data: any) => {
-  console.log("Comment data:", data);
 
   const body = {
     comment: data.comment,
@@ -832,7 +789,14 @@ const handleComment= async(data: any) => {
   }
 
   const response = await commentMutate.mutateAsync([body, userid]);
-  refetchTasksData();
+  const commentsResponse = await postGetComment.mutateAsync([selectedTaskId]);
+  setTableData(prev =>
+    prev.map(row =>
+      row.id === selectedTaskId ? { ...row, comments: commentsResponse } : row
+    )
+  );
+
+  // refetchTasksData();
 }
 
 
@@ -866,7 +830,6 @@ const handleSaveVoice = async(audioBlob: Blob) => {
   }
 };
 
-  const [isColumnModalOpen, setIsColumnModalOpen] = useState(false);
 
 
 
@@ -904,11 +867,6 @@ console.log("Filters", hasActiveFilters, filters);
 
   return tableData?.filter((row) => {
 
-  const eventDateFilter = filters['eventData'];
-
-  const eventTypeOption = dateOption.find(opt => opt.value === filters.eventType);
-
-  const eventTypeFilter = filters.eventType
 
     const followupType = filters.followupType;
 
@@ -920,55 +878,7 @@ console.log("Filters", hasActiveFilters, filters);
 
     console.log("key", key, "val", val);
 
-    if (key === 'eventData' || key ==="eventDataStart" || key === "eventDataEnd") {
-
-      console.log("eventTypeFilter", eventTypeFilter);
-
-
-      console.log("eventDataFilter", eventDateFilter, "val", val, "event",key);
-
-            if (!eventTypeFilter || !val) return true;
-
-console.log("eventTypeFilter after");
-
-      const eventDates = (row.eventData || []).map((e: any) => e.eventDate?.slice(0, 10));
-
-      console.log("eventDates",eventDates);
-
-
-      if (!eventDates.length || !filters.eventType) return false;
-
-      console.log("aftersuman",);
-
-      if (eventTypeFilter === 'before') {
-return eventDates.some((d: any) => {
-    if (!d || !val) return false;
-    const dateD = new Date(d);
-    const dateVal = new Date(val);
-    if (isNaN(dateD.getTime()) || isNaN(dateVal.getTime())) return false;
-    return dateD < dateVal;
-  });      }
-      if (eventTypeFilter === 'after') {
-return eventDates.some((d: any) => {
-  if (!d || !val) return false;
-  const dateD = new Date(d);
-  const dateVal = new Date(val);
-  if (isNaN(dateD.getTime()) || isNaN(dateVal.getTime())) return false;
-  return dateD > dateVal;
-});        }
-      if (eventTypeFilter === 'on') {
-        return eventDates.some((d: any) => d && d === val);
-      }
-      if (eventTypeFilter === 'between') {
-        const start = filters.eventDataStart;
-        const end = filters.eventDataEnd;
-        if (!start || !end) return true; // Don't filter if both not set
-        return eventDates.some((d: any) => d && d >= start && d <= end);
-      }
-      // return true;
-    }
-
-    // Followup filter
+   
 
 
     if (key === 'dueDate' || key === 'followupType' || key ==='followupStart' || key ==="followupEnd") {
@@ -1026,8 +936,6 @@ return eventDates.some((d: any) => {
       return true;
     }
 
-    // ...rest of your filters...
-    if (key === 'eventType') return true;
 
 
 
@@ -1121,11 +1029,29 @@ const handleColumnVisibilityChange = async(columnKey: string, isVisible: boolean
   };
   const updatedResult = await updateTablePreferences.mutateAsync([body, columnKey, "task", userid]);
 
-  // refetchLeadsTablePreference();
+  refetchTaskTablePreference();
 
-}
+};
 
 
+const updateBulkTask = useUpdateBulkTask();
+
+const handleDeleteTask = async (tasks: any) => {
+  const confirmed = window.confirm("Are you sure you want to delete the selected tasks?");
+  if (!confirmed) return;
+
+   const taskWithDeletedAt = tasks.map((task: any) => ({
+    id: task?.original?.id,
+    data: { deletedAt: new Date() },
+  }));
+
+  try {
+    await updateBulkTask.mutateAsync([taskWithDeletedAt, userid]);
+    refetchTasksData();
+  } catch (error) {
+    console.error("Error deleting tasks:", error);
+  }
+};  
 
 
 
@@ -1239,129 +1165,10 @@ onChange={val => {
     </styled.FilterTag>
   );
 }
-    if (key === 'eventData') {
-      const eventType = filters.eventType
-      return (
-        <styled.FilterTag key={key} active={!!filters[key]} style={{ background: 'rgb(25, 25, 25)',  }}>
-           <span style={{ color: '#bbb', marginRight: 6, fontWeight: 500, minWidth: "fit-content" }}>
-    {col.header?.toString()}:
-  </span>
-          <CustomSelect
-            size="small"
-            style={{ width: 100, marginRight: 8, background: 'rgb(25, 25, 25)' }}
-            value={dateOption?.find(opt => opt.value === eventType) || null}
-
-            onChange={val => setFilters(prev => ({ ...prev, eventType: val.value }))}
-            options={[
-              { label: 'Before', value: 'before' },
-              { label: 'After', value: 'after' },
-              { label: 'On Date', value: 'on' },
-              { label: 'In Between', value: 'between' }
-            ]}
-          />
-          {eventType === 'between' ? (
-            <>
-
-             <styled.singleDateDiv>
-            
-
-              <DateInput
-  value={filters.eventDataStart || ''}
-  onChange={date =>
-    setFilters(prev => ({
-      ...prev,
-      eventDataStart: date && dayjs(date).isValid() ? date.format('YYYY-MM-DD') : ''
-    }))
-  }
-  placeholder="Start date"
-/>
-              
-
-              </styled.singleDateDiv>
-
-              <styled.singleDateDiv>
-
-              
-            
-
-              <DateInput
-  value={filters.eventDataEnd || ''}
-  onChange={date =>
-    setFilters(prev => ({
-      ...prev,
-      eventDataEnd: date && dayjs(date).isValid() ? date.format('YYYY-MM-DD') : ''
-    }))
-  }
-  placeholder="End date"
-/>
-
-                            </styled.singleDateDiv>
-
-            </>
-          ) : (    
-
-            <styled.singleDateDiv>
+   
 
 
 
-
-<DateInput
-  value={filters[key] || ''}
-  onChange={date =>
-    handleFilterChange(
-      key,
-      date && dayjs(date).isValid() ? date.format('YYYY-MM-DD') : ''
-    )
-  }
-  placeholder="Select date"
-/>
-            </styled.singleDateDiv>
-
-          )}
-          <span
-onClick={() => {
-  console.log("Removing filter for key:", key);
-  if (key === 'followup') {
-    handleRemoveFilter('followup');
-    handleRemoveFilter('followupType');
-
-    
-  } else if (key === 'followupType') {
-    handleRemoveFilter('followupType');
-    handleRemoveFilter('followup');
-
-  } else if (key === 'eventData') {
-    handleRemoveFilter('eventData');
-    handleRemoveFilter('eventType');
-    handleRemoveFilter('eventDataStart');
-    handleRemoveFilter('eventDataEnd');
-  } else if (key === 'eventType') {
-    handleRemoveFilter('eventType');
-    handleRemoveFilter('eventData');
-     handleRemoveFilter('eventDataStart');
-    handleRemoveFilter('eventDataEnd');
-  } else {
-    handleRemoveFilter(key);
-  }
-}}    
-                style={{
-              cursor: 'pointer',
-              padding: '0 6px',
-              fontSize: 16,
-              color: 'white',
-            }}
-          >
-            ×
-          </span>
-        </styled.FilterTag>
-      );
-    }
-
-
-
-  
-
-    
 
     return (
   <styled.FilterTag key={key} active={!!filters[key]} style={{ background: 'rgb(25, 25, 25)' }}>
@@ -1463,6 +1270,11 @@ onClick={() => {
   downloadData={downloadCSV}
   isDownloadable={false}
   handleColumnVisibilityChange={handleColumnVisibilityChange}
+  onSelectionChange={handleDeleteTask}
+  // onOffsetChange={(newOffset) => {
+  //   setOffset(newOffset);
+  //   console.log("Offset changed:", newOffset);
+  // }}
 
         />
 

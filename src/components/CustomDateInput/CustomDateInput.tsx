@@ -6,6 +6,7 @@ interface DateInputProps {
   label?: string;
   value: any | null;
   onChange: (date: dayjs.Dayjs | null) => void;
+  onBlur?: React.FocusEventHandler<HTMLElement>;
   placeholder?: string;
 }
 
@@ -13,9 +14,9 @@ const DateInput: React.FC<DateInputProps> = ({
   label,
   value,
   onChange,
+  onBlur, // <-- Add this line
   placeholder = "Select Date",
 }) => {
-  console.log('DateInput value:', value);
   // Only use dayjs if value is a valid date string
   const dateValue = value && dayjs(value).isValid() ? dayjs(value) : null;
 
@@ -27,8 +28,7 @@ const DateInput: React.FC<DateInputProps> = ({
       <DatePicker
         onChange={onChange}
         value={dateValue}
-                format="DD-MM-YYYY"
-
+        format="DD-MM-YYYY"
         style={{
           width: '100%',
           borderRadius: 4,
@@ -36,6 +36,7 @@ const DateInput: React.FC<DateInputProps> = ({
           color: 'white',
         }}
         placeholder={placeholder}
+        onBlur={onBlur} // <-- Add this line
       />
     </div>
   );

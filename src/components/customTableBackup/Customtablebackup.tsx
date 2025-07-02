@@ -27,7 +27,6 @@ import { CSS } from '@dnd-kit/utilities';
 import { MenuOutlined } from '@ant-design/icons';
 import ManageColumn from '../../pages/leads/components/ManageColumn/ManageColumn';
 import { DownloadOutlined } from '@ant-design/icons';
-import DateInput from '../CustomDateInput/CustomDateInput';
 
 
 interface CustomColumnMeta {
@@ -285,6 +284,7 @@ export function CustomTable<T extends object>(props: EditableTableProps<T>) {
   // );
 
   const handleEdit = React.useCallback((rowIndex: any, row: any, columnId: keyof T, value: any) => {
+    console.log('Editing row:', rowIndex, 'column:',  columnId, 'value:', value, 'data:', row);
     // const updated = [...data];
 
     
@@ -865,27 +865,10 @@ function EditableCell({
 }) {
   const [editValue, setEditValue] = React.useState(value ?? '');
 
-    const inputRef = useRef<any>(null);
-
- useEffect(() => {
-  if (editorType === 'input' && inputRef.current) {
-    // For AntD Input.TextArea, get the real textarea element
-    const textarea = inputRef.current?.resizableTextArea?.textArea;
-    if (textarea) {
-      textarea.focus();
-      const val = textarea.value ?? '';
-      const length = val.length;
-      textarea.setSelectionRange(length, length);
-    }
-  }
-}, [editorType]);
-
-
   if (editorType === 'input') {
     return (
       <Input.TextArea
         value={editValue}
-        ref={inputRef}
         autoFocus
         onChange={e => setEditValue(e.target.value)}
         onBlur={() => {
@@ -930,15 +913,21 @@ function EditableCell({
         onSave(editValue);
         onCancel();
       }}
-      
+      style={{
+        width: '100%',
+        position: 'absolute',
+        top: 0,
+        left: 0,
+        zIndex: 2,
+        background: '#202020',
+        color: 'white',
+      }}
       onFocus={e => {
         e.target.showPicker && e.target.showPicker();
       }}
     />
   );
 }
-
-
 
   if (editorType === 'select') {
     return (

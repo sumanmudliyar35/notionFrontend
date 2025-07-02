@@ -14,6 +14,7 @@ const DescriptionCell = ({ value = '', onChange, leadid, assigneeOptions = [] }:
   const [inputValue, setInputValue] = useState(value);
   const [showDropdown, setShowDropdown] = useState(false);
   const [searchText, setSearchText] = useState('');
+  const [highlightedIndex, setHighlightedIndex] = useState(0);
 
   const [dropdownPos, setDropdownPos] = useState({ top: 0, left: 0, width: 0, above: false });
   const inputRef = useRef<HTMLTextAreaElement>(null);
@@ -61,6 +62,10 @@ const DescriptionCell = ({ value = '', onChange, leadid, assigneeOptions = [] }:
     const cursorPos = e.target.selectionStart || 0;
     const textBeforeCursor = val.slice(0, cursorPos);
     const matches = textBeforeCursor.match(/@([^@\s]*)$/);
+
+    // Auto-resize on change
+    e.target.style.height = "auto";
+    e.target.style.height = e.target.scrollHeight + "px";
 
     if (matches) {
       setShowDropdown(true);
@@ -117,7 +122,27 @@ const DescriptionCell = ({ value = '', onChange, leadid, assigneeOptions = [] }:
     }, 0);
   };
 
+  // Reset highlight when dropdown or options change
+  useEffect(() => {
+    if (showDropdown) setHighlightedIndex(0);
+  }, [showDropdown, filteredOptions.length]);
+
   const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
+    if (showDropdown && filteredOptions.length > 0) {
+      if (e.key === 'ArrowDown') {
+        e.preventDefault();
+        setHighlightedIndex(i => (i + 1) % filteredOptions.length);
+      } else if (e.key === 'ArrowUp') {
+        e.preventDefault();
+        setHighlightedIndex(i => (i - 1 + filteredOptions.length) % filteredOptions.length);
+      } else if (e.key === 'Enter') {
+        e.preventDefault();
+        if (filteredOptions[highlightedIndex]) {
+          handleSelectMember(filteredOptions[highlightedIndex]);
+        }
+      }
+      return;
+    }
     if (e.key === 'Enter') {
       if (e.shiftKey) {
         // Insert newline
@@ -159,6 +184,18 @@ const DescriptionCell = ({ value = '', onChange, leadid, assigneeOptions = [] }:
 
   };
 
+  useEffect(() => {
+  if (isEditing && inputRef.current) {
+    inputRef.current.focus();
+    // Place cursor at the end
+    const length = inputRef.current.value.length;
+    inputRef.current.setSelectionRange(length, length);
+    // Auto-resize on edit start
+    inputRef.current.style.height = "auto";
+    inputRef.current.style.height = inputRef.current.scrollHeight + "px";
+  }
+}, [isEditing]);
+
   return (
     <div style={{ minHeight: 24, position: 'relative' }}>
       {isEditing ? (
@@ -169,7 +206,15 @@ const DescriptionCell = ({ value = '', onChange, leadid, assigneeOptions = [] }:
             onChange={handleInputChange}
             onBlur={handleBlur}
             onKeyDown={handleKeyDown}
-            style={{ width: '100%', background: '#202020', color: 'white', minHeight: 40, resize: 'vertical', fontFamily: 'sans-serif' }}
+            style={{
+              width: '100%',
+              background: '#202020',
+              color: 'white',
+              minHeight: 40,
+              resize: 'none', // Prevent manual resize
+              fontFamily: 'sans-serif',
+              overflow: 'hidden'
+            }}
           />
           {showDropdown && createPortal(
             <div
@@ -186,14 +231,20 @@ const DescriptionCell = ({ value = '', onChange, leadid, assigneeOptions = [] }:
                 boxShadow: '0 2px 8px rgba(0,0,0,0.15)',
               }}
             >
-              {filteredOptions.map((member: any) => (
+              {filteredOptions.map((member: any, i: number) => (
                 <div
                   key={member.value}
-                  style={{ padding: 8, cursor: 'pointer', color: 'white' }}
+                  style={{
+                    padding: 8,
+                    cursor: 'pointer',
+                    color: 'white',
+                    background: i === highlightedIndex ? '#444' : undefined,
+                  }}
                   onMouseDown={(e) => {
                     e.preventDefault();
                     handleSelectMember(member);
                   }}
+                  onMouseEnter={() => setHighlightedIndex(i)}
                 >
                   {member.label}
                 </div>

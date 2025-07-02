@@ -63,12 +63,14 @@ interface MentionModalProps {
   title: string;
   leadId: number;
   refetch: () => void;
+  mentions: any[]; // Add this line
 }
 
-const MentionModal: React.FC<MentionModalProps> = ({ open, onClose, title, leadId, refetch }) => {
+const MentionModal: React.FC<MentionModalProps> = ({ open, onClose, title, leadId, refetch, mentions }) => {
     const userid = localStorage.getItem("userid");
   const { data: allMembersData } = useGetAllUsers();
   const createMention = useCreateMention();
+
 
   // Store userId and name in state
   const [assigneeOptions, setAssigneeOptions] = useState<{ label: string; value: string }[]>([]);
@@ -123,9 +125,10 @@ const MentionModal: React.FC<MentionModalProps> = ({ open, onClose, title, leadI
   };
 
   // Filter and highlight
-  const filteredOptions = assigneeOptions.filter(opt =>
-    opt.label.toLowerCase().includes(searchTerm.toLowerCase())
-  );
+  const filteredOptions = assigneeOptions
+  .filter(opt => opt.label.toLowerCase().includes(searchTerm.toLowerCase()))
+  .filter(opt => !selectedAssignees.some(sel => sel.value === opt.value))
+    .filter(opt => !mentions.some((m: any) => String(m.userId) === String(opt.value)));
 
   const highlight = (text: string, term: string) => {
     if (!term) return text;

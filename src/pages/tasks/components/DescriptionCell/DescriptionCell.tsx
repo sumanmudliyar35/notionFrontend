@@ -3,35 +3,29 @@ import { createPortal } from 'react-dom';
 
 const DROPDOWN_HEIGHT = 150; // px
 
-// Utility to hide @@id parts for display
-
-
-
-
-
 const DescriptionCell = ({ value = '', onChange, leadid, assigneeOptions = [] }: any) => {
   const [isEditing, setIsEditing] = useState(false);
   const [inputValue, setInputValue] = useState(value);
   const [showDropdown, setShowDropdown] = useState(false);
   const [searchText, setSearchText] = useState('');
-
   const [dropdownPos, setDropdownPos] = useState({ top: 0, left: 0, width: 0, above: false });
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const ignoreBlurRef = useRef(false);
-
+  const [highlightedIndex, setHighlightedIndex] = useState(0);
 
   const filteredOptions = useMemo(() => {
-  if (!showDropdown) return [];
-  // Find the last @ and get the text after it
-  const cursorPos = inputRef.current?.selectionStart || inputValue.length;
-  const textBeforeCursor = inputValue.slice(0, cursorPos);
-  const match = textBeforeCursor.match(/@([^@\s]*)$/);
-  const search = match ? match[1].toLowerCase() : '';
-  if (!search) return assigneeOptions;
-  return assigneeOptions.filter((option: any) =>
-    option.label.toLowerCase().includes(search)
-  );
-}, [showDropdown, inputValue, assigneeOptions]);
+    if (!showDropdown) return [];
+    // Find the last @ and get the text after it
+    const cursorPos = inputRef.current?.selectionStart || inputValue.length;
+    const textBeforeCursor = inputValue.slice(0, cursorPos);
+    const match = textBeforeCursor.match(/@([^@\s]*)$/);
+    const search = match ? match[1].toLowerCase() : '';
+    if (!search) return assigneeOptions;
+    return assigneeOptions.filter((option: any) =>
+      option.label.toLowerCase().includes(search)
+    );
+  }, [showDropdown, inputValue, assigneeOptions]);
+
   // Calculate dropdown position dynamically
   const showDropdownDynamic = () => {
     if (inputRef.current) {
@@ -80,7 +74,6 @@ const DescriptionCell = ({ value = '', onChange, leadid, assigneeOptions = [] }:
 
   const [mentionedUserIds, setMentionedUserIds] = useState<string[]>([]);
 
-
   const handleSelectMember = (member: any) => {
     ignoreBlurRef.current = true;
     if (!inputRef.current) return;
@@ -117,7 +110,28 @@ const DescriptionCell = ({ value = '', onChange, leadid, assigneeOptions = [] }:
     }, 0);
   };
 
+  useEffect(() => {
+    if (showDropdown) setHighlightedIndex(0);
+  }, [showDropdown, filteredOptions.length]);
+
   const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
+    if (showDropdown && filteredOptions.length > 0) {
+      if (e.key === 'ArrowDown') {
+        e.preventDefault();
+        setHighlightedIndex(i => (i + 1) % filteredOptions.length);
+        return;
+      } else if (e.key === 'ArrowUp') {
+        e.preventDefault();
+        setHighlightedIndex(i => (i - 1 + filteredOptions.length) % filteredOptions.length);
+        return;
+      } else if (e.key === 'Enter') {
+        e.preventDefault();
+        if (filteredOptions[highlightedIndex]) {
+          handleSelectMember(filteredOptions[highlightedIndex]);
+        }
+        return;
+      }
+    }
     if (e.key === 'Enter') {
       if (e.shiftKey) {
         // Insert newline
@@ -186,14 +200,20 @@ const DescriptionCell = ({ value = '', onChange, leadid, assigneeOptions = [] }:
                 boxShadow: '0 2px 8px rgba(0,0,0,0.15)',
               }}
             >
-              {filteredOptions.map((member: any) => (
+              {filteredOptions.map((member: any, i: number) => (
                 <div
                   key={member.value}
-                  style={{ padding: 8, cursor: 'pointer', color: 'white' }}
+                  style={{
+                    padding: 8,
+                    cursor: 'pointer',
+                    color: 'white',
+                    background: i === highlightedIndex ? '#444' : undefined,
+                  }}
                   onMouseDown={(e) => {
                     e.preventDefault();
                     handleSelectMember(member);
                   }}
+                  onMouseEnter={() => setHighlightedIndex(i)}
                 >
                   {member.label}
                 </div>

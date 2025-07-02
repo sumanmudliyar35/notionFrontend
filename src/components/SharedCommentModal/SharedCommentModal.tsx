@@ -1,4 +1,4 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import { Button } from 'antd';
 import { createPortal } from 'react-dom';
 import { useMention } from '../../hooks/useMention';
@@ -39,6 +39,12 @@ const SharedCommentModal: React.FC<CommentModalProps> = ({
     mentionedUserIds,
     ignoreBlurRef,
   } = useMention(assigneeOptions, '');
+
+  const [highlightedIndex, setHighlightedIndex] = React.useState(0);
+
+  useEffect(() => {
+    if (showDropdown) setHighlightedIndex(0);
+  }, [showDropdown, filteredOptions.length]);
 
   // Focus the comment input field when the modal opens
   useEffect(() => {
@@ -94,7 +100,20 @@ const SharedCommentModal: React.FC<CommentModalProps> = ({
             fontFamily: 'sans-serif'
           }}
           onKeyDown={(e) => {
-            if (e.key === 'Enter') {
+            if (showDropdown && filteredOptions.length > 0) {
+              if (e.key === 'ArrowDown') {
+                e.preventDefault();
+                setHighlightedIndex(i => (i + 1) % filteredOptions.length);
+              } else if (e.key === 'ArrowUp') {
+                e.preventDefault();
+                setHighlightedIndex(i => (i - 1 + filteredOptions.length) % filteredOptions.length);
+              } else if (e.key === 'Enter') {
+                e.preventDefault();
+                if (filteredOptions[highlightedIndex]) {
+                  handleSelectMember(filteredOptions[highlightedIndex]);
+                }
+              }
+            } else if (e.key === 'Enter') {
               if (e.shiftKey) {
                 // Insert a newline
                 const cursorPos = inputRef.current?.selectionStart || 0;
@@ -135,14 +154,20 @@ const SharedCommentModal: React.FC<CommentModalProps> = ({
               boxShadow: '0 2px 8px rgba(0,0,0,0.15)',
             }}
           >
-            {filteredOptions.map((member: any) => (
+            {filteredOptions.map((member: any, i: number) => (
               <div
                 key={member.value}
-                style={{ padding: 8, cursor: 'pointer', color: 'white' }}
+                style={{
+                  padding: 8,
+                  cursor: 'pointer',
+                  color: 'white',
+                  background: i === highlightedIndex ? '#444' : undefined,
+                }}
                 onMouseDown={(e) => {
                   e.preventDefault();
                   handleSelectMember(member);
                 }}
+                onMouseEnter={() => setHighlightedIndex(i)}
               >
                 {member.label}
               </div>

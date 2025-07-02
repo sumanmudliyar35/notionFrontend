@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import * as styled from './style';
 import { Drawer, Input } from 'antd'; // <-- Import Input
 import NotificationDrawer from '../notificationDrawer/NotificationDrawer';
@@ -69,7 +69,7 @@ const Sidebar: React.FC<SidebarProps> = ({ collapsed }) => {
   
   const {data: usersMenu} = useGetUsersMenu(userId || '0');
   const navigate = useNavigate();
-
+  const location = useLocation();
 
   const [isDrawerOpen, setIsDrawerOpen] = useState(false);
   const [search, setSearch] = useState('');
@@ -88,9 +88,7 @@ const Sidebar: React.FC<SidebarProps> = ({ collapsed }) => {
   const handleOpenDrawer = () => setIsDrawerOpen(true);
   const handleCloseDrawer = () => setIsDrawerOpen(false);
 
-   // Add this for debugging
-   console.log('usersMenu:', usersMenu);
-   console.log('usersMenu?.data:', usersMenu?.data);
+ 
  
    // Defensive: only map if Array.isArray
    const userMenuItems = Array.isArray(usersMenu?.data)
@@ -116,7 +114,6 @@ const Sidebar: React.FC<SidebarProps> = ({ collapsed }) => {
      : [];
 
 
-     console.log('userMenuItems:', userMenuItems);
 
   // Combine static and dynamic menu items
   const combinedMenu = [
@@ -163,42 +160,49 @@ const Sidebar: React.FC<SidebarProps> = ({ collapsed }) => {
   
 
   const renderMenuItems = (items: any[]) =>
-  items.map(item => {
-    const isUser = item.children && item.key.startsWith('user-');
-    const isOpen = openUserMenus[item.key];
+    items.map(item => {
+      const isUser = item.children && item.key.startsWith('user-');
+      const isOpen = openUserMenus[item.key];
+      // Highlight if current path matches item's path
+      const isSelected = item.path && location.pathname === item.path;
 
-    return (
-      <React.Fragment key={item.key}>
-        <styled.MenuItem
-          onClick={() => {
-            if (item.onClick === 'drawer') handleOpenDrawer();
-            else if (item.onClick === 'logout') handleLogout();
-            else if (item.path) handleNavigate(item.path);
-            else if (isUser) {
-              setOpenUserMenus(prev => ({
-                ...prev,
-                [item.key]: !prev[item.key],
-              }));
-            }
-          }}
-          style={item.children ? { fontWeight: 600, cursor: isUser ? 'pointer' : undefined } : {}}
-        >
-          {item.icon}
-          {item.label}
-        </styled.MenuItem>
-        {item.children && isUser && isOpen && (
-          <div style={{ paddingLeft: 24 }}>
-            {renderMenuItems(item.children)}
-          </div>
-        )}
-        {item.children && !isUser && (
-          <div style={{ paddingLeft: 24 }}>
-            {renderMenuItems(item.children)}
-          </div>
-        )}
-      </React.Fragment>
-    );
-  });
+      return (
+        <React.Fragment key={item.key}>
+          <styled.MenuItem
+            onClick={() => {
+              if (item.onClick === 'drawer') handleOpenDrawer();
+              else if (item.onClick === 'logout') handleLogout();
+              else if (item.path) handleNavigate(item.path);
+              else if (isUser) {
+                setOpenUserMenus(prev => ({
+                  ...prev,
+                  [item.key]: !prev[item.key],
+                }));
+              }
+            }}
+            style={{
+              ...(item.children ? { fontWeight: 600, cursor: isUser ? 'pointer' : undefined } : {}),
+              ...(isSelected
+                ? { background: 'rgba(255,255,255,0.055)', color: '#fff', borderRadius: 6 }
+                : {}),
+            }}
+          >
+            {item.icon}
+            {item.label}
+          </styled.MenuItem>
+          {item.children && isUser && isOpen && (
+            <styled.menuChildren>
+              {renderMenuItems(item.children)}
+            </styled.menuChildren>
+          )}
+          {item.children && !isUser && (
+            <styled.menuChildren  >
+              {renderMenuItems(item.children)}
+            </styled.menuChildren>
+          )}
+        </React.Fragment>
+      );
+    });
 
   const renderMenu = () => (
     <>
