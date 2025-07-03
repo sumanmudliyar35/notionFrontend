@@ -1,6 +1,6 @@
 import type { ColumnDef } from "@tanstack/react-table";
 import  { CustomTable } from "../../components/customTable/CustomTable"
-import React, { useEffect, useState, useMemo, useRef } from "react";
+import React, { useEffect, useState, useMemo, useRef, useCallback } from "react";
 import { useGetLeadsByUser } from "../../api/get/getLeadsByUser";
 import { useCreateLead } from "../../api/post/newLead";
 import { useUpdateLead } from "../../api/put/updateLead";
@@ -53,6 +53,7 @@ import { useCreateComment } from "../../api/post/newComment";
 import SharedCommentModal from "../../components/SharedCommentModal/SharedCommentModal";
 import { useCreateEvent } from "../../api/post/newEvent";
 import { usePostGetEventByLead } from "../../api/get/postGetEventsByLead";
+import EventCell from "./components/EventCell/EventCell";
 
 
 
@@ -261,16 +262,15 @@ useEffect(() => {
 //   }
 // }, [LeadsData, editingComment]);
 
-         const openEventModal = (rowData: Doc) => {
-          setSelectedLeadId(rowData?.id)
+       const openEventModal = useCallback((id: any) => {
+  setSelectedLeadId(id);
+  setIsEventModalOpen(true);
+}, []);
 
-    setIsEventModalOpen(true);
-  };
-
-    const openCommentModal = (rowData: Doc) => {
-          setSelectedLeadId(rowData?.id)
-          setIsCommentModalOpen(true);
-  };
+const openCommentModal = useCallback((id: any) => {
+  setSelectedLeadId(id);
+  setIsCommentModalOpen(true);
+}, []);
 
   const openMentionModal = (rowData: Doc) => {
           let mentions = rowData.mentions;
@@ -556,7 +556,7 @@ const handleDeleteLead = async (allLeads: any) => {
 
 
 
-const columns: ColumnDef<Doc>[] = [
+const columns = useMemo<ColumnDef<Doc>[]>(() => [
   {
     header: 'Name',
     accessorKey: 'name',
@@ -583,257 +583,243 @@ const columns: ColumnDef<Doc>[] = [
     editorType: 'eventData',
     visible: true,
   },
-cell: ({ row }) => {
-  const events = row.original.eventData || [];
-  const rowId = row.original.id;
+   cell: ({ row }) => (
+    <EventCell
+      events={row.original.eventData || []}
+      rowId={row.original.id}
+      eventOptions={eventOptions}
+      openEventModal={openEventModal}
+      handleUpdateEvent={handleUpdateEvent}
+      handleDeleteEvent={handleDeleteEvent}
+    />
+  )
+// cell: ({ row }) => {
+//   const events = row.original.eventData || [];
+//   const rowId = row.original.id;
 
-  // State for editing event (move this to your parent component if you want to edit only one event at a time for the whole table)
-  const [editingIdx, setEditingIdx] = useState<number | null>(null);
-  const [localEditValue, setLocalEditValue] = useState<any>(null);
+//   // State for editing event (move this to your parent component if you want to edit only one event at a time for the whole table)
+//   const [editingIdx, setEditingIdx] = useState<number | null>(null);
+//   const [localEditValue, setLocalEditValue] = useState<any>(null);
 
-  // When entering edit mode, set the local edit value
-  const startEdit = (event: any, idx: number) => {
-    setEditingIdx(idx);
-
-
-    setLocalEditValue({
-      eventDate: event?.eventDate,
-      // eventName: event?.eventName || '',
-            others: event?.eventName || '',
-
-      allEvents: event?.allEvents || [], // Use allEvents to store multiple selected events
-      eventId: event?.eventId || null,
-      noOfGuests: event?.noOfGuests,
-      note: event?.note || '',
-      crew: event?.crew || '',
-      eventListId: event?.eventListId || null, // Add this line to handle eventListId
-    });
-  };
-
-  // When saving, call your handler and reset editing state
-  const saveEdit = async (eventId: any) => {
+//   // When entering edit mode, set the local edit value
+//   const startEdit = (event: any, idx: number) => {
+//     setEditingIdx(idx);
 
 
-    await handleUpdateEvent(rowId, eventId, localEditValue);
-    setEditingIdx(null);
-    setLocalEditValue(null);
-  };
+//     setLocalEditValue({
+//       eventDate: event?.eventDate,
+//       // eventName: event?.eventName || '',
+//             others: event?.eventName || '',
 
-  // When canceling, reset editing state
-  const cancelEdit = () => {
-    setEditingIdx(null);
-    setLocalEditValue(null);
-  };
+//       allEvents: event?.allEvents || [], // Use allEvents to store multiple selected events
+//       eventId: event?.eventId || null,
+//       noOfGuests: event?.noOfGuests,
+//       note: event?.note || '',
+//       crew: event?.crew || '',
+//       eventListId: event?.eventListId || null, // Add this line to handle eventListId
+//     });
+//   };
 
-  return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-      {events.length === 0 && (
-        <span style={{ color: '#aaa' }}>No Events</span>
-      )}
-      {events.map((event: any, idx: number) => {
-        const isEditing = editingIdx === idx;
-
-        return (
-          <div
-            key={event.eventId || idx}
-            style={{
-              borderBottom: '1px solid #eee',
-              paddingBottom: 2,
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'space-between',
-            }}
-          >
-            {isEditing ? (
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 8, width: '100%' }}>
-                {/* <Mui2InputWithDate
-                  name="eventDate"
-                  value={localEditValue.eventDate}
-                  onChange={e =>
-                    setLocalEditValue((prev: any) => ({
-                      ...prev,
-                      eventDate: e.target.value,
-                    }))
-                  }
-                  placeholder="Select date"
-                  required={false}
-                  error={undefined}
-                /> */}
-                <DateInput
-  value={localEditValue.eventDate || ''}
-  onChange={date =>
-    setLocalEditValue((prev: any) => ({
-      ...prev,
-      eventDate: date && dayjs(date).isValid() ? date.format('YYYY-MM-DD') : ''
-    }))
-  }
-  placeholder="Select date"
-/>
-
-{/* <CustomSelectWithAllOption
-  name="eventId"
-  placeholder='Select an event'
-  options={eventOptions}
-  isMulti={true}
-  value={eventOptions.find(option => option.value === localEditValue.eventListId) || null}
-  onChange={(inputValue: any) => {
-    setLocalEditValue((prev: any) => ({
-      ...prev,
-      eventListId: inputValue.value, // Use value from the selected option
-    }));
-  }}
-  /> */}
-
-  <CustomSelectWithAllOption
-  name="eventId"
-  placeholder="Select an event"
-  options={eventOptions}
-  isMulti={true}
-  value={
-    Array.isArray(localEditValue.allEvents)
-      ? eventOptions.filter(option => localEditValue.allEvents.includes(String(option.value)))
-      : []
-  }
-  onChange={(inputValue: any) => {
-    // inputValue will be an array of selected option objects
-    setLocalEditValue((prev: any) => ({
-      ...prev,
-      allEvents: inputValue ? inputValue.map((opt: any) => String(opt.value)) : [],
-    }));
-  }}
-/>
+//   // When saving, call your handler and reset editing state
+//   const saveEdit = async (eventId: any) => {
 
 
-{Array.isArray(localEditValue.allEvents) && localEditValue.allEvents.includes("4") && (
-  <CustomInput
-    placeholder="Event Name"
-    value={localEditValue.others}
-    onChange={e =>
-      setLocalEditValue((prev: any) => ({
-        ...prev,
-        others: e.target.value,
-      }))
-    }
-  />
-)}
-                <CustomInput
-                  type="number"
-                  placeholder="No. of Guests"
-                  value={localEditValue.noOfGuests}
-                  onChange={e =>
-                    setLocalEditValue((prev: any) => ({
-                      ...prev,
-                      noOfGuests: e.target.value,
-                    }))
-                  }
-                />
-                <CustomInput
-                  type="text"
-                  placeholder="No. of Crew"
-                  value={localEditValue.crew}
-                  onChange={e =>
-                    setLocalEditValue((prev: any) => ({
-                      ...prev,
-                      crew: e.target.value,
-                    }))
-                  }
-                />
-                <CustomTextArea
-                  value={localEditValue.note}
-                  onChange={val =>
-                    setLocalEditValue((prev: any) => ({
-                      ...prev,
-                      note: val,
-                    }))
-                  }
-                />
-                <div>
-                  <Button
-                    size="small"
-                    type="primary"
-                    onClick={() => saveEdit(event.eventId)}
-                    style={{ marginRight: 8 }}
-                  >
-                    Save
-                  </Button>
-                  <Button size="small" onClick={cancelEdit}>
-                    Cancel
-                  </Button>
-                </div>
-              </div>
-            ) : (
-              <>
-                <div
-                  style={{ cursor: 'pointer', flex: 1 }}
-                  onClick={() => startEdit(event, idx)}
-                >
-                  <div>
-                    <b>{ event?.allEventData  || event?.eventName} on</b>{' '}
-                    {formatDisplayDate(event?.eventDate)}
-                    {/* {event?.eventDate
-                      ? (() => {
-                          if (/^\d{2}[-/]\d{2}[-/]\d{4}$/.test(event.eventDate)) {
-                            return event.eventDate.replace(/\//g, '-');
-                          }
-                          const d = new Date(event.eventDate);
-                          if (isNaN(d.getTime())) return event.eventDate;
-                          const day = String(d.getDate()).padStart(2, '0');
-                          const month = String(d.getMonth() + 1).padStart(2, '0');
-                          const year = d.getFullYear();
-                          return `${day}-${month}-${year}`;
-                        })()
-                      : ''} */}
-                  </div>
-             {event.noOfGuests !== undefined && event.noOfGuests !== null && event.noOfGuests !== 0 && (
-  <div>
-    <b>Guests:</b> {event.noOfGuests}
-  </div>
-)}
+//     await handleUpdateEvent(rowId, eventId, localEditValue);
+//     setEditingIdx(null);
+//     setLocalEditValue(null);
+//   };
+
+//   // When canceling, reset editing state
+//   const cancelEdit = () => {
+//     setEditingIdx(null);
+//     setLocalEditValue(null);
+//   };
+
+//   return (
+//     <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+//       {events.length === 0 && (
+//         <span style={{ color: '#aaa' }}>No Events</span>
+//       )}
+//       {events.map((event: any, idx: number) => {
+//         const isEditing = editingIdx === idx;
+
+//         return (
+//           <div
+//             key={event.eventId || idx}
+//             style={{
+//               borderBottom: '1px solid #eee',
+//               paddingBottom: 2,
+//               display: 'flex',
+//               alignItems: 'center',
+//               justifyContent: 'space-between',
+//             }}
+//           >
+//             {isEditing ? (
+//               <div style={{ display: 'flex', flexDirection: 'column', gap: 8, width: '100%' }}>
+//                 {/* <Mui2InputWithDate
+//                   name="eventDate"
+//                   value={localEditValue.eventDate}
+//                   onChange={e =>
+//                     setLocalEditValue((prev: any) => ({
+//                       ...prev,
+//                       eventDate: e.target.value,
+//                     }))
+//                   }
+//                   placeholder="Select date"
+//                   required={false}
+//                   error={undefined}
+//                 /> */}
+//                 <DateInput
+//   value={localEditValue.eventDate || ''}
+//   onChange={date =>
+//     setLocalEditValue((prev: any) => ({
+//       ...prev,
+//       eventDate: date && dayjs(date).isValid() ? date.format('YYYY-MM-DD') : ''
+//     }))
+//   }
+//   placeholder="Select date"
+// />
+
+
+
+//   <CustomSelectWithAllOption
+//   name="eventId"
+//   placeholder="Select an event"
+//   options={eventOptions}
+//   isMulti={true}
+//   value={
+//     Array.isArray(localEditValue.allEvents)
+//       ? eventOptions.filter(option => localEditValue.allEvents.includes(String(option.value)))
+//       : []
+//   }
+//   onChange={(inputValue: any) => {
+//     // inputValue will be an array of selected option objects
+//     setLocalEditValue((prev: any) => ({
+//       ...prev,
+//       allEvents: inputValue ? inputValue.map((opt: any) => String(opt.value)) : [],
+//     }));
+//   }}
+// />
+
+
+// {Array.isArray(localEditValue.allEvents) && localEditValue.allEvents.includes("4") && (
+//   <CustomInput
+//     placeholder="Event Name"
+//     value={localEditValue.others}
+//     onChange={e =>
+//       setLocalEditValue((prev: any) => ({
+//         ...prev,
+//         others: e.target.value,
+//       }))
+//     }
+//   />
+// )}
+//                 <CustomInput
+//                   type="number"
+//                   placeholder="No. of Guests"
+//                   value={localEditValue.noOfGuests}
+//                   onChange={e =>
+//                     setLocalEditValue((prev: any) => ({
+//                       ...prev,
+//                       noOfGuests: e.target.value,
+//                     }))
+//                   }
+//                 />
+//                 <CustomInput
+//                   type="text"
+//                   placeholder="No. of Crew"
+//                   value={localEditValue.crew}
+//                   onChange={e =>
+//                     setLocalEditValue((prev: any) => ({
+//                       ...prev,
+//                       crew: e.target.value,
+//                     }))
+//                   }
+//                 />
+//                 <CustomTextArea
+//                   value={localEditValue.note}
+//                   onChange={val =>
+//                     setLocalEditValue((prev: any) => ({
+//                       ...prev,
+//                       note: val,
+//                     }))
+//                   }
+//                 />
+//                 <div>
+//                   <Button
+//                     size="small"
+//                     type="primary"
+//                     onClick={() => saveEdit(event.eventId)}
+//                     style={{ marginRight: 8 }}
+//                   >
+//                     Save
+//                   </Button>
+//                   <Button size="small" onClick={cancelEdit}>
+//                     Cancel
+//                   </Button>
+//                 </div>
+//               </div>
+//             ) : (
+//               <>
+//                 <div
+//                   style={{ cursor: 'pointer', flex: 1 }}
+//                   onClick={() => startEdit(event, idx)}
+//                 >
+//                   <div>
+//                     <b>{ event?.allEventData  || event?.eventName} on</b>{' '}
+//                     {formatDisplayDate(event?.eventDate)}
+                  
+//                   </div>
+//              {event.noOfGuests !== undefined && event.noOfGuests !== null && event.noOfGuests !== 0 && (
+//   <div>
+//     <b>Guests:</b> {event.noOfGuests}
+//   </div>
+// )}
                 
-                  {event.crew && (
-                    <div>
-                      <b>Crew:</b> {event.crew || 0}
-                    </div>
-                  )}
-                  {event.note && (
-                    <div>
-                      <b>Note:</b> {event.note}
-                    </div>
-                  )}
-                </div>
-                <Button
-                  size="small"
-                  danger
-                  icon={
-                    <DeleteOutlined
-                      style={{
-                        filter: 'brightness(0.7) grayscale(0.7)',
-                      }}
-                    />
-                  }
-                  onClick={e => {
-                    e.stopPropagation();
-                    handleDeleteEvent(rowId, event.eventId);
-                  }}
-                  style={{
-                    marginLeft: 8,
-                    background: 'lightgray',
-                    borderColor: 'lightgray',
-                  }}
-                />
-              </>
-            )}
-          </div>
-        );
-      })}
-      <Button
-        size="small"
-        icon={<PlusOutlined />}
-        onClick={() => openEventModal(row.original)}
-      />
-    </div>
-  );
-}
+//                   {event.crew && (
+//                     <div>
+//                       <b>Crew:</b> {event.crew || 0}
+//                     </div>
+//                   )}
+//                   {event.note && (
+//                     <div>
+//                       <b>Note:</b> {event.note}
+//                     </div>
+//                   )}
+//                 </div>
+//                 <Button
+//                   size="small"
+//                   danger
+//                   icon={
+//                     <DeleteOutlined
+//                       style={{
+//                         filter: 'brightness(0.7) grayscale(0.7)',
+//                       }}
+//                     />
+//                   }
+//                   onClick={e => {
+//                     e.stopPropagation();
+//                     handleDeleteEvent(rowId, event.eventId);
+//                   }}
+//                   style={{
+//                     marginLeft: 8,
+//                     background: 'lightgray',
+//                     borderColor: 'lightgray',
+//                   }}
+//                 />
+//               </>
+//             )}
+//           </div>
+//         );
+//       })}
+//       <Button
+//         size="small"
+//         icon={<PlusOutlined />}
+//         onClick={() => openEventModal(row.original.id)}
+//       />
+//     </div>
+//   );
+// }
 },
   {
     header: 'Budget',
@@ -1159,8 +1145,7 @@ cell: ({ row }) => {
               
 
         
-];
-
+], [assigneeOptions, referenceOptions, shootOptions, eventOptions]);
 
 // const columnsWithWidth = columns.map((col: any) => ({
 //   ...col,
@@ -1170,22 +1155,24 @@ cell: ({ row }) => {
 // }));
 
 
-const columnsWithWidth = columns
-  .map((col: any) => ({
-    ...col,
-    size: columnWidthMap[col.accessorKey as string] || col.size || 200,
-    orderId: leadsTablePreference?.find((p: any) => p.accessorKey === col.accessorKey)?.orderId ?? col.orderId,
-    isVisible: leadsTablePreference?.find((p: any) => p.accessorKey === col.accessorKey)?.isVisible ?? col.isVisible,
+const columnsWithWidth = useMemo(() => 
+  columns
+    .map((col: any) => ({
+      ...col,
+      size: columnWidthMap[col.accessorKey as string] || col.size || 200,
+      orderId: leadsTablePreference?.find((p: any) => p.accessorKey === col.accessorKey)?.orderId ?? col.orderId,
+      isVisible: leadsTablePreference?.find((p: any) => p.accessorKey === col.accessorKey)?.isVisible ?? col.isVisible,
+    }))
+    .sort((a, b) => {
+      if (typeof a.orderId === "number" && typeof b.orderId === "number") {
+        return a.orderId - b.orderId;
+      }
+      return 0;
+    }),
+  [columns, columnWidthMap, leadsTablePreference]
+);
 
 
-  }))
-  .sort((a, b) => {
-    // If both have orderId, sort numerically; otherwise, keep original order
-    if (typeof a.orderId === "number" && typeof b.orderId === "number") {
-      return a.orderId - b.orderId;
-    }
-    return 0;
-  });
 
 const createEmptyDoc = (): Doc => {
   const now = new Date().toLocaleString();
@@ -1214,27 +1201,22 @@ const createEmptyDoc = (): Doc => {
 
 
     const newLeadsMutate = useCreateLead();
-    const handleRowCreate=async(newRow: Doc)=>{
-      const body={
-        name: newRow.name,
-        createdBy:userid,
-        assignedTo: newRow.assignedTo,
-
-      };
-      const response = await newLeadsMutate.mutateAsync([body, userid]);
-      refetchLeadsData();
-
-    };
+    const handleRowCreate = useCallback(async (newRow: Doc) => {
+  const body = {
+    name: newRow.name,
+    createdBy: userid,
+    assignedTo: newRow.assignedTo,
+  };
+  const response = await newLeadsMutate.mutateAsync([body, userid]);
+  refetchLeadsData();
+}, [userid, newLeadsMutate, refetchLeadsData]);
 
 
 
-    
-
-    const handleRowEdit=async(updatedRow: Doc, rowIndex: number)=>{
-      const body={
+    const handleRowEdit = useCallback(async (updatedRow: Doc, rowIndex: number) => {
+      const body = {
                name: updatedRow?.name,
                contact:updatedRow.contact,
-               description: updatedRow.description,
                status: updatedRow.status,
                converted: updatedRow.converted,
                mentionedMembers:[],
@@ -1269,17 +1251,16 @@ setTableData(prev =>
   );
       // refetchLeadsData();
 
-    };
+    }, [userid, updateLeadMutate]);
 
 
-    const handleRowDelete = async (rowIndex: number) => {
+    const handleRowDelete = useCallback(async (rowIndex: number) => {
+  const leadId = tableData[rowIndex].id;
+  if (!leadId) return;
+  await updateLeadMutate.mutateAsync([{deletedAt: new Date(), mentionedMembers: []}, leadId, userid]);
+  refetchLeadsData();
+}, [tableData, updateLeadMutate, userid, refetchLeadsData]);
 
-      const leadId = tableData[rowIndex].id;
-      if (!leadId) return;
-      await updateLeadMutate.mutateAsync([{deletedAt: new Date(), mentionedMembers: []}, leadId, userid]);
-      refetchLeadsData();
-
-    }
 
 
     const handleFollowupChange = async (date: any,time: any, leadID: any) => {
@@ -1385,26 +1366,28 @@ const [filters, setFilters] = useState<Record<string, string | string[]>>({});
 //     !activeFilters.includes(col.accessorKey as string)
 // );
 
-const availableFilterColumns = columns.filter(
-  (col: any) =>
+const availableFilterColumns = useMemo(() => 
+  columns.filter((col: any) =>
     filterableKeys.includes(col.accessorKey as string) &&
     !activeFilters.includes(col.accessorKey as string)
+  ),
+  [columns, activeFilters]
 );
 
-const handleFilterChange = (key: string, value: any) => {
+const handleFilterChange = useCallback((key: string, value: any) => {
   setFilters((prev) => ({
     ...prev,
     [key]: value,
   }));
-};
+}, []);
 
-const handleAddFilter = (columnKey: any) => {
+const handleAddFilter = useCallback((columnKey: any) => {
   console.log("Adding filter for column:", columnKey);
-   if (columnKey.value === 'referenceId') {
+  if (columnKey.value === 'referenceId') {
     setFilters(prev => ({ ...prev, referenceId: [] }));
   }
   setActiveFilters((prev) => [...prev, columnKey.value]);
-};
+}, []);
 
 useEffect(() => {
   localStorage.setItem('leadsFilters', JSON.stringify(filters));
@@ -1449,9 +1432,7 @@ const handleSaveVoice = async(audioBlob: Blob) => {
 
 
 
-
-
-const handleRemoveFilter = (key: string) => {
+const handleRemoveFilter = useCallback((key: string) => {
   setFilters((prev) => {
     const newFilters = { ...prev };
     delete newFilters[key];
@@ -1459,7 +1440,7 @@ const handleRemoveFilter = (key: string) => {
   });
 
   setActiveFilters((prev: string[]) => prev.filter((k) => k !== key));
-};
+}, []);
 // Filter tableData based on filters
 
 
