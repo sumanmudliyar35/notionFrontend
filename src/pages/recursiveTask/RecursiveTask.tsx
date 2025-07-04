@@ -124,6 +124,7 @@ const RecursiveTask = () => {
       mentionedMember: mentionedMember,
     }
     const response = await useUpdateCommentMutate.mutateAsync([body, commentId, userid]);
+    refetchRecursiveTasks();
     // refetchLeadsData();
     // const commentsResponse = await usePostGetComment.mutateAsync([rowId]);
     // setTableData(prev =>
@@ -131,7 +132,7 @@ const RecursiveTask = () => {
     //     row.id === rowId ? { ...row, comments: commentsResponse } : row
     //   )
     // );
-    // setEditingComment(null);
+    setEditingComment(null);
 
 
   

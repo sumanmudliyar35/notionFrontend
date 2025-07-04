@@ -3,6 +3,7 @@ import { Button, Input } from 'antd';
 import { PlusOutlined, DeleteOutlined } from '@ant-design/icons';
 import { useMention } from '../../../../hooks/useMention';
 import { createPortal } from 'react-dom';
+import { formatDisplayDate } from '../../../../utils/commonFunction';
 
 interface CommentCellProps {
   comments: any[];
@@ -26,6 +27,7 @@ const CommentCell: React.FC<CommentCellProps> = ({
   assigneeOptions,
 }) => {
   // Find the comment being edited
+
   const editingIdx = comments.findIndex(
     (c, idx) =>
       editingComment &&
@@ -189,7 +191,7 @@ const CommentCell: React.FC<CommentCellProps> = ({
                   <div style={{ fontSize: 12, color: "#aaa" }}>
                     By: {c.givenBy || "Unknown"} | At:{" "}
                     {c.givenAt
-                      ? new Date(c.givenAt).toLocaleString("en-IN", { timeZone: "Asia/Kolkata" })
+                      ? formatDisplayDate(c.givenAt)
                       : ""}
                   </div>
                 </div>

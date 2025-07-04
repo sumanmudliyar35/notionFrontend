@@ -51,6 +51,7 @@ import { useParams } from 'react-router-dom';
 import { useGetTaskTablePreference } from "../../api/get/getTaskTablesPreference";
 import { useUpdateBulkTask } from "../../api/put/updateBulkTask";
 import { usePostGetByTask } from "../../api/get/postGetCommentByTask";
+import { useCreateAttachment } from "../../api/post/newAttachment";
 
 
 
@@ -89,7 +90,7 @@ interface Doc {
   voiceRecords?: { id: number; voiceUrl: string }[]; // Assuming voice records are stored like this
   
   eventData?: { eventId: number; eventDate: string; noOfGuests: number; note?: string }[]; // Assuming events are stored like this
-  
+  files?: any;
 }
 
 
@@ -223,6 +224,9 @@ const [offset, setOffset] = useState(0);
 
        
 
+
+                const createAttachmentMutation = useCreateAttachment();
+        
        
 
     const openCommentModal = (rowData: Doc) => {
@@ -555,6 +559,95 @@ cell: ({ row }) => {
     }
 
              },
+             {header: 'Files', accessorKey: "files",
+              cell:({row})=>{
+
+              
+const attachments = row.original.files
+
+                  const triggerFileUpload = (e: React.MouseEvent) => {
+                          e.preventDefault();
+                          e.stopPropagation();
+                          // Create a new file input element dynamically
+                          const input = document.createElement('input');
+                          input.type = 'file';
+                          input.onchange = (e) => {
+                            const files = (e.target as HTMLInputElement).files;
+                            if (files && files.length > 0) {
+                              handleUpload(files[0], row.original, row.original.id);
+                            }
+                          };
+                          // Trigger click on the input
+                          input.click();
+                        };
+                
+                        // Modified handleUpload to take file directly
+                        const handleUpload = async (file: File, log: any, taskId: any) => {
+                          
+                          try {
+                            const formData = new FormData();
+                            formData.append("file", file);
+                            formData.append("taskId", taskId);
+                            // formData.append("logId", log.id);
+                            
+                            for (let [key, value] of formData.entries()) {
+                              console.log(`${key}: ${value}`);
+                            }
+                            
+                            if (!userid) {
+                              throw new Error("User ID is undefined");
+                            }
+                            
+                            const response = await createAttachmentMutation.mutateAsync([formData, userid]);
+                            refetchTasksData();
+                            
+                            
+                          } catch (error) {
+                            console.error("Error uploading file:", error);
+                            if (error instanceof Error) {
+                              console.error("Error message:", error.message);
+                            }
+                            alert("Failed to upload file. Please try again.");
+                          }
+                        };
+
+                        return (
+                <div>
+                   <button
+                type="button"
+                onClick={triggerFileUpload}
+                title="Upload file"
+                style={{ background: 'none', border: 'none', cursor: 'pointer' }}
+              >
+                📎
+              </button>
+
+              {attachments && attachments.length > 0 &&  (
+              <div style={{ marginTop: 4, fontSize: '0.8em' }}>
+                {attachments.map((attachment: any, idx: number) => (
+                  <div key={idx} style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+                    <a 
+                      href={attachment?.downloadUrl} 
+                      target="_blank" 
+                      rel="noopener noreferrer"
+                      style={{ color: '#1677ff', textDecoration: 'underline' }}
+                    >
+                      {attachment?.fileName || `File ${idx + 1}`}
+                    </a>
+                  </div>
+                ))}
+              </div>
+            )}
+
+                </div>
+                        )
+
+
+              }
+
+
+
+             }
           
 
     
@@ -740,9 +833,20 @@ const reminderMutate = useCreateReminder();
       }
     };
 
-    const [filters, setFilters] = useState<Record<string, string>>({});
+      const savedFiltersValue = useMemo(() => {
+      const filters = localStorage.getItem('tasksFilters');
+      return filters ? JSON.parse(filters) : {};
+    }, []);
+    
+    const savedActiveFiltersValue = useMemo(() => {
+      const activeFilters = localStorage.getItem('tasksActiveFilters');
+      return activeFilters ? JSON.parse(activeFilters) : [];
+    }, []);
 
-    const [activeFilters, setActiveFilters] = useState<string[]>([]);
+    const [filters, setFilters] = useState<Record<string, string | string[]>>(savedFiltersValue);
+    const [activeFilters, setActiveFilters] = useState<string[]>(savedActiveFiltersValue);
+    
+        
 
     const filterableKeys = [
   "status",
@@ -776,6 +880,15 @@ const handleAddFilter = (columnKey: any) => {
   console.log("Adding filter for column:", columnKey);
   setActiveFilters((prev) => [...prev, columnKey.value]);
 };
+
+useEffect(() => {
+  localStorage.setItem('tasksFilters', JSON.stringify(filters));
+}, [filters]);
+
+useEffect(() => {
+  localStorage.setItem('tasksActiveFilters', JSON.stringify(activeFilters));
+}, [activeFilters]);
+
 
 
 const commentMutate = useCreateComment();
@@ -940,7 +1053,11 @@ console.log("Filters", hasActiveFilters, filters);
 
 
     if (key === 'assignedTo') {
-      return val ? String(row[key as keyof Doc] || '').includes(val) : true;
+      if (Array.isArray(val)) {
+        // If val is an array, check if any value matches
+        return val.some(v => String(row[key as keyof Doc] || '').includes(String(v)));
+      }
+      return val ? String(row[key as keyof Doc] || '').includes(String(val)) : true;
     }
     if (key === 'mentions') {
       return Array.isArray(row.mentions)

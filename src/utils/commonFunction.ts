@@ -13,8 +13,20 @@ function getOrdinal(n: number) {
 
 export const formatDisplayDate = (date: string | Date | null | undefined) => {
   if (!date) return "";
+  
+  // Check for invalid "0000-00-00" date format
+  if (typeof date === "string" && (date === "0000-00-00" || date.startsWith("0000-00-00"))) {
+    return "";
+  }
+  
   const d = dayjs(date);
   if (!d.isValid()) return "";
+  
+  // Additional validation: check for very old dates that might be parsing errors
+  if (d.year() < 1000) {
+    return "";
+  }
+  
   const day = d.date();
   const month = d.format("MMMM");
   const year = d.year();

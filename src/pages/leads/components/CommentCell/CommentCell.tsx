@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Button, Input } from 'antd';
 import { PlusOutlined, DeleteOutlined } from '@ant-design/icons';
 import { useMention } from '../../../../hooks/useMention';
@@ -11,8 +11,9 @@ interface CommentCellProps {
   openCommentModal: (rowId: any) => void;
   handleEditComment: (rowId: number, commentId: number, value: string, mentionedUserIds1: string[]) => void;
   handleDeleteComment: (rowId: number, commentId: number) => void;
-  editingComment: { rowId: number; commentId: number } | null;
-  setEditingComment: (value: { rowId: number; commentId: number } | null) => void;
+  // Remove these props since we'll manage them internally
+  // editingComment: { rowId: number; commentId: number } | null;
+  // setEditingComment: (value: { rowId: number; commentId: number } | null) => void;
   assigneeOptions: any[];
 }
 
@@ -22,37 +23,73 @@ const CommentCell: React.FC<CommentCellProps> = ({
   openCommentModal,
   handleEditComment,
   handleDeleteComment,
-  editingComment,
-  setEditingComment,
+  // Remove these from the destructuring
+  // editingComment,
+  // setEditingComment,
   assigneeOptions,
 }) => {
+  // Create local state to manage editing
+  const [localEditingComment, setLocalEditingComment] = useState<{ rowId: number; commentId: number } | null>(null);
+
+  // Track whether a comment has been initialized to prevent input value issues
+  const hasInitializedRef = useRef(false);
+
   // Find the comment being edited
   const editingIdx = comments.findIndex(
-    (c, idx) =>
-      editingComment &&
-      editingComment.rowId === rowId &&
-      editingComment.commentId === (c.id || idx)
+    (c, idx) => {
+      if (!localEditingComment) return false;
+      if (localEditingComment.rowId !== rowId) return false;
+      
+      // Compare as strings to avoid type issues
+      return String(c.id || idx) === String(localEditingComment.commentId);
+    }
   );
+
+
   const editingCommentObj = editingIdx !== -1 ? comments[editingIdx] : null;
 
   // Only call useMention for the editing comment
   const mentionProps = useMention(
     assigneeOptions,
-    editingCommentObj ? editingCommentObj.comment : ""
+    ""  // Start with empty string and initialize in useEffect
   );
 
+  // Initialize the input value when editing starts
   useEffect(() => {
-    if (editingComment && mentionProps.inputRef.current) {
-      mentionProps.inputRef.current.focus();
-      // Move cursor to the end of the text
-      const length = mentionProps.inputRef.current.value.length;
-      mentionProps.inputRef.current.setSelectionRange(length, length);
+    if (editingCommentObj && !hasInitializedRef.current) {
+      console.log("Setting initial value:", editingCommentObj.comment);
+      mentionProps.setInputValue(editingCommentObj.comment || "");
+      hasInitializedRef.current = true;
     }
-  }, [editingComment]);
+  }, [editingCommentObj]);
+
+  // Reset the initialization flag when editing stops
+  useEffect(() => {
+    if (!localEditingComment) {
+      hasInitializedRef.current = false;
+    }
+  }, [localEditingComment]);
+
+  // Focus and position cursor when editing
+  useEffect(() => {
+    if (localEditingComment && mentionProps.inputRef.current) {
+      // Use a timeout to ensure DOM is updated
+      setTimeout(() => {
+        if (mentionProps.inputRef.current) {
+          mentionProps.inputRef.current.focus();
+          // Move cursor to the end of the text
+          const length = mentionProps.inputRef.current.value.length;
+          mentionProps.inputRef.current.setSelectionRange(length, length);
+        }
+      }, 50);
+    }
+  }, [localEditingComment]);
 
   const handleBlur = () => {
     if (mentionProps.ignoreBlurRef.current) return;
-    setEditingComment(null);
+
+    console.log("Blur event triggered, resetting editing comment");
+    setLocalEditingComment(null);
   };
 
   // Add highlighted index state
@@ -66,9 +103,9 @@ const CommentCell: React.FC<CommentCellProps> = ({
     <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
       {comments.map((c: any, idx: number) => {
         const isEditing =
-          editingComment &&
-          editingComment.rowId === rowId &&
-          editingComment.commentId === (c.id || idx);
+          localEditingComment &&
+          localEditingComment.rowId === rowId &&
+          localEditingComment.commentId === (c.id || idx);
 
         return (
           <div key={c.id || idx} style={{ borderBottom: "1px solid #333", paddingBottom: 4 }}>
@@ -97,7 +134,10 @@ const CommentCell: React.FC<CommentCellProps> = ({
                     color: "white",
                     fontFamily: "sans-serif",
                     resize: "none", // Prevent manual resize
-                    overflow: "hidden"
+                    overflow: "hidden",
+                    padding: "8px",
+                    borderRadius: "4px",
+                    border: "1px solid #444"
                   }}
                   onKeyDown={e => {
                     if (mentionProps.showDropdown && mentionProps.filteredOptions.length > 0) {
@@ -116,6 +156,10 @@ const CommentCell: React.FC<CommentCellProps> = ({
                     } else if (e.key === "Enter" && !e.shiftKey) {
                       e.preventDefault();
                       handleEditComment(rowId, c.id || idx, mentionProps.inputValue, mentionProps.mentionedUserIds);
+                      setLocalEditingComment(null);
+                    } else if (e.key === "Escape") {
+                      e.preventDefault();
+                      setLocalEditingComment(null);
                     }
                   }}
                   onBlur={handleBlur}
@@ -167,29 +211,33 @@ const CommentCell: React.FC<CommentCellProps> = ({
                   justifyContent: "space-between",
                   alignItems: "center",
                 }}
-                onClick={() => {
-                  setEditingComment({ rowId, commentId: c.id || idx });
+                onClick={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  console.log("Starting edit for comment:", c.id || idx);
+                  
+                  // First reset input value
+                  mentionProps.setInputValue(c.comment || "");
+                  
+                  // Then set editing state
+                  setLocalEditingComment({ rowId, commentId: c.id || idx });
                 }}
               >
                 <div>
-                  {/* <span style={{ whiteSpace: "pre-line" }}>
-                    <strong>{c.comment}</strong>
-                  </span> */}
                   <span
-  style={{ whiteSpace: "pre-line" }}
-  dangerouslySetInnerHTML={{
-    __html: String(c?.comment).replace(
-      /((https?:\/\/|www\.)[^\s]+)/g,
-      url => {
-        const href = url.startsWith('http') ? url : `https://${url}`;
-        return `<a href="${href}" target="_blank" rel="noopener noreferrer" style="color:#4fa3ff;text-decoration:underline;">${url}</a>`;
-      }
-    )
-  }}
-/>
+                    style={{ whiteSpace: "pre-line" }}
+                    dangerouslySetInnerHTML={{
+                      __html: String(c?.comment || "").replace(
+                        /((https?:\/\/|www\.)[^\s]+)/g,
+                        url => {
+                          const href = url.startsWith('http') ? url : `https://${url}`;
+                          return `<a href="${href}" target="_blank" rel="noopener noreferrer" style="color:#4fa3ff;text-decoration:underline;">${url}</a>`;
+                        }
+                      )
+                    }}
+                  />
                   <div style={{ fontSize: 12, color: "#aaa" }}>
                    By: {c.givenBy || "Unknown"} | At: {formatDisplayDate(c.givenAt)}
-
                   </div>
                 </div>
                 <Button
@@ -210,7 +258,7 @@ const CommentCell: React.FC<CommentCellProps> = ({
                     background: "lightgray",
                     borderColor: "lightgray",
                   }}
-                ></Button>
+                />
               </div>
             )}
           </div>

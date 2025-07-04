@@ -1,7 +1,11 @@
-import React from 'react';
-import { Drawer, Spin, List, Typography } from 'antd';
+import React, { use, useEffect, useState } from 'react';
+import { Drawer, Spin, List, Typography, Tooltip } from 'antd';
 import { useGetMentionByUser } from '../../api/get/getMentionByUser';
-import { CloseOutlined } from '@ant-design/icons';
+import { CloseOutlined, CheckOutlined } from '@ant-design/icons';
+import { formatDisplayDate } from '../../utils/commonFunction';
+import { useUpdateMentionById } from '../../api/put/updateMentionById';
+import DoneAllIcon from '@mui/icons-material/DoneAll';
+
 
 interface NotificationDrawerProps {
   open: boolean;
@@ -19,7 +23,37 @@ const NotificationDrawer: React.FC<NotificationDrawerProps> = ({
 
   // Get userId from localStorage or context as needed
   const userId = Number(localStorage.getItem('userid'));
-  const { data, isLoading } = useGetMentionByUser(userId);
+  const { data: notificationData, isLoading, refetch } = useGetMentionByUser(userId);
+
+  const [notifications, setNotifications] = useState([]);
+
+  useEffect(() => {
+    // Initial fetch or setup if needed
+    if (notificationData && notificationData.length > 0) {
+      setNotifications(notificationData);
+    } 
+  }, [notificationData]);
+
+
+  const updateMentionStatusMutate = useUpdateMentionById();
+  const handleUpdateMentionStatus = async (mentionId: number, isRead: boolean) => {
+    try {
+
+    
+    
+
+      await updateMentionStatusMutate.mutateAsync([ {isRead: isRead ? false : true }, mentionId ]);
+      setNotifications((prevNotifications: any) =>
+        prevNotifications.map((notification: any) =>{
+          return(
+          notification.mentionId === mentionId ? { ...notification, isSeen: isRead ? false : true } : notification
+          )
+     } )
+      );  
+    } catch (error) {
+      console.error("Error updating mention status:", error);
+    }
+  };
 
   return (
     <Drawer
@@ -34,13 +68,13 @@ const NotificationDrawer: React.FC<NotificationDrawerProps> = ({
     >
       {isLoading ? (
         <Spin />
-      ) : data && data.length > 0 ? (
+      ) : notifications && notifications.length > 0 ? (
         <List
-          dataSource={data}
+          dataSource={notifications}
           renderItem={(item: any) => (
             <List.Item
               style={{
-                background: '#181818',
+                background: item.status === 'read' ? '#181818' : '#1d2026', // Slightly different bg for unread
                 borderRadius: 8,
                 marginBottom: 10,
                 padding: '12px 16px',
@@ -48,23 +82,62 @@ const NotificationDrawer: React.FC<NotificationDrawerProps> = ({
                 display: 'flex',
                 flexDirection: 'column',
                 alignItems: 'flex-start',
+                cursor: 'pointer', // Show it's clickable
+                transition: 'background-color 0.2s',
               }}
+              className="notification-item"
             >
               <div style={{ display: 'flex', alignItems: 'center', width: '100%' }}>
                 <Typography.Text strong style={{ color: '#52c41a' }}>
                   {item.userName}
                 </Typography.Text>
-                <span style={{
-                  color: '#aaa',
-                  fontSize: 12,
+                <div style={{
                   marginLeft: 'auto', // push to right
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '4px'
                 }}>
-                  {item.createdAt
-                    ? new Date(item.createdAt).toLocaleString()
-                    : ''}
-                </span>
+                  <span style={{ color: '#aaa', fontSize: 12 }}>
+                    {item.createdAt ? formatDisplayDate(item.createdAt) : ''}
+                  </span>
+                  
+                  {/* Read status indicator with ticks */}
+                  {item.isSeen ? (
+                    <Tooltip title="Read">
+                      <span style={{ display: 'inline-flex' }}               
+                       onClick={() => handleUpdateMentionStatus(item?.mentionId, item.isSeen)}
+>
+                        <DoneAllIcon 
+                          style={{ 
+                            color: '#52c41a', 
+                            fontSize: 12, 
+                            marginLeft: 4 
+                          }} 
+                        />
+                       
+                      </span>
+                    </Tooltip>
+                  ) : (
+                    <Tooltip title="Unread">
+                      <CheckOutlined 
+                        style={{ 
+                          color: '#888', 
+                          fontSize: 12, 
+                          marginLeft: 4 
+                        }} 
+
+                      onClick={() => handleUpdateMentionStatus(item?.mentionId, item.isSeen)}
+
+                      />
+                    </Tooltip>
+                  )}
+                </div>
               </div>
-              <div style={{ color: '#fff', marginTop: 4 }}>
+              <div style={{ 
+                color: item.status === 'read' ? '#aaa' : '#fff', 
+                marginTop: 4,
+                fontWeight: item.status === 'read' ? 'normal' : 'medium'
+              }}>
                 {item.message || 'You were mentioned.'}
               </div>
             </List.Item>
@@ -78,5 +151,12 @@ const NotificationDrawer: React.FC<NotificationDrawerProps> = ({
     </Drawer>
   );
 };
+
+// Add this CSS to your styles or in a style tag
+const styles = `
+  .notification-item:hover {
+    background-color: #23272f !important;
+  }
+`;
 
 export default NotificationDrawer;

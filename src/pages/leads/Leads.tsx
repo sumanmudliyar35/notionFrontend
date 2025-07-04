@@ -32,7 +32,10 @@ import DescriptionCell from "./components/DescriptionCell/DescriptionCell";
 import MuiInputWithDate from "../../components/MuiDatePicker/MuiInputWithDate";
 import Mui2InputWithDate from "../../components/Mui2InputWithDate/Mui2InputWithDate";
 import { createPortal } from "react-dom";
+
+
 import CommentCell from "./components/CommentCell/CommentCell";
+// import CommentCell from "../tasks/components/CommentCell/CommentCell";
 import DateTimeModal from "./components/DateTimeModal/DateTimeModal";
 import ReminderModal from "../../components/reminderModal/ReminderModal";
 import { useCreateReminder } from "../../api/post/newReminder";
@@ -54,6 +57,7 @@ import SharedCommentModal from "../../components/SharedCommentModal/SharedCommen
 import { useCreateEvent } from "../../api/post/newEvent";
 import { usePostGetEventByLead } from "../../api/get/postGetEventsByLead";
 import EventCell from "./components/EventCell/EventCell";
+import CustomSwitch from "../../components/customSwitch/CustomSwitch";
 
 
 
@@ -129,6 +133,8 @@ const Leads = () => {
   // Store userId and name in state
   const [assigneeOptions, setAssigneeOptions] = useState<{ label: string; value: any }[]>([]);
   const [referenceOptions, setReferenceOptions] = useState<{ label: string; value: string }[]>([]);
+
+  const [filtersEnabled, setFiltersEnabled] = useState<boolean>(true);
 
   const leadsOption =[
     {label: 'Excited', value: 'excited'},
@@ -267,8 +273,8 @@ useEffect(() => {
   setIsEventModalOpen(true);
 }, []);
 
-const openCommentModal = useCallback((id: any) => {
-  setSelectedLeadId(id);
+const openCommentModal = useCallback((data: any) => {
+  setSelectedLeadId(data.id);
   setIsCommentModalOpen(true);
 }, []);
 
@@ -955,6 +961,7 @@ const columns = useMemo<ColumnDef<Doc>[]>(() => [
   const dateTimeString = `${followup}T${followupTime || '00:00'}`;
   const d = new Date(dateTimeString);
 
+
   let displayValue = '';
   if (isNaN(d.getTime())) {
     displayValue = followup;
@@ -984,7 +991,7 @@ const columns = useMemo<ColumnDef<Doc>[]>(() => [
         )
       }
     >
-      {displayValue || <span style={{ color: '#888' }}>Set follow up</span>}
+      {formatDisplayDate(d) || <span style={{ color: '#888' }}>Set follow up</span>}
     </span>
   );
 },
@@ -1014,9 +1021,13 @@ const columns = useMemo<ColumnDef<Doc>[]>(() => [
     enableResizing: true, 
 
 
+
 cell: ({ row }) => {
   const comments = row.original.comments || [];
   const rowId = row.original.id;
+
+
+
 
   return (
     <CommentCell
@@ -1025,8 +1036,8 @@ cell: ({ row }) => {
       openCommentModal={openCommentModal}
       handleEditComment={handleEditComment}
       handleDeleteComment={handleDeleteComment}
-      editingComment={editingComment}
-      setEditingComment={setEditingComment}
+      // editingComment={editingComment}
+      // setEditingComment={setEditingComment}
       assigneeOptions={assigneeOptions}
     />
   );
@@ -1141,6 +1152,17 @@ cell: ({ row }) => {
     );
   },
 },
+{
+  header:"Created On",
+  accessorKey: "createdAt",
+  cell:({row})=>{
+    const value = row.original.createdAt;
+    return (formatDisplayDate(value))
+  }
+
+
+}
+
     
               
 
@@ -1171,6 +1193,8 @@ const columnsWithWidth = useMemo(() =>
     }),
   [columns, columnWidthMap, leadsTablePreference]
 );
+
+
 
 
 
@@ -1337,16 +1361,23 @@ const reminderMutate = useCreateReminder();
       }
     };
 
-const [filters, setFilters] = useState<Record<string, string | string[]>>({});
-    const [activeFilters, setActiveFilters] = useState<string[]>([]);
-
-
-    useEffect(() => {
-  const savedFilters = localStorage.getItem('leadsFilters');
-  const savedActiveFilters = localStorage.getItem('leadsActiveFilters');
-  if (savedFilters) setFilters(JSON.parse(savedFilters));
-  if (savedActiveFilters) setActiveFilters(JSON.parse(savedActiveFilters));
+    const savedFiltersValue = useMemo(() => {
+  const filters = localStorage.getItem('leadsFilters');
+  return filters ? JSON.parse(filters) : {};
 }, []);
+
+const savedActiveFiltersValue = useMemo(() => {
+  const activeFilters = localStorage.getItem('leadsActiveFilters');
+  return activeFilters ? JSON.parse(activeFilters) : [];
+}, []);
+
+const [filters, setFilters] = useState<Record<string, string | string[]>>(savedFiltersValue);
+const [activeFilters, setActiveFilters] = useState<string[]>(savedActiveFiltersValue);
+
+    
+
+
+  
 
     const filterableKeys = [
   "status",
@@ -1456,6 +1487,9 @@ const dateOption =[
 
 
 const filteredData = React.useMemo(() => {
+
+    if (!filtersEnabled) return tableData;
+
 
    const hasActiveFilters = Object.values(filters).some(val => val !== undefined && val !== null && val !== '');
   if (!hasActiveFilters) return tableData;
@@ -1622,7 +1656,7 @@ if(key === 'leads') {
       : true;
   });
 });
-}, [tableData, filters]);
+}, [tableData, filters, filtersEnabled]);
 
 
   const updateTablePreferences = useUpdateUsersTablePreference();
@@ -1712,7 +1746,18 @@ const handleColumnVisibilityChange = async(columnKey: string, isVisible: boolean
   return (
     <div>
 
-    <styled.FiltersDiv>
+
+
+<styled.FilterAndSwitchContainer>
+
+
+      <CustomSwitch
+    enabled={filtersEnabled} 
+    onChange={(enabled) => setFiltersEnabled(enabled)} 
+  />
+
+<styled.FiltersDiv disabled={!filtersEnabled}>
+
   {activeFilters.map((key: any) => {
     const col = columns.find((c: any) => c.accessorKey === key);
     if (!col) return null;
@@ -2042,6 +2087,10 @@ onClick={() => {
     }))}
   />
 </styled.FiltersDiv>
+
+
+</styled.FilterAndSwitchContainer>
+
 
 
         

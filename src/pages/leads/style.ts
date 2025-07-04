@@ -70,16 +70,41 @@ export const DarkSelect = styled(Select)`
 `;
 
 
-export const FiltersDiv = styled.div`
-display: flex;
-flex-wrap: wrap;
-
-margin-bottom: 16px;
-    align-items: center;
-    gap: 10px;
+export const FilterAndSwitchContainer = styled.div`
+  display: flex;
+  align-items: center;
+  gap: 12px;
+    margin-bottom: 16px;
 
 
-`
+
+
+  `;
+
+export const FiltersDiv = styled.div<{ disabled?: boolean }>`
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  opacity: ${({ disabled }) => (disabled ? 0.6 : 1)};
+  pointer-events: ${({ disabled }) => (disabled ? 'none' : 'auto')};
+  
+  /* Add a subtle transition for visual feedback */
+  transition: opacity 0.3s;
+  position: relative;
+  
+  ${({ disabled }) => disabled && `
+    &:after {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      z-index: 1;
+      cursor: not-allowed;
+    }
+  `}
+`;
 
 
 export const DateDiv = styled.div`

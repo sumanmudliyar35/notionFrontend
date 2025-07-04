@@ -6,6 +6,7 @@ import NotificationDrawer from '../notificationDrawer/NotificationDrawer';
 import CustomSearchInput from '../CustomSearchInput/CustomSearchInput';
 import { useGetUsersMenu } from '../../api/get/getUsersMenu';
 import { UserOutlined, SettingOutlined, LogoutOutlined, BellOutlined, CheckSquareOutlined, RetweetOutlined, TeamOutlined } from '@ant-design/icons';
+import { useGetUnseenNotificationCount } from '../../api/get/getUnseenNotificationCount';
 
 interface SidebarProps {
   collapsed: boolean;
@@ -13,10 +14,22 @@ interface SidebarProps {
 
 const iconStyle = { color: '#4caf50', marginRight: 8 };
 
-const menuItems = [
+
+
+const Sidebar: React.FC<SidebarProps> = ({ collapsed }) => {
+  const roleid = localStorage.getItem('roleid');
+  const userId = localStorage.getItem('userid');
+  
+  const {data: usersMenu} = useGetUsersMenu(userId || '0');
+
+  const {data: unseenNotificationCount} = useGetUnseenNotificationCount(userId || '0');
+
+
+
+  const menuItems = [
   {
     key: 'notifications',
-    label: 'Notifications',
+    label: <>{`Notifications (${unseenNotificationCount?.count || 0} unread)`}</>,
     icon: <BellOutlined style={{ ...iconStyle, color: '#52c41a' }} />,
     onClick: 'drawer',
   },
@@ -62,12 +75,6 @@ const lastMenuItem = [
   },
 
 ];
-
-const Sidebar: React.FC<SidebarProps> = ({ collapsed }) => {
-  const roleid = localStorage.getItem('roleid');
-  const userId = localStorage.getItem('userid');
-  
-  const {data: usersMenu} = useGetUsersMenu(userId || '0');
   const navigate = useNavigate();
   const location = useLocation();
 
@@ -124,22 +131,29 @@ const Sidebar: React.FC<SidebarProps> = ({ collapsed }) => {
   ];
 
   // Filter menu items based on search (including children)
-  const filterMenu = (items: any[]): any[] =>
-    items
-      .map((item: any) => {
-        if (item.children) {
-          const filteredChildren = filterMenu(item.children);
-          if (
-            item.label.toLowerCase().includes(search.toLowerCase()) ||
-            filteredChildren.length
-          ) {
-            return { ...item, children: filteredChildren };
-          }
-          return null;
+ // Fix the filterMenu function to handle React elements in labels
+const filterMenu = (items: any[]): any[] =>
+  items
+    .map((item: any) => {
+      // Get the text representation of the label (either a string or from React element)
+      const labelText = typeof item.label === 'string' 
+        ? item.label 
+        : (item.key === 'notifications' ? 'Notifications' : ''); // Handle special cases
+      
+      if (item.children) {
+        const filteredChildren = filterMenu(item.children);
+        if (
+          labelText.toLowerCase().includes(search.toLowerCase()) ||
+          filteredChildren.length
+        ) {
+          return { ...item, children: filteredChildren };
         }
-        return item.label.toLowerCase().includes(search.toLowerCase()) ? item : null;
-      })
-      .filter(Boolean);
+        return null;
+      }
+      
+      return labelText.toLowerCase().includes(search.toLowerCase()) ? item : null;
+    })
+    .filter(Boolean);
 
   const filteredMenu = filterMenu(combinedMenu);
 

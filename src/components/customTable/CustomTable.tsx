@@ -511,6 +511,7 @@ useEffect(() => {
   const lastOffsetTrigger = useRef<number | null>(null);
 
 useEffect(() => {
+
   if (table.getRowModel().rows.length < 3) return;
   const lastVisibleIndex = table.getRowModel().rows.length - 1;
   if (
@@ -525,6 +526,88 @@ useEffect(() => {
     lastOffsetTrigger.current = table.getRowModel().rows.length;
   }
 }, [hoveredRow, table.getRowModel().rows.length, props]);
+
+
+
+// First, add a separate ref for the scrollable table body
+const tableBodyRef = useRef<HTMLTableSectionElement>(null);
+
+// Then modify your useEffect to target both containers
+useEffect(() => {
+  const handleKeyDown = (e: KeyboardEvent) => {
+    console.log('Key pressed:', e.key);
+    // Handle Home key press - use Home key instead of ArrowLeft
+    if (e.key === 'Home' && !e.ctrlKey && !e.altKey && !e.metaKey) {
+      console.log('Home key pressed');
+      // Only trigger if no modifiers are pressed and we're not in an input field
+      const activeElement = document.activeElement;
+      const isInput = activeElement instanceof HTMLInputElement || 
+                      activeElement instanceof HTMLTextAreaElement ||
+                      activeElement instanceof HTMLSelectElement;
+                      
+      if (!isInput) {
+        e.preventDefault();
+        scrollToTableTop();
+      }
+    }
+  };
+  
+  window.addEventListener('keydown', handleKeyDown);
+  return () => window.removeEventListener('keydown', handleKeyDown);
+}, []);
+
+
+
+const scrollToTableTop = () => {
+  // Try all possible scroll containers
+  const possibleScrollContainers = [
+    tableContainerRef.current,
+    document.querySelector('.ant-table-body'),
+    document.querySelector('.ant-table-content'),
+    document.querySelector('tbody'),
+    tableContainerRef.current?.parentElement,
+    tableContainerRef.current?.querySelector('div[style*="overflow"]')
+  ];
+  
+  // Log each attempt
+  possibleScrollContainers.forEach((container, index) => {
+    if (container) {
+      console.log(`Attempting to scroll container #${index}`);
+      
+      // Try both methods
+      try {
+        container.scrollTo({ top: 0, behavior: 'smooth' });
+      } catch (e) {
+        console.log(`scrollTo failed on container #${index}:`, e);
+      }
+      
+      try {
+        if (container instanceof HTMLElement) {
+          container.scrollTop = 0;
+        }
+      } catch (e) {
+        console.log(`scrollTop failed on container #${index}:`, e);
+      }
+    }
+  });
+  
+  // Also try to scroll window as a last resort
+  window.scrollTo(0, 0);
+  
+  // Reset pagination
+  setOffset(0);
+  if (props.onOffsetChange) props.onOffsetChange(0);
+  
+  // Focus the first row
+  if (table.getRowModel().rows.length > 0) {
+    setHoveredRow(0);
+  }
+};
+
+
+
+
+
 
   // ✅ RENDER - All hooks are guaranteed to be called before this point
   return (
@@ -668,8 +751,11 @@ useEffect(() => {
           </thead>
         </table>
         
-        <table  style={{borderSpacing: 0}}>
-          <tbody style={{
+        <table  style={{borderSpacing: 0}}  >
+          <tbody   ref={tableBodyRef}
+ style={{
+            
+
           //  overflowY: 'auto',
             maxHeight: 'calc(100vh - 260px)',
 
