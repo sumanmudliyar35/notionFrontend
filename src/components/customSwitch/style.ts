@@ -5,7 +5,6 @@ export const FilterToggleContainer = styled.div`
   align-items: center;
   cursor: pointer;
   padding: 4px 8px;
-  margin-right: 12px;
   user-select: none;
 `;
 

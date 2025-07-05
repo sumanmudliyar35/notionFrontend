@@ -1,6 +1,7 @@
 import styled from 'styled-components';
 import { Input } from 'antd';
 import { Select } from 'antd';
+import CustomSwitch from '../../components/customSwitch/CustomSwitch';
 
 
 
@@ -32,6 +33,8 @@ export const FilterTag = styled.div<{ active?: boolean; disabled?: boolean }>`
       disabled ? '#666' : active ? '#40a9ff' : '#eee'};
   }
 `;
+
+
 
 
 
@@ -75,11 +78,18 @@ export const FilterAndSwitchContainer = styled.div`
   align-items: center;
   gap: 12px;
     margin-bottom: 16px;
-
-
-
-
   `;
+
+ export  const FilterHeader = styled.div`
+  display: flex;
+  align-items: center;
+  // width: 100%;
+`;
+
+const FilterSwitch = styled(CustomSwitch)`
+  transform: scale(0.7);
+  margin-left: 8px;
+`;
 
 export const FiltersDiv = styled.div<{ disabled?: boolean }>`
   display: flex;

@@ -136,6 +136,13 @@ const Leads = () => {
 
   const [filtersEnabled, setFiltersEnabled] = useState<boolean>(true);
 
+  const savedEnabledFiltersValue = useMemo(() => {
+  const enabledFilters = localStorage.getItem('leadsEnabledFilters');
+  return enabledFilters ? JSON.parse(enabledFilters) : {};
+}, []);
+
+const [enabledFilters, setEnabledFilters] = useState<Record<string, boolean>>(savedEnabledFiltersValue);
+
   const leadsOption =[
     {label: 'Excited', value: 'excited'},
      { label: 'Warm', value: 'warm' },
@@ -1490,9 +1497,16 @@ const filteredData = React.useMemo(() => {
 
     if (!filtersEnabled) return tableData;
 
+     const hasActiveFilters = Object.entries(filters).some(([key, val]) => {
+    const isEnabled = enabledFilters[key] !== false; // Default to true if not set
+    return isEnabled && val !== undefined && val !== null && val !== '';
+  });
 
-   const hasActiveFilters = Object.values(filters).some(val => val !== undefined && val !== null && val !== '');
-  if (!hasActiveFilters) return tableData;
+
+  //  const hasActiveFilters = Object.values(filters).some(val => val !== undefined && val !== null && val !== '');
+ 
+ 
+   if (!hasActiveFilters) return tableData;
 
 console.log("Filters", hasActiveFilters, filters);
 
@@ -1511,6 +1525,9 @@ console.log("Filters", hasActiveFilters, filters);
 
     // Event Data filter
 
+
+      const isEnabled = enabledFilters[key] !== false; // Default to true if not set
+      if (!isEnabled) return true;
 
 
     if (key === 'eventData' || key ==="eventDataStart" || key === "eventDataEnd") {
@@ -1735,6 +1752,22 @@ const handleColumnVisibilityChange = async(columnKey: string, isVisible: boolean
 }
 
 
+// When a new filter is added, initialize it as enabled
+useEffect(() => {
+  activeFilters.forEach(filter => {
+    if (enabledFilters[filter] === undefined) {
+      setEnabledFilters(prev => ({
+        ...prev,
+        [filter]: true
+      }));
+    }
+  });
+}, [activeFilters]);
+
+useEffect(() => {
+  localStorage.setItem('leadsEnabledFilters', JSON.stringify(enabledFilters));
+}, [enabledFilters]);
+
 
 
 
@@ -1744,7 +1777,7 @@ const handleColumnVisibilityChange = async(columnKey: string, isVisible: boolean
 
 
   return (
-    <div>
+    <div >
 
 
 
@@ -1764,16 +1797,34 @@ const handleColumnVisibilityChange = async(columnKey: string, isVisible: boolean
 
     const meta: { editorType?: string; selectOptions?: Array<{ label: string; value: any }> } = col.meta || {};
 
+        const isFilterEnabled = enabledFilters[key] !== false; // Default to true if not set
+
+         const filterSwitch = (
+      <CustomSwitch 
+        enabled={isFilterEnabled}
+        onChange={() => {
+          setEnabledFilters(prev => ({
+            ...prev, 
+            [key]: !isFilterEnabled
+          }));
+        }}
+      />
+    );
+
   if (key === 'followup') {
   const followupType = filters.followupType;
   return (
     <styled.FilterTag key={key} active={!!filters[key]} style={{ background: 'rgb(25, 25, 25)' }}>
+                <styled.FilterHeader>
+
        <span style={{ color: '#bbb', marginRight: 6, fontWeight: 500, minWidth: "fit-content" }}>
     {col.header?.toString()}:
   </span>
+  {filterSwitch}
+          </styled.FilterHeader>
       <CustomSelect
         size="small"
-        style={{ width: 100, marginRight: 8 }}
+        style={{ width: 100}}
        
         // value={followupType}
                 value={dateOption?.find(opt => opt.value === followupType) || null}
@@ -1876,9 +1927,12 @@ onChange={val => {
       const eventType = filters.eventType
       return (
         <styled.FilterTag key={key} active={!!filters[key]} style={{ background: 'rgb(25, 25, 25)',  }}>
-           <span style={{ color: '#bbb', marginRight: 6, fontWeight: 500, minWidth: "fit-content" }}>
-    {col.header?.toString()}:
-  </span>
+           <styled.FilterHeader>
+            <span style={{ color: '#bbb', marginRight: 6, fontWeight: 500, minWidth: "fit-content" }}>
+              {col.header?.toString()}:
+            </span>
+            {filterSwitch}
+          </styled.FilterHeader>
           <CustomSelect
             size="small"
             style={{ width: 100, marginRight: 8, background: 'rgb(25, 25, 25)' }}
@@ -1999,9 +2053,12 @@ onClick={() => {
     return (
   <styled.FilterTag key={key} active={!!filters[key]} style={{ background: 'rgb(25, 25, 25)' }}>
 
-    <span style={{ color: '#bbb', marginRight: 6, fontWeight: 500 }}>
-    {col.header?.toString()}:
-  </span>
+       <styled.FilterHeader>
+          <span style={{ color: '#bbb', marginRight: 6, fontWeight: 500 }}>
+            {col.header?.toString()}:
+          </span>
+          {filterSwitch}
+        </styled.FilterHeader>
 
 {key === 'referenceId' || key ==="shootId" || key ==="leads" || key ==="mentions" ? (
   <CustomSelect
@@ -2141,7 +2198,7 @@ onClick={() => {
         onClose={() => setIsCommentModalOpen(false)}
         title="Add Comments"
         Id={selectedLeadId || 0}
-        refetch={refetchLeadsData}
+        // refetch={refetchLeadsData}
         assigneeOptions={assigneeOptions}
         onSave={handleComment}
     

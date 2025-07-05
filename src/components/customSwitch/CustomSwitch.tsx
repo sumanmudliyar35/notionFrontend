@@ -8,7 +8,7 @@ const CustomSwitch = ({ enabled, onChange }: { enabled: boolean; onChange: (enab
       <styled.FilterToggleThumb enabled={enabled} />
     </styled.FilterToggleTrack>
     <span style={{ marginLeft: 8, color: enabled ? '#fff' : '#888' }}>
-      {enabled ? 'Filters On' : 'Filters Off'}
+      {/* {enabled ? 'On' : 'Off'} */}
     </span>
   </styled.FilterToggleContainer>
 );

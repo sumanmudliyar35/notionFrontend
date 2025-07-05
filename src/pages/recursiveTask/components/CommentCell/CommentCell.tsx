@@ -13,6 +13,8 @@ interface CommentCellProps {
   editingComment: { rowId: number; commentId: number } | null;
   setEditingComment: (value: { rowId: number; commentId: number } | null) => void;
   assigneeOptions: any[];
+    disabled?: boolean;
+
 }
 
 const CommentCell: React.FC<CommentCellProps> = ({
@@ -24,6 +26,8 @@ const CommentCell: React.FC<CommentCellProps> = ({
   editingComment,
   setEditingComment,
   assigneeOptions,
+  disabled = false
+  
 }) => {
   // Find the comment being edited
   const editingIdx = comments.findIndex(
@@ -84,6 +88,9 @@ const CommentCell: React.FC<CommentCellProps> = ({
                   }}
                   value={mentionProps.inputValue}
                   onChange={e => {
+
+                        if (disabled) return;
+
                     mentionProps.handleInputChange(e);
                     // Auto-resize on change
                     const el = e.target;
@@ -99,6 +106,10 @@ const CommentCell: React.FC<CommentCellProps> = ({
                     overflow: "hidden"
                   }}
                   onKeyDown={e => {
+                        if (disabled) return;
+
+
+
                     if (mentionProps.showDropdown && mentionProps.filteredOptions.length > 0) {
                       if (e.key === "ArrowDown") {
                         e.preventDefault();

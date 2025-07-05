@@ -396,6 +396,7 @@ const columns: ColumnDef<Doc>[] = [
     cell: (row: any) => {
   const dueDateValue = row.row.original.dueDate;
   const createdAtValue = row.row.original.createdAt;
+  const currentDate = new Date();
   if (!dueDateValue || !createdAtValue) return '';
 
   const dueDate = new Date(dueDateValue);
@@ -408,7 +409,7 @@ const columns: ColumnDef<Doc>[] = [
       .padStart(2, '0')}-${date.getFullYear()}`;
 
   // Calculate difference in days
-  const diffTime = dueDate.getTime() - createdAt.getTime();
+  const diffTime = dueDate.getTime() - currentDate.getTime();
   const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
 
   if (isNaN(diffDays)) return '';
@@ -1049,6 +1050,8 @@ console.log("Filters", hasActiveFilters, filters);
       return true;
     }
 
+    
+
 
 
 
@@ -1405,7 +1408,6 @@ onClick={() => {
         onClose={() => setIsCommentModalOpen(false)}
         title="Add Comments"
         Id={selectedTaskId || 0}
-        refetch={refetchTasksData}
         assigneeOptions={assigneeOptions}
         onSave={handleComment}
       />

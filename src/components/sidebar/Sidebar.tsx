@@ -7,6 +7,8 @@ import CustomSearchInput from '../CustomSearchInput/CustomSearchInput';
 import { useGetUsersMenu } from '../../api/get/getUsersMenu';
 import { UserOutlined, SettingOutlined, LogoutOutlined, BellOutlined, CheckSquareOutlined, RetweetOutlined, TeamOutlined } from '@ant-design/icons';
 import { useGetUnseenNotificationCount } from '../../api/get/getUnseenNotificationCount';
+import { DashboardOutlined } from '@ant-design/icons';
+
 
 interface SidebarProps {
   collapsed: boolean;
@@ -62,6 +64,13 @@ const adminMenuItems = [
     // adminOnly: true,
   },
 
+  //  {
+  //   key: 'dashboard',
+  //   label: 'Dashboard',
+  //   icon: <DashboardOutlined style={{ ...iconStyle, color: '#1890ff' }} />,
+  //   path: '/dashboard',
+  // },
+
 
 ];
 
@@ -73,6 +82,7 @@ const lastMenuItem = [
     icon: <LogoutOutlined style={{ ...iconStyle, color: '#f5222d' }} />,
     onClick: 'logout',
   },
+ 
 
 ];
   const navigate = useNavigate();

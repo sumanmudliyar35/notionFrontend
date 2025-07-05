@@ -12,7 +12,6 @@ interface CommentModalProps {
   width?: number | string;
   Id: number;
   assigneeOptions: any[];
-  refetch: () => void;
   onSave: (data: any) => void;
 }
 
@@ -24,7 +23,6 @@ const SharedCommentModal: React.FC<CommentModalProps> = ({
   width = 600,
   Id,
   assigneeOptions,
-  refetch,
   onSave,
 }) => {
   const {
