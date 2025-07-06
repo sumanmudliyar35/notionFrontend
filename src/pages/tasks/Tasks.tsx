@@ -52,6 +52,7 @@ import { useGetTaskTablePreference } from "../../api/get/getTaskTablesPreference
 import { useUpdateBulkTask } from "../../api/put/updateBulkTask";
 import { usePostGetByTask } from "../../api/get/postGetCommentByTask";
 import { useCreateAttachment } from "../../api/post/newAttachment";
+import { formatDisplayDate } from "../../utils/commonFunction";
 
 
 
@@ -356,19 +357,21 @@ const columns: ColumnDef<Doc>[] = [
     enableSorting: true,
     meta: { editable: false },
   cell: (getValue: any) => {
-  const value = getValue.getValue();
-  if (!value) return '';
-  const dateObj = new Date(value);
-  const dateStr = `${dateObj.getDate().toString().padStart(2, '0')}-${(dateObj.getMonth() + 1)
-    .toString()
-    .padStart(2, '0')}-${dateObj.getFullYear()}`;
-  let hours = dateObj.getHours();
-  const minutes = dateObj.getMinutes().toString().padStart(2, '0');
-  const ampm = hours >= 12 ? 'pm' : 'am';
-  hours = hours % 12;
-  hours = hours ? hours : 12; // the hour '0' should be '12'
-  const timeStr = `${hours.toString().padStart(2, '0')}:${minutes} ${ampm}`;
-  return `${dateStr} ${timeStr}`;
+  // const value = getValue.getValue();
+  // if (!value) return '';
+  // const dateObj = new Date(value);
+  // const dateStr = `${dateObj.getDate().toString().padStart(2, '0')}-${(dateObj.getMonth() + 1)
+  //   .toString()
+  //   .padStart(2, '0')}-${dateObj.getFullYear()}`;
+  // let hours = dateObj.getHours();
+  // const minutes = dateObj.getMinutes().toString().padStart(2, '0');
+  // const ampm = hours >= 12 ? 'pm' : 'am';
+  // hours = hours % 12;
+  // hours = hours ? hours : 12; // the hour '0' should be '12'
+  // const timeStr = `${hours.toString().padStart(2, '0')}:${minutes} ${ampm}`;
+  // return `${dateStr} ${timeStr}`;
+  return formatDisplayDate(getValue.getValue());
+
 },
   },
     {
@@ -402,11 +405,7 @@ const columns: ColumnDef<Doc>[] = [
   const dueDate = new Date(dueDateValue);
   const createdAt = new Date(createdAtValue);
 
-  // Format date as dd-mm-yyyy
-  const formatDate = (date: Date) =>
-    `${date.getDate().toString().padStart(2, '0')}-${(date.getMonth() + 1)
-      .toString()
-      .padStart(2, '0')}-${date.getFullYear()}`;
+  
 
   // Calculate difference in days
   const diffTime = dueDate.getTime() - currentDate.getTime();
@@ -417,13 +416,13 @@ const columns: ColumnDef<Doc>[] = [
   if (diffDays >= 0) {
     return (
       <span style={{ color: 'green', fontWeight: 500 }}>
-        {formatDate(dueDate)} ({diffDays} day{diffDays !== 1 ? 's' : ''})
+        {formatDisplayDate(dueDate)} ({diffDays} day{diffDays !== 1 ? 's' : ''})
       </span>
     );
   } else {
     return (
       <span style={{ color: 'red', fontWeight: 500 }}>
-        {formatDate(dueDate)} ({Math.abs(diffDays)} day{Math.abs(diffDays) !== 1 ? 's' : ''})
+        {formatDisplayDate(dueDate)} ({Math.abs(diffDays)} day{Math.abs(diffDays) !== 1 ? 's' : ''})
       </span>
     );
   }

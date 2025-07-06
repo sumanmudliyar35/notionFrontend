@@ -1470,17 +1470,64 @@ const handleSaveVoice = async(audioBlob: Blob) => {
 
 
 
+// const handleRemoveFilter = useCallback((key: string) => {
+//   setFilters((prev) => {
+//     const newFilters = { ...prev };
+//     delete newFilters[key];
+//     return newFilters;
+//   });
+
+//   setActiveFilters((prev: string[]) => prev.filter((k) => k !== key));
+//   setEnabledFilters((prev) => {
+//     const newEnabledFilters = { ...prev };
+//     delete newEnabledFilters[key];
+//     // Update localStorage immediately
+//     localStorage.setItem('leadsEnabledFilters', JSON.stringify(newEnabledFilters));
+//     return newEnabledFilters;
+//   });
+// }, []);
+// Filter tableData based on filters
+
+
+
 const handleRemoveFilter = useCallback((key: string) => {
+  // Define related filter keys that should be removed together
+  const relatedKeys = {
+    'followup': ['followup', 'followupType', 'followupStart', 'followupEnd'],
+    'followupType': ['followup', 'followupType', 'followupStart', 'followupEnd'],
+    'followupStart': ['followupStart', 'followupEnd'],
+    'followupEnd': ['followupStart', 'followupEnd'],
+    'eventData': ['eventData', 'eventType', 'eventDataStart', 'eventDataEnd'],
+    'eventType': ['eventData', 'eventType', 'eventDataStart', 'eventDataEnd'],
+    'eventDataStart': ['eventDataStart', 'eventDataEnd'],
+    'eventDataEnd': ['eventDataStart', 'eventDataEnd'],
+  };
+
+  // Get all keys that need to be removed
+  const keysToRemove = relatedKeys[key as keyof typeof relatedKeys] || [key];
+
+  // Remove all related keys from filters
   setFilters((prev) => {
     const newFilters = { ...prev };
-    delete newFilters[key];
+    keysToRemove.forEach(k => delete newFilters[k]);
     return newFilters;
   });
 
-  setActiveFilters((prev: string[]) => prev.filter((k) => k !== key));
-}, []);
-// Filter tableData based on filters
+  // Remove all related keys from activeFilters
+  setActiveFilters((prev: string[]) => 
+    prev.filter((k) => !keysToRemove.includes(k))
+  );
 
+  // Remove all related keys from enabledFilters and update localStorage
+  setEnabledFilters((prev) => {
+    const newEnabledFilters = { ...prev };
+    keysToRemove.forEach(k => delete newEnabledFilters[k]);
+    
+    // Update localStorage immediately
+    localStorage.setItem('leadsEnabledFilters', JSON.stringify(newEnabledFilters));
+    return newEnabledFilters;
+  });
+}, []);
 
 
 const dateOption =[
@@ -1497,18 +1544,16 @@ const filteredData = React.useMemo(() => {
 
     if (!filtersEnabled) return tableData;
 
-     const hasActiveFilters = Object.entries(filters).some(([key, val]) => {
+  // Check if any active filters have values AND are enabled
+  const hasActiveFilters = Object.entries(filters).some(([key, val]) => {
     const isEnabled = enabledFilters[key] !== false; // Default to true if not set
+    console.log("Checking filter", key, "isEnabled:", isEnabled, "value:", val);
     return isEnabled && val !== undefined && val !== null && val !== '';
   });
 
+  console.log("Has active filters:", hasActiveFilters, "Filters:", filters); 
+  
 
-  //  const hasActiveFilters = Object.values(filters).some(val => val !== undefined && val !== null && val !== '');
- 
- 
-   if (!hasActiveFilters) return tableData;
-
-console.log("Filters", hasActiveFilters, filters);
 
   return tableData?.filter((row) => {
 
@@ -1673,7 +1718,7 @@ if(key === 'leads') {
       : true;
   });
 });
-}, [tableData, filters, filtersEnabled]);
+}, [tableData, filters, filtersEnabled, enabledFilters]);
 
 
   const updateTablePreferences = useUpdateUsersTablePreference();
@@ -1768,6 +1813,8 @@ useEffect(() => {
   localStorage.setItem('leadsEnabledFilters', JSON.stringify(enabledFilters));
 }, [enabledFilters]);
 
+console.log("Enabled filters:", enabledFilters);
+
 
 
 
@@ -1799,17 +1846,49 @@ useEffect(() => {
 
         const isFilterEnabled = enabledFilters[key] !== false; // Default to true if not set
 
-         const filterSwitch = (
-      <CustomSwitch 
-        enabled={isFilterEnabled}
-        onChange={() => {
-          setEnabledFilters(prev => ({
-            ...prev, 
-            [key]: !isFilterEnabled
-          }));
-        }}
-      />
-    );
+    //      const filterSwitch = (
+    //   <CustomSwitch 
+    //     enabled={isFilterEnabled}
+    //     onChange={() => {
+    //       setEnabledFilters(prev => ({
+    //         ...prev, 
+    //         [key]: !isFilterEnabled
+    //       }));
+    //     }}
+    //   />
+    // );
+
+    const filterSwitch = (
+  <CustomSwitch 
+    enabled={isFilterEnabled}
+    onChange={() => {
+      // Define related filter keys that should be toggled together
+      const relatedKeys = {
+        'followup': ['followup', 'followupType', 'followupStart', 'followupEnd'],
+        'followupType': ['followup', 'followupType', 'followupStart', 'followupEnd'],
+      
+        'eventData': ['eventData', 'eventType', 'eventDataStart', 'eventDataEnd'],
+        'eventType': ['eventData', 'eventType', 'eventDataStart', 'eventDataEnd'],
+        
+      };
+
+      // Get all keys that need to be toggled
+      const keysToToggle = relatedKeys[key as keyof typeof relatedKeys] || [key];
+      
+      // Toggle all related keys
+      setEnabledFilters(prev => {
+        const newState = { ...prev };
+        keysToToggle.forEach(k => {
+          newState[k] = !isFilterEnabled;
+        });
+        
+        // Update localStorage immediately
+        localStorage.setItem('leadsEnabledFilters', JSON.stringify(newState));
+        return newState;
+      });
+    }}
+  />
+);
 
   if (key === 'followup') {
   const followupType = filters.followupType;

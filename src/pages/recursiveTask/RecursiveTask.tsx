@@ -20,6 +20,7 @@ import { usePostGetRecursiveTaskById } from '../../api/get/postGetRecursiveTaskB
 import { useUpdateRecursiveTask } from '../../api/put/updateRecursiveTask';
 import { useGetCommentByRecursiveTaskLogId } from '../../api/get/postGetCommentByRecursiveTaskLogs';
 import { formatDisplayDate } from '../../utils/commonFunction';
+import { EyeInvisibleOutlined, EyeOutlined } from '@ant-design/icons';
 
 const RecursiveTask = () => {
   const { userid } = useParams()
@@ -69,6 +70,21 @@ const RecursiveTask = () => {
     // const rest = dates.filter(date => date !== today);
     return [...dates];
   }, []);
+
+  // State to track which rows have hidden comments
+const [hiddenCommentRows, setHiddenCommentRows] = useState<{ [key: string]: boolean }>({});
+
+const toggleCommentsVisibility = (
+  e: React.MouseEvent<HTMLButtonElement, MouseEvent>,
+  id: any
+): void => {
+  e.preventDefault();
+  e.stopPropagation();
+  setHiddenCommentRows(prev => ({
+    ...prev,
+    [id]: !prev[id],
+  }));
+}
 
 
    const openCommentModal = (recursiveTaskLog: any) => {
@@ -280,6 +296,11 @@ const RecursiveTask = () => {
       title: row.title,
     }
     updateRecursiveTaskMutate.mutateAsync([body, row.id]);
+
+
+    setTasks(prev =>
+      prev.map(task => (task.id === row.id ? { ...task, title: row.title } : task))
+    );  
   }, [updateRecursiveTaskMutate]);
 
   const createAttachmentMutation = useCreateAttachment();
@@ -292,7 +313,27 @@ const RecursiveTask = () => {
       meta: {
         editable: true,
       },
-      cell: ({ row }: { row: any }) => <span>{row.original.title}</span>,
+      cell: ({ row }: { row: any }) => (
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+          <span>{row.original.title}</span>
+          <button
+            type="button"
+            onClick={(e) => toggleCommentsVisibility(e, row.original.id)}
+            title={hiddenCommentRows[row.original.id] ? "Show comments" : "Hide comments"}
+            style={{ 
+              background: 'none', 
+              border: 'none', 
+              cursor: 'pointer',
+              fontSize: '14px',
+              padding: '2px 6px',
+              marginLeft: '8px',
+              color: '#1677ff'
+            }}
+          >
+            {hiddenCommentRows[row.original.id] ? <EyeOutlined /> : <EyeInvisibleOutlined />}
+          </button>
+        </div>
+      ),
     },
     ...allDates.map(date => {
       // Check if the date is in the past
@@ -308,6 +349,7 @@ const RecursiveTask = () => {
           const checked = log.status === 'completed';
           const attachments = log.files || [];
           const comments = log.comments || [];
+          const areCommentsHidden = hiddenCommentRows[row.original.id];
           
           // Create handlers inside the cell renderer, but they use the memoized parent handlers
           const triggerFileUpload = (e: React.MouseEvent) => {
@@ -370,6 +412,12 @@ const RecursiveTask = () => {
                   checked={checked}
                   onChange={e => !isPastDate && handleCheck(e.target.checked, log, date, row.original.id)}
                   disabled={isPastDate}
+                   style={{
+    accentColor: checked ? '#52c41a' : undefined,
+    transform: 'scale(1.2)',
+    cursor: isPastDate ? 'not-allowed' : 'pointer'
+  }}
+                  
                 />
                 
                 <button
@@ -402,17 +450,20 @@ const RecursiveTask = () => {
                 </button>
               </div>
               
-              <CommentCell
-                comments={comments}
-                rowId={log.id}
-                openCommentModal={isPastDate ? () => {} : openCommentModal}
-                handleEditComment={handleEditComment}
-                handleDeleteComment={handleDeleteComment}
-                editingComment={editingComment}
-                setEditingComment={setEditingComment}
-                assigneeOptions={assigneeOptions}
-                disabled={isPastDate}
-              />
+              {/* Only show comments if not hidden */}
+              {!areCommentsHidden && (
+                <CommentCell
+                  comments={comments}
+                  rowId={log.id}
+                  openCommentModal={isPastDate ? () => {} : openCommentModal}
+                  handleEditComment={handleEditComment}
+                  handleDeleteComment={handleDeleteComment}
+                  editingComment={editingComment}
+                  setEditingComment={setEditingComment}
+                  assigneeOptions={assigneeOptions}
+                  disabled={isPastDate}
+                />
+              )}
               
               {/* Attachments section */}
               {attachments && attachments.length > 0 && (
@@ -436,7 +487,19 @@ const RecursiveTask = () => {
         },
       };
     }),
-  ], [allDates, handleCheck, handleEditComment, handleDeleteComment, assigneeOptions, editingComment, createAttachmentMutation, userid, refetchRecursiveTasks]);
+  ], [
+    allDates, 
+    handleCheck, 
+    handleEditComment, 
+    handleDeleteComment, 
+    assigneeOptions, 
+    editingComment, 
+    createAttachmentMutation, 
+    userid, 
+    refetchRecursiveTasks,
+    hiddenCommentRows, // Add this dependency
+    toggleCommentsVisibility // And this one
+  ]);
 
   if (isLoading) return <div>Loading...</div>
 
@@ -502,4 +565,7 @@ const RecursiveTask = () => {
   )
 }
 
+
+
 export default RecursiveTask
+
