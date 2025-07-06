@@ -896,7 +896,7 @@ const handleComment= async(data: any) => {
 
   const body = {
     comment: data.comment,
-    mentionedMembers: data.mentionedMembers || [],
+    mentionedMembers: data.mentionedUserIds || [],
     taskId: selectedTaskId,
     givenBy: userid,
   }

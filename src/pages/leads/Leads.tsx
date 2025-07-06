@@ -7,7 +7,7 @@ import { useUpdateLead } from "../../api/put/updateLead";
 import * as styled from './style';
 import { Button, Input, message, Select } from "antd";
 import EventModal from "./components/EventModal/EventModal";
-import { DeleteOutlined, PlusOutlined } from "@ant-design/icons";
+import { DeleteOutlined, EyeInvisibleOutlined, EyeOutlined, PlusOutlined } from "@ant-design/icons";
 import CommentModal from "./components/CommentModal/CommentModal";
 import { useGetAllUsers } from "../../api/get/getAllMember";
 import MentionModal from "./components/MentionModal/MentionModal";
@@ -135,6 +135,8 @@ const Leads = () => {
   const [referenceOptions, setReferenceOptions] = useState<{ label: string; value: string }[]>([]);
 
   const [filtersEnabled, setFiltersEnabled] = useState<boolean>(true);
+  const [hiddenCommentRows, setHiddenCommentRows] = useState<Record<string, boolean>>({});
+
 
   const savedEnabledFiltersValue = useMemo(() => {
   const enabledFilters = localStorage.getItem('leadsEnabledFilters');
@@ -303,6 +305,14 @@ const openCommentModal = useCallback((data: any) => {
           setSelectedVoiceRow(rowData);
           setIsVoiceModalOpen(true);
   };
+
+  const toggleCommentsVisibility = useCallback((e: React.MouseEvent, rowId: string) => {
+  e.stopPropagation();
+  setHiddenCommentRows(prev => ({
+    ...prev,
+    [rowId]: !prev[rowId]
+  }));
+}, []);
 
 
   const handleOpenReminderModal = (rowId: any, reminder: any) => {
@@ -479,12 +489,13 @@ const handleAddEvent = async (eventData: any, rowId: any) => {
 
 
 const handleComment= async(data: any)=>{
+  console.log("Comment data:", data);
 
   const body={
 
         leadId: selectedLeadId,
         comment: data.comment,
-        mentionedMembers: data.mentionedMembers,
+        mentionedMembers: data.mentionedUserIds,
         givenBy: userid,
         
       }
@@ -581,6 +592,23 @@ const columns = useMemo<ColumnDef<Doc>[]>(() => [
       cell: ({ row }) => (
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
           <span  style={{ whiteSpace: 'pre-line' }}>{row.original.name}</span>
+
+          <button
+        type="button"
+        onClick={(e) => toggleCommentsVisibility(e, row.original.id)}
+        title={hiddenCommentRows[row.original.id] ? "Show comments" : "Hide comments"}
+        style={{ 
+          background: 'none', 
+          border: 'none', 
+          cursor: 'pointer',
+          fontSize: '14px',
+          padding: '2px 6px',
+          marginLeft: '8px',
+          color: '#1677ff'
+        }}
+      >
+        {hiddenCommentRows[row.original.id] ? <EyeOutlined /> : <EyeInvisibleOutlined />}
+      </button>
          
            
         </div>
@@ -1032,8 +1060,12 @@ const columns = useMemo<ColumnDef<Doc>[]>(() => [
 cell: ({ row }) => {
   const comments = row.original.comments || [];
   const rowId = row.original.id;
+  const areCommentsHidden = hiddenCommentRows[rowId];
 
 
+    if (areCommentsHidden) {
+    return <span style={{ color: '#888' }}>Comments hidden</span>;
+  }
 
 
   return (
@@ -1162,6 +1194,7 @@ cell: ({ row }) => {
 {
   header:"Created On",
   accessorKey: "createdAt",
+        
   cell:({row})=>{
     const value = row.original.createdAt;
     return (formatDisplayDate(value))
@@ -1174,7 +1207,7 @@ cell: ({ row }) => {
               
 
         
-], [assigneeOptions, referenceOptions, shootOptions, eventOptions]);
+], [assigneeOptions, referenceOptions, shootOptions, eventOptions, hiddenCommentRows, toggleCommentsVisibility]);
 
 // const columnsWithWidth = columns.map((col: any) => ({
 //   ...col,
@@ -1395,6 +1428,7 @@ const [activeFilters, setActiveFilters] = useState<string[]>(savedActiveFiltersV
   "eventData",
   "leads",
   "shootId",
+  "createdAt",
 
 ];
 
@@ -1411,6 +1445,8 @@ const availableFilterColumns = useMemo(() =>
   ),
   [columns, activeFilters]
 );
+
+
 
 const handleFilterChange = useCallback((key: string, value: any) => {
   setFilters((prev) => ({
@@ -1501,6 +1537,8 @@ const handleRemoveFilter = useCallback((key: string) => {
     'eventType': ['eventData', 'eventType', 'eventDataStart', 'eventDataEnd'],
     'eventDataStart': ['eventDataStart', 'eventDataEnd'],
     'eventDataEnd': ['eventDataStart', 'eventDataEnd'],
+      'createdAt': ['createdAt', 'createdAtType', 'createdAtStart', 'createdAtEnd'],
+
   };
 
   // Get all keys that need to be removed
@@ -1668,6 +1706,41 @@ const dateVal = Array.isArray(val) ? new Date(val[0]) : new Date(val);  if (isNa
       }
       return true;
     }
+
+    if (key === 'createdAt' || key === 'createdAtType' || key === 'createdAtStart' || key === "createdAtEnd") {
+  if (!filters.createdAtType || !val) return true;
+
+  const createdAtDate = row.createdAt?.slice(0, 10);
+
+  if (filters.createdAtType === 'between' && filters.createdAtStart && filters.createdAtEnd) {
+    const start = filters.createdAtStart;
+    const end = filters.createdAtEnd;
+    
+    // If no range is set, don't filter
+    if (!start || !end) return true;
+    
+    // If no createdAt date, exclude this row
+    if (!createdAtDate) return false;
+
+    // For date-only comparisons, use string comparison (YYYY-MM-DD format)
+    return createdAtDate >= start && createdAtDate <= end;
+  }
+
+  if (filters.createdAtType === 'before' && filters.createdAt) {
+    return createdAtDate < filters.createdAt;
+  }
+  
+  if (filters.createdAtType === 'after' && filters.createdAt) {
+    return createdAtDate > filters.createdAt;
+  }
+  
+  if (filters.createdAtType === 'on' && filters.createdAt) {
+    console.log("createdAtDate", createdAtDate, "filters.createdAt", filters.createdAt, createdAtDate === filters.createdAt);
+    return createdAtDate === filters.createdAt;
+  }
+  
+  return true;
+}
 
     // ...rest of your filters...
     if (key === 'eventType') return true;
@@ -1869,6 +1942,8 @@ console.log("Enabled filters:", enabledFilters);
       
         'eventData': ['eventData', 'eventType', 'eventDataStart', 'eventDataEnd'],
         'eventType': ['eventData', 'eventType', 'eventDataStart', 'eventDataEnd'],
+        'createdAt': ['createdAt', 'createdAtType', 'createdAtStart', 'createdAtEnd'],
+
         
       };
 
@@ -2123,7 +2198,83 @@ onClick={() => {
       );
     }
 
+    if (key === 'createdAt') {
+  const createdAtType = filters.createdAtType;
+  return (
+    <styled.FilterTag key={key} active={!!filters[key]} style={{ background: 'rgb(25, 25, 25)' }}>
+      <styled.FilterHeader>
+        <span style={{ color: '#bbb', marginRight: 6, fontWeight: 500, minWidth: "fit-content" }}>
+          {col.header?.toString()}:
+        </span>
+        {filterSwitch}
+      </styled.FilterHeader>
+      <CustomSelect
+        size="small"
+        style={{ width: 100 }}
+        value={dateOption?.find(opt => opt.value === createdAtType) || null}
+        onChange={val => {
+          setFilters(prev => ({ ...prev, createdAtType: val.value }));
+        }}
+        options={dateOption}
+      />
 
+      {createdAtType === 'between' ? (
+        <>
+          <styled.singleDateDiv>
+            <DateInput
+              value={filters.createdAtStart || ''}
+              onChange={date =>
+                setFilters(prev => ({
+                  ...prev,
+                  createdAtStart: date && dayjs(date).isValid() ? date.format('YYYY-MM-DD') : ''
+                }))
+              }
+              placeholder="Start date"
+            />
+          </styled.singleDateDiv>
+          <styled.singleDateDiv>
+            <DateInput
+              value={filters.createdAtEnd || ''}
+              onChange={date =>
+                setFilters(prev => ({
+                  ...prev,
+                  createdAtEnd: date && dayjs(date).isValid() ? date.format('YYYY-MM-DD') : ''
+                }))
+              }
+              placeholder="End date"
+            />
+          </styled.singleDateDiv>
+        </>
+      ) : (
+        <styled.singleDateDiv>
+          <DateInput
+            value={filters[key] || ''}
+            onChange={date =>
+              handleFilterChange(
+                key,
+                date && dayjs(date).isValid() ? date.format('YYYY-MM-DD') : ''
+              )
+            }
+            placeholder="Select date"
+          />
+        </styled.singleDateDiv>
+      )}
+      <span
+        onClick={() => {
+          handleRemoveFilter('createdAt');
+        }}
+        style={{
+          cursor: 'pointer',
+          padding: '0 6px',
+          fontSize: 16,
+          color: 'white',
+        }}
+      >
+        ×
+      </span>
+    </styled.FilterTag>
+  );
+}
 
   
 
@@ -2211,7 +2362,7 @@ onClick={() => {
 
   })}
 
-  <CustomSelect
+  <CustomSelectWithAllOption
     placeholder="+ Filter"
     size="small"
     width="150px"
