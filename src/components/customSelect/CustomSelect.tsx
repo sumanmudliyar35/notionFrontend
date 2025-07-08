@@ -67,7 +67,7 @@ const customSelectStyles = {
 
 interface CustomSelectProps {
   isMulti?: boolean;
-  options: { label: string; value: string }[];
+  options: { label: any; value: any }[];
   value: any;
   onChange: (val: any) => void;
   placeholder?: string;

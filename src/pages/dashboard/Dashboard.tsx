@@ -6,9 +6,14 @@ import DashboardTable from './components/customTable/DashboardTable';
 import { Card, Row, Col, Spin } from 'antd';
 import StatsCard from './components/StatsCard/StatsCard';
 import { CheckCircleOutlined, PercentageOutlined, UserOutlined } from '@ant-design/icons';
+import type { ColumnsType } from 'antd/es/table';
+
 
 const DashboardContainer = styled.div`
   padding: 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
 `;
 
 const StyledCard = styled(Card)`
@@ -65,6 +70,130 @@ const LoadingContainer = styled.div`
 
 const Dashboard = () => {
   const {data: referenceData, isLoading} = useGetChartDataByReference('all');
+
+
+   const columns: ColumnsType<any> = [
+    {
+      title: 'Source',
+      dataIndex: 'name',
+      key: 'name',
+      sorter: (a, b) => a.name.localeCompare(b.name),
+    },
+    {
+      title: 'Total Leads',
+      dataIndex: 'totalLeads',
+      key: 'totalLeads',
+      sorter: (a, b) => a.totalLeads - b.totalLeads,
+    },
+    {
+      title: 'Converted Leads',
+      dataIndex: 'convertedLeads',
+      key: 'convertedLeads',
+      sorter: (a, b) => a.convertedLeads - b.convertedLeads,
+    },
+    {
+      title: 'Conversion Rate',
+      dataIndex: 'conversionRate',
+      key: 'conversionRate',
+      render: (text) => text || '0%',
+      sorter: (a, b) => {
+        const rateA = parseFloat(a.conversionRateValue || 0);
+        const rateB = parseFloat(b.conversionRateValue || 0);
+        return rateA - rateB;
+      },
+    },
+    // {
+    //   title: 'Total Revenue',
+    //   dataIndex: 'totalRevenue',
+    //   key: 'totalRevenue',
+    //   render: (value) => `₹${value?.toLocaleString() || 0}`,
+    //   sorter: (a, b) => (a.totalRevenue || 0) - (b.totalRevenue || 0),
+    // }
+  ];
+
+
+  const revenueColumns: ColumnsType<any> = [
+  {
+    title: 'Source',
+    dataIndex: 'name',
+    key: 'name',
+    sorter: (a, b) => a.name.localeCompare(b.name),
+  },
+
+ 
+ 
+  {
+    title: 'Revenue',
+    dataIndex: 'revenue',
+    key: 'revenue',
+    render: (_, record) => `₹${record.revenue?.total?.toLocaleString() || 0}`,
+    sorter: (a, b) => (a.revenue?.total || 0) - (b.revenue?.total || 0),
+  },
+  {
+    title: 'Revenue %',
+    dataIndex: 'revenuePercentage',
+    key: 'revenuePercentage',
+    render: (_, record) => record.revenue?.percentage || '0.00%',
+    sorter: (a, b) => (a.revenue?.percentageValue || 0) - (b.revenue?.percentageValue || 0),
+  }
+];
+
+
+// First, add this useMemo to transform the potential revenue data
+const potentialRevenuePieData = useMemo(() => {
+  if (!referenceData?.analytics?.potentialRevenue) return { series: [], labels: [] };
+  
+  // Filter out items with 0 potential revenue to keep chart clean
+  const filteredSources = referenceData.analytics.potentialRevenue.filter(
+    (source: any) => source.count > 0 || parseFloat(source.potentialRevenue?.total) > 0
+  );
+  
+  const series = filteredSources.map((source: any) => source.count);
+  const labels = filteredSources.map((source: any) => source.name);
+  
+  return { series, labels };
+}, [referenceData?.analytics?.potentialRevenue]);
+
+// Then, add columns definition for the potential revenue table
+const potentialRevenueColumns: ColumnsType<any> = [
+  {
+    title: 'Source',
+    dataIndex: 'name',
+    key: 'name',
+    sorter: (a, b) => a.name.localeCompare(b.name),
+  },
+  {
+    title: 'Lead Count',
+    dataIndex: 'count',
+    key: 'count',
+    sorter: (a, b) => a.count - b.count,
+  },
+  // {
+  //   title: 'Distribution %',
+  //   dataIndex: 'percentage',
+  //   key: 'percentage',
+  //   render: (text) => text || '0%',
+  //   sorter: (a, b) => {
+  //     const rateA = parseFloat(a.percentageValue || 0);
+  //     const rateB = parseFloat(b.percentageValue || 0);
+  //     return rateA - rateB;
+  //   },
+  // },
+  {
+    title: 'Potential Revenue',
+    dataIndex: 'potentialRevenue',
+    key: 'potentialRevenue',
+    render: (_, record) => `₹${record.potentialRevenue?.total?.toLocaleString() || 0}`,
+    sorter: (a, b) => (a.potentialRevenue?.total || 0) - (b.potentialRevenue?.total || 0),
+  },
+  {
+    title: 'Potential Revenue %',
+    dataIndex: 'potentialRevenuePercentage',
+    key: 'potentialRevenuePercentage',
+    render: (_, record) => record.potentialRevenue?.percentage || '0%',
+    sorter: (a, b) => (a.potentialRevenue?.percentageValue || 0) - (b.potentialRevenue?.percentageValue || 0),
+  }
+];
   
   // Transform the data for the pie chart
   const inquiredLeadsPieData = useMemo(() => {
@@ -81,6 +210,38 @@ const Dashboard = () => {
     return { series, labels };
   }, [referenceData?.analytics?.inquiredLeads]);
   
+
+
+  // Transform the data for the pie chart
+const inquiredLeadsConversionPieData = useMemo(() => {
+  if (!referenceData?.analytics?.convertedLeadsByReference) return { series: [], labels: [] };
+  
+  // Filter out any items with 0 count to keep the chart clean
+  const filteredLeads = referenceData?.analytics?.convertedLeadsByReference.filter(
+    (lead: any) => parseFloat(lead.percentageValue) > 0
+  );
+  
+  // Parse the percentageValue string to a number
+  const series = filteredLeads.map((lead: any) => parseFloat(lead.percentageValue));
+  const labels = filteredLeads.map((lead: any) => lead.name);
+  
+  return { series, labels };
+}, [referenceData?.analytics?.convertedLeadsByReference]);
+  // Transform the data for the revenue pie chart
+  const revenuePieData = useMemo(() => {
+    if (!referenceData?.analytics?.convertedLeadsByReference) return { series: [], labels: [] };
+    
+    // Filter out any items with 0.00 revenue to keep the chart clean
+    const filteredRevenue = referenceData?.analytics?.convertedLeadsByReference.filter(
+      (item: any) => parseFloat(item.revenue?.total) > 0
+    );
+
+    const series = filteredRevenue.map((item: any) => parseFloat(item.revenue?.percentageValue));
+    const labels = filteredRevenue.map((item: any) => item.name);
+    
+    return { series, labels };
+  }, [referenceData?.analytics?.convertedLeadsByReference]);
+  
   // Custom colors for the pie chart
   const colors = [
     '#1890FF', // Blue
@@ -93,6 +254,8 @@ const Dashboard = () => {
     '#FAAD14', // Yellow
     '#8C8C8C'  // Gray (for Unknown)
   ];
+
+
 
   if (isLoading) {
     return (
@@ -141,50 +304,117 @@ const Dashboard = () => {
         <Col xs={24} md={24} lg={24} xl={24}>
           <StyledCard title="Lead Source Performance Analytics">
             <Row gutter={[24, 24]}>
-              <Col xs={24} lg={10}>
+              <Col xs={24} lg={8}>
                 <ChartWrapper>
                   <CustomPieChart
                     series={inquiredLeadsPieData.series}
                     labels={inquiredLeadsPieData.labels}
                     colors={colors}
-                    donut={true}
+                    donut={false}
                     height={350}
                     title="Lead Distribution by Source"
                   />
                 </ChartWrapper>
               </Col>
               
-              <Col xs={24} lg={14}>
+              <Col xs={24} lg={8}>
+                <ChartWrapper>
+                  <CustomPieChart
+                    series={inquiredLeadsConversionPieData.series}
+                    labels={inquiredLeadsConversionPieData.labels}
+                    colors={colors}
+                    donut={false}
+                    height={350}
+                    title="Lead Conversion by Source"
+                  />
+                </ChartWrapper>
+              </Col>
+              
+              <Col xs={24} lg={8}>
                 <DashboardTable
                   data={referenceData?.analytics?.referenceAnalytics || []}
                   height={350}
+                  columns={columns}
                 />
               </Col>
             </Row>
           </StyledCard>
         </Col>
       </Row>
+
+       <Row gutter={[24, 24]} style={{ marginTop: '24px' }}>
+        <Col xs={24} md={24} lg={24} xl={24}>
+          <StyledCard title="Revenue Analytics by Lead Source">
+            <Row gutter={[24, 24]}>
+              <Col xs={24} lg={10}>
+                <ChartWrapper>
+                  <CustomPieChart
+                    series={revenuePieData.series}
+                    labels={revenuePieData.labels}
+                    colors={colors}
+                    donut={false}
+                    height={350}
+ title="Revenue Distribution by Source"
+  gradientEnabled={true}
+  animation={true}
+  showTotal={true}
+  legendPosition="bottom"                  />
+                </ChartWrapper>
+              </Col>
+              
+              <Col xs={24} lg={14}>
+                <DashboardTable
+                  data={referenceData?.analytics?.convertedLeadsByReference || []}
+                  height={350}
+                  columns={revenueColumns}
+                />
+              </Col>
+            </Row>
+          </StyledCard>
+        </Col>
+      </Row> 
       
-      {/* You can add more rows with cards below */}
-      <Row gutter={[24, 24]} style={{ marginTop: '24px' }}>
-        <Col xs={24} md={12} xl={8}>
-          <StyledCard title="Lead Status">
-            {/* Add another chart or component here */}
-          </StyledCard>
+
+<Row gutter={[24, 24]} style={{ marginTop: '24px' }}>
+  <Col xs={24} md={24} lg={24} xl={24}>
+    <StyledCard title="Potential Revenue by Lead Source(Excited)">
+      <Row gutter={[24, 24]}>
+        <Col xs={24} lg={10}>
+          <ChartWrapper>
+            <CustomPieChart
+              series={potentialRevenuePieData.series}
+              labels={potentialRevenuePieData.labels}
+              colors={colors}
+              donut={false}
+              height={350}
+              title="Potential Revenue Distribution"
+              gradientEnabled={true}
+              animation={true}
+              showTotal={true}
+              legendPosition="bottom"
+            />
+          </ChartWrapper>
         </Col>
         
-        <Col xs={24} md={12} xl={8}>
-          <StyledCard title="Monthly Performance">
-            {/* Add another chart or component here */}
-          </StyledCard>
-        </Col>
-        
-        <Col xs={24} xl={8}>
-          <StyledCard title="Recent Activities">
-            {/* Add recent activities or notifications here */}
-          </StyledCard>
+        <Col xs={24} lg={14}>
+          <DashboardTable
+            data={referenceData?.analytics?.potentialRevenue || []}
+            height={350}
+            columns={potentialRevenueColumns}
+          />
         </Col>
       </Row>
+    </StyledCard>
+  </Col>
+</Row> 
+    
+
+
+
+
+
+
+
     </DashboardContainer>
   );
 };

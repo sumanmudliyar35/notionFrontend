@@ -11,18 +11,20 @@ interface NotificationDrawerProps {
   open: boolean;
   onClose: () => void;
   getContainer: HTMLElement | false;
+  userId: number; // Assuming userId is passed as a prop, otherwise you can fetch it from localStorage or context
 }
 
 const NotificationDrawer: React.FC<NotificationDrawerProps> = ({
   open,
   onClose,
   getContainer,
+  userId
 }) => {
   // Responsive width: 350px for desktop, 90vw for mobile
   const drawerWidth = window.innerWidth < 600 ? '90vw' : 350;
 
   // Get userId from localStorage or context as needed
-  const userId = Number(localStorage.getItem('userid'));
+  // const userId = Number(localStorage.getItem('userid'));
   const { data: notificationData, isLoading, refetch } = useGetMentionByUser(userId);
 
   const [notifications, setNotifications] = useState([]);

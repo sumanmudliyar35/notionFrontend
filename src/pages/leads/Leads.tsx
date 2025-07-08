@@ -58,6 +58,8 @@ import { useCreateEvent } from "../../api/post/newEvent";
 import { usePostGetEventByLead } from "../../api/get/postGetEventsByLead";
 import EventCell from "./components/EventCell/EventCell";
 import CustomSwitch from "../../components/customSwitch/CustomSwitch";
+import TagSelector from "../../components/customSelectModal/CustomSelectModal";
+import TagMultiSelector from "../../components/CustomMultiSelectModal/CustomMultiSelectModal";
 
 
 
@@ -131,8 +133,8 @@ const Leads = () => {
     const { data: allShootsData } = useGetAllShoots();
 
   // Store userId and name in state
-  const [assigneeOptions, setAssigneeOptions] = useState<{ label: string; value: any }[]>([]);
-  const [referenceOptions, setReferenceOptions] = useState<{ label: string; value: string }[]>([]);
+  const [assigneeOptions, setAssigneeOptions] = useState<{ id: string | number; label: string; value: any }[]>([]);
+  const [referenceOptions, setReferenceOptions] = useState<{ id: string | number; label: string; value: string }[]>([]);
 
   const [filtersEnabled, setFiltersEnabled] = useState<boolean>(true);
   const [hiddenCommentRows, setHiddenCommentRows] = useState<Record<string, boolean>>({});
@@ -146,11 +148,11 @@ const Leads = () => {
 const [enabledFilters, setEnabledFilters] = useState<Record<string, boolean>>(savedEnabledFiltersValue);
 
   const leadsOption =[
-    {label: 'Excited', value: 'excited'},
-     { label: 'Warm', value: 'warm' },
-      { label: 'Cold', value: 'cold' },
+    {id: 'excited', label: 'Excited', value: 'excited'},
+     { id: 'warm', label: 'Warm', value: 'warm' },
+      { id: 'cold', label: 'Cold', value: 'cold' },
   ]
-  const [shootOptions, setShootOptions] = useState<{ label: string; value: string }[]>([]);
+  const [shootOptions, setShootOptions] = useState<{ id: string | number; label: string; value: string }[]>([]);
 
   const [editingEventCell, setEditingEventCell] = useState<{ rowId: any; eventId: any } | null>(null);
     const [columnSizing, setColumnSizing] = useState({});
@@ -167,6 +169,7 @@ const [enabledFilters, setEnabledFilters] = useState<Record<string, boolean>>(sa
         allMembersData
           .filter((u: any) => u.name && u.userId)
           .map((u: any) => ({
+            id: u.userId,
             label: u.name,
             value: u.userId,
           }))
@@ -180,6 +183,7 @@ const [enabledFilters, setEnabledFilters] = useState<Record<string, boolean>>(sa
         allReferencesData
           .filter((ref: any) => ref.name && ref.id)
           .map((ref: any) => ({
+            id: ref.id,
             label: ref.name,
             value: ref.id,
           }))
@@ -193,6 +197,7 @@ const [enabledFilters, setEnabledFilters] = useState<Record<string, boolean>>(sa
         allShootsData
           .filter((shoot: any) => shoot.name && shoot.id)
           .map((shoot: any) => ({
+            id: shoot.id,
             label: shoot.name,
             value: shoot.id,
           }))
@@ -205,6 +210,7 @@ const [enabledFilters, setEnabledFilters] = useState<Record<string, boolean>>(sa
     // Only allow current user as assignee
     setAssigneeOptions([
       {
+        id: userid,
         label: localStorage.getItem('name') || 'You',
         value: userid,
       },
@@ -214,6 +220,7 @@ const [enabledFilters, setEnabledFilters] = useState<Record<string, boolean>>(sa
       allMembersData
         .filter((u: any) => u.name && u.userId)
         .map((u: any) => ({
+          id: u.userId,
           label: u.name,
           value: u.userId,
         }))
@@ -541,6 +548,7 @@ const handleDeleteLead = async (allLeads: any) => {
         allMembersData
           .filter((u: any) => u.name && u.userId)
           .map((u: any) => ({
+            id: u.userId,
             label: u.name,
             value: u.userId,
           }))
@@ -578,7 +586,15 @@ const handleDeleteLead = async (allLeads: any) => {
   },
 ];
 
+const [commentsVisible, setCommentsVisible] = useState<boolean>(true);
 
+// Add this function to toggle visibility of all comments
+const toggleAllCommentsVisibility = useCallback(() => {
+  setCommentsVisible(prev => !prev);
+}, []);
+
+
+console.log("Comments visibility:", commentsVisible);
 
 const columns = useMemo<ColumnDef<Doc>[]>(() => [
   {
@@ -593,22 +609,7 @@ const columns = useMemo<ColumnDef<Doc>[]>(() => [
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
           <span  style={{ whiteSpace: 'pre-line' }}>{row.original.name}</span>
 
-          <button
-        type="button"
-        onClick={(e) => toggleCommentsVisibility(e, row.original.id)}
-        title={hiddenCommentRows[row.original.id] ? "Show comments" : "Hide comments"}
-        style={{ 
-          background: 'none', 
-          border: 'none', 
-          cursor: 'pointer',
-          fontSize: '14px',
-          padding: '2px 6px',
-          marginLeft: '8px',
-          color: '#1677ff'
-        }}
-      >
-        {hiddenCommentRows[row.original.id] ? <EyeOutlined /> : <EyeInvisibleOutlined />}
-      </button>
+        
          
            
         </div>
@@ -936,8 +937,8 @@ const columns = useMemo<ColumnDef<Doc>[]>(() => [
       editable: true,
       editorType: 'select',
       selectOptions: [
-        { label: 'Open', value: 'open' },
-        { label: 'Closed', value: 'closed' },
+        {id: 'open', label: 'Open', value: 'open' },
+        {id: 'closed', label: 'Closed', value: 'closed' },
       ],
     },
  },
@@ -1060,13 +1061,7 @@ const columns = useMemo<ColumnDef<Doc>[]>(() => [
 cell: ({ row }) => {
   const comments = row.original.comments || [];
   const rowId = row.original.id;
-  const areCommentsHidden = hiddenCommentRows[rowId];
-
-
-    if (areCommentsHidden) {
-    return <span style={{ color: '#888' }}>Comments hidden</span>;
-  }
-
+ 
 
   return (
     <CommentCell
@@ -1078,6 +1073,9 @@ cell: ({ row }) => {
       // editingComment={editingComment}
       // setEditingComment={setEditingComment}
       assigneeOptions={assigneeOptions}
+      isCommentText={true}
+              visible={commentsVisible} // Pass visibility state to CommentCell
+
     />
   );
 }
@@ -1159,17 +1157,43 @@ cell: ({ row }) => {
   header: 'Reference',
   accessorKey: 'referenceId', // Make sure your data has this field
   meta: {
-    editable: true,
-    editorType: 'select',
+    // editable: true,
+    // editorType: 'select',
     selectOptions: referenceOptions,
   },
-  cell: ({ getValue }) => {
-    const value = getValue();
+  cell: ({ row }) => {
+    const value = row.original.referenceId;
     const option = referenceOptions.find(opt => String(opt.value) === String(value));
-    return option ? (
-      <CustomTag name={option.label} />
-    ) : (
-      <span style={{ color: '#aaa' }}>No Reference</span>
+
+      const [selected, setSelected] = React.useState<string | number | null>(value as string | number | null);
+    
+        const handleChange = async(newValue: string | number | null) => {
+          setSelected(newValue);
+          const body ={
+            referenceId: newValue || null, // Ensure this matches your API
+          }
+                const response = await updateLeadMutate.mutateAsync([body,row.original.id, userid]);
+                setTableData(prev => prev.map(item => item.id === row.original.id ? { ...item, referenceId: newValue } : item));
+
+          // Call your update logic here, e.g. API call or table update
+          // Example: updateTaskStatus(row.original.id, newValue);
+        };
+    // return option ? (
+    //   <CustomTag name={option.label} />
+    // ) : (
+    //   <span style={{ color: '#aaa' }}>No Reference</span>
+    // )
+     return (
+      <TagSelector
+        options={referenceOptions}
+        value={selected}
+        onChange={handleChange}
+        placeholder="Select status..."
+        allowCreate={false}
+        horizontalOptions={false}
+        isWithDot={false}
+
+      />
     );
   },
 },
@@ -1207,7 +1231,7 @@ cell: ({ row }) => {
               
 
         
-], [assigneeOptions, referenceOptions, shootOptions, eventOptions, hiddenCommentRows, toggleCommentsVisibility]);
+], [assigneeOptions, referenceOptions, shootOptions, eventOptions, hiddenCommentRows, toggleCommentsVisibility,commentsVisible]);
 
 // const columnsWithWidth = columns.map((col: any) => ({
 //   ...col,
@@ -1565,6 +1589,11 @@ const handleRemoveFilter = useCallback((key: string) => {
     localStorage.setItem('leadsEnabledFilters', JSON.stringify(newEnabledFilters));
     return newEnabledFilters;
   });
+
+setEditingRow(null);
+  setEditingComment(null);
+  setEditingEvent(null);
+
 }, []);
 
 
@@ -1593,7 +1622,7 @@ const filteredData = React.useMemo(() => {
   
 
 
-  return tableData?.filter((row) => {
+  const result = tableData?.filter((row) => {
 
   const eventDateFilter = filters['eventData'];
 
@@ -1636,14 +1665,14 @@ return eventDates.some((d: any) => {
     const dateVal = Array.isArray(val) ? new Date(val[0]) : new Date(val);
 
     if (isNaN(dateD.getTime()) || isNaN(dateVal.getTime())) return false;
-    return dateD < dateVal;
+    return dateD <= dateVal;
   });      }
       if (eventTypeFilter === 'after') {
 return eventDates.some((d: any) => {
   if (!d || !val) return false;
   const dateD = new Date(d);
 const dateVal = Array.isArray(val) ? new Date(val[0]) : new Date(val);  if (isNaN(dateD.getTime()) || isNaN(dateVal.getTime())) return false;
-  return dateD > dateVal;
+  return dateD >= dateVal;
 });        }
       if (eventTypeFilter === 'on') {
         return eventDates.some((d: any) => d && d === val);
@@ -1693,11 +1722,11 @@ const dateVal = Array.isArray(val) ? new Date(val[0]) : new Date(val);  if (isNa
       if (followupType === 'before' && filters.followup) {
 
 
-        return followupDate < filters.followup;
+        return followupDate <= filters.followup;
       }
       if (followupType === 'after' && filters.followup) {
 
-        return followupDate > filters.followup;
+        return followupDate >= filters.followup;
       }
       if (followupType === 'on' && filters.followup) {
                 console.log("followupDate", followupDate, "filters.followup", filters.followup, followupDate=== filters.followup);
@@ -1727,11 +1756,11 @@ const dateVal = Array.isArray(val) ? new Date(val[0]) : new Date(val);  if (isNa
   }
 
   if (filters.createdAtType === 'before' && filters.createdAt) {
-    return createdAtDate < filters.createdAt;
+    return createdAtDate <= filters.createdAt;
   }
   
   if (filters.createdAtType === 'after' && filters.createdAt) {
-    return createdAtDate > filters.createdAt;
+    return createdAtDate >= filters.createdAt;
   }
   
   if (filters.createdAtType === 'on' && filters.createdAt) {
@@ -1791,6 +1820,17 @@ if(key === 'leads') {
       : true;
   });
 });
+
+if (editingRow || editingComment || editingEvent) {
+    // Use setTimeout to avoid state updates during render
+    setTimeout(() => {
+      if (editingRow) setEditingRow(null);
+      if (editingComment) setEditingComment(null);
+      if (editingEvent) setEditingEvent(null);
+    }, 0);
+  }
+
+return result;
 }, [tableData, filters, filtersEnabled, enabledFilters]);
 
 
@@ -1915,7 +1955,7 @@ console.log("Enabled filters:", enabledFilters);
     const col = columns.find((c: any) => c.accessorKey === key);
     if (!col) return null;
 
-    const meta: { editorType?: string; selectOptions?: Array<{ label: string; value: any }> } = col.meta || {};
+    const meta: { editorType?: string; selectOptions?: Array<{id: string | number; label: string; value: any }> } = col.meta || {};
 
         const isFilterEnabled = enabledFilters[key] !== false; // Default to true if not set
 
@@ -2291,28 +2331,52 @@ onClick={() => {
         </styled.FilterHeader>
 
 {key === 'referenceId' || key ==="shootId" || key ==="leads" || key ==="mentions" ? (
-  <CustomSelect
-    placeholder={col.header?.toString()}
-    isMulti={true}
-    value={meta?.selectOptions?.filter((opt: any) =>
-      Array.isArray(filters[key]) ? filters[key].includes(opt.value) : false
-    )}
-    onChange={(options: any[]) =>
-      handleFilterChange(key, options ? options.map(opt => opt.value) : [])
-    }
-    options={meta?.selectOptions || []}
-  />
+  // <CustomSelect
+  //   placeholder={col.header?.toString()}
+  //   isMulti={true}
+  //   value={meta?.selectOptions?.filter((opt: any) =>
+  //     Array.isArray(filters[key]) ? filters[key].includes(opt.value) : false
+  //   )}
+  //   onChange={(options: any[]) =>
+  //     handleFilterChange(key, options ? options.map(opt => opt.value) : [])
+  //   }
+  //   options={meta?.selectOptions || []}
+  // />
+
+  <TagMultiSelector
+  options={meta?.selectOptions || []}
+  value={filters[key] || []}
+  onChange={(newVals) => handleFilterChange(key, newVals)}
+  placeholder={col.header?.toString()}
+  allowCreate={false}
+  horizontalOptions={false} // or true if you want horizontal display
+  isMulti={true}
+/>
 ) 
 
      : meta?.editorType === 'select' ? (
-      <CustomSelect
-        placeholder={col.header?.toString()}
-        isMulti={false}
-        value={meta?.selectOptions?.find((opt: any) => opt.value === filters[key]) || null}
-        onChange={(option: any) => handleFilterChange(key, option ? option.value : '')}
-        options={meta?.selectOptions || []}
+      // <CustomSelect
+      //   placeholder={col.header?.toString()}
+      //   isMulti={false}
+      //   value={meta?.selectOptions?.find((opt: any) => opt.value === filters[key]) || null}
+      //   onChange={(option: any) => handleFilterChange(key, option ? option.value : '')}
+      //   options={meta?.selectOptions || []}
        
-      />
+      // />
+
+       <TagSelector
+            options={meta?.selectOptions || []}
+            value={
+              Array.isArray(filters[key])
+                ? (filters[key][0] ?? null)
+                : filters[key]
+            }
+            onChange={(val: any) => handleFilterChange(key, val)}
+            placeholder={col.header?.toString()}
+            allowCreate={false}
+            horizontalOptions={false} // or true if you want horizontal display
+            isWithDot={false} // or false if you don't want color dots
+          />
     ) : (
       <styled.WhitePlaceholderInput
         placeholder={col.header?.toString()}
@@ -2373,6 +2437,13 @@ onClick={() => {
       value: col.accessorKey,
     }))}
   />
+
+   <styled.CommentToggleButton 
+    onClick={toggleAllCommentsVisibility}
+    type="button"
+  >
+    {commentsVisible ? 'Hide Comments' : 'Show Comments'}
+  </styled.CommentToggleButton>
 </styled.FiltersDiv>
 
 

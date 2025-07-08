@@ -7,6 +7,7 @@ interface TableProps {
   data: any[];
   title?: string;
   height?: number | string;
+  columns?: ColumnsType<any>;
 }
 
 const TableContainer = styled.div`
@@ -29,7 +30,6 @@ const TableTitle = styled.h3`
 const StyledTable = styled(Table)`
   .ant-table {
     background-color: transparent;
-    //  color: #e0e0e0;
   }
   
   .ant-table-thead > tr > th {
@@ -43,9 +43,34 @@ const StyledTable = styled(Table)`
     color: rgb(247, 240, 240);
   }
   
-  /* Remove the hover effect */
+  /* Fix hover styles */
   .ant-table-tbody > tr:hover > td {
-    background-color: transparent !important; /* Use !important to override Ant Design's default styles */
+    background-color: transparent !important;
+    color: rgb(247, 240, 240) !important;
+  }
+  
+  /* Fix sorted row styles */
+  .ant-table-tbody tr.ant-table-row-selected > td {
+    background-color: transparent !important;
+    color: rgb(247, 240, 240) !important;
+  }
+  
+  /* Fix table cell background when sorting */
+  .ant-table-column-sort {
+    background-color: transparent !important;
+    color: rgb(247, 240, 240) !important;
+  }
+  
+  /* Fix table when a column is sorted */
+  .ant-table-tbody > tr > td.ant-table-column-sort {
+    background-color: rgba(45, 45, 45, 0.7) !important;
+    color: rgb(247, 240, 240) !important;
+  }
+  
+  /* Fix table header when sorted */
+  .ant-table-thead > tr > th.ant-table-column-sort {
+    background-color: #2a2a2a !important;
+    color: #e0e0e0 !important;
   }
   
   .ant-pagination-item-active {
@@ -56,57 +81,31 @@ const StyledTable = styled(Table)`
   }
   
   .ant-pagination-item a {
-    // color: #e0e0e0;
+    color: #e0e0e0;
   }
   
   .ant-table-column-sorter-up.active, 
   .ant-table-column-sorter-down.active {
     color: #1890ff;
   }
+  
+  /* Additional fixes for sorting and selection */
+  .ant-table-cell-fix-left,
+  .ant-table-cell-fix-right {
+    background-color: #2a2a2a !important;
+  }
+  
+  /* Ensure background stays consistent in all states */
+  .ant-table-tbody > tr.ant-table-row:nth-child(odd) > td,
+  .ant-table-tbody > tr.ant-table-row:nth-child(even) > td {
+    background-color: transparent !important;
+  }
 `;
 
-const DashboardTable: React.FC<TableProps> = ({ data, title, height = 'auto' }) => {
+const DashboardTable: React.FC<TableProps> = ({ data, title, height = 'auto', columns }) => {
 
 
-  console.log('DashboardTable Data:', data);
-  const columns: ColumnsType<any> = [
-    {
-      title: 'Source',
-      dataIndex: 'name',
-      key: 'name',
-      sorter: (a, b) => a.name.localeCompare(b.name),
-    },
-    {
-      title: 'Total Leads',
-      dataIndex: 'totalLeads',
-      key: 'totalLeads',
-      sorter: (a, b) => a.totalLeads - b.totalLeads,
-    },
-    {
-      title: 'Converted Leads',
-      dataIndex: 'convertedLeads',
-      key: 'convertedLeads',
-      sorter: (a, b) => a.convertedLeads - b.convertedLeads,
-    },
-    {
-      title: 'Conversion Rate',
-      dataIndex: 'conversionRate',
-      key: 'conversionRate',
-      render: (text) => text || '0%',
-      sorter: (a, b) => {
-        const rateA = parseFloat(a.conversionRateValue || 0);
-        const rateB = parseFloat(b.conversionRateValue || 0);
-        return rateA - rateB;
-      },
-    },
-    {
-      title: 'Total Revenue',
-      dataIndex: 'totalRevenue',
-      key: 'totalRevenue',
-      render: (value) => `₹${value?.toLocaleString() || 0}`,
-      sorter: (a, b) => (a.totalRevenue || 0) - (b.totalRevenue || 0),
-    }
-  ];
+ 
 
   return (
     <TableContainer>

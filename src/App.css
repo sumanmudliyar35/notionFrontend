@@ -18,6 +18,17 @@
 }
 
 
+.custom-green-checkbox .ant-checkbox-inner {
+  border-color: #52c41a !important;
+}
+.custom-green-checkbox .ant-checkbox-checked .ant-checkbox-inner {
+  background-color: #52c41a !important;
+  border-color: #52c41a !important;
+}
+.custom-green-checkbox .ant-checkbox-checked::after {
+  border-color: #52c41a !important;
+}
+
 
 
 .ant-mentions,

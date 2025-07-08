@@ -9,7 +9,5 @@ const fetchMentionByUser = async (userId: number) => {
 
 // Custom hook to use in components
 export const useGetMentionByUser = (userId: number) => {
-  return useQuery(['mentionByUser', userId], () => fetchMentionByUser(userId), {
-    enabled: !!userId,
-  });
+  return useQuery(['mentionByUser', userId], () => fetchMentionByUser(userId));
 };

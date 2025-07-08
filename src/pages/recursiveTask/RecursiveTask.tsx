@@ -20,7 +20,10 @@ import { usePostGetRecursiveTaskById } from '../../api/get/postGetRecursiveTaskB
 import { useUpdateRecursiveTask } from '../../api/put/updateRecursiveTask';
 import { useGetCommentByRecursiveTaskLogId } from '../../api/get/postGetCommentByRecursiveTaskLogs';
 import { formatDisplayDate } from '../../utils/commonFunction';
-import { EyeInvisibleOutlined, EyeOutlined } from '@ant-design/icons';
+import { CalculatorOutlined, EyeInvisibleOutlined, EyeOutlined, UploadOutlined } from '@ant-design/icons';
+
+import * as styled from './style';
+import { Button, Checkbox, Input } from 'antd';
 
 const RecursiveTask = () => {
   const { userid } = useParams()
@@ -35,6 +38,12 @@ const RecursiveTask = () => {
   const [selectedRecursiveTask, setSelectedRecursiveTask] = useState<any>(null);
   const [selectedRecursiveTaskLogDate, setSelectedRecursiveTaskLogDate] = useState<any>(null);
   const [isCommentModalOpen, setIsCommentModalOpen] = useState(false);
+
+  const [commentsVisible, setCommentsVisible] = useState<boolean>(true);
+  
+          const toggleAllCommentsVisibility = useCallback(() => {
+            setCommentsVisible(prev => !prev);
+          }, []);
 
               const [openChangeDateModal, setOpenChangeDateModal] = useState(false);
   
@@ -330,10 +339,21 @@ const toggleCommentsVisibility = (
               color: '#1677ff'
             }}
           >
-            {hiddenCommentRows[row.original.id] ? <EyeOutlined /> : <EyeInvisibleOutlined />}
           </button>
         </div>
       ),
+    },
+    {
+      header: "Interval",
+      accessorKey: 'intervalDays',
+      cell: ({ row }: { row: any }) => {
+        const interval = row.original.intervalDays;
+        return (
+          <span>
+            {interval} {interval === 1 ? 'day' : 'days'}
+          </span>
+        );
+      },
     },
     ...allDates.map(date => {
       // Check if the date is in the past
@@ -349,7 +369,6 @@ const toggleCommentsVisibility = (
           const checked = log.status === 'completed';
           const attachments = log.files || [];
           const comments = log.comments || [];
-          const areCommentsHidden = hiddenCommentRows[row.original.id];
           
           // Create handlers inside the cell renderer, but they use the memoized parent handlers
           const triggerFileUpload = (e: React.MouseEvent) => {
@@ -406,52 +425,57 @@ const toggleCommentsVisibility = (
               gap: 4,
               opacity: isPastDate ? 0.7 : 1 
             }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                <input
-                  type="checkbox"
-                  checked={checked}
-                  onChange={e => !isPastDate && handleCheck(e.target.checked, log, date, row.original.id)}
-                  disabled={isPastDate}
-                   style={{
-    accentColor: checked ? '#52c41a' : undefined,
+              <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                <Input
+                type="checkbox"
+  checked={checked}
+  onChange={(e: any)=> !isPastDate && handleCheck(e.target.checked, log, date, row.original.id)}
+  disabled={isPastDate}
+  style={{
+    accentColor: checked ? '#52c41a' : '#aaa',
     transform: 'scale(1.2)',
-    cursor: isPastDate ? 'not-allowed' : 'pointer'
+    cursor: isPastDate ? 'not-allowed' : 'pointer',
+    height: 20,
+    width: 20,
+    transition: 'accent-color 0.2s'
   }}
-                  
-                />
+/>
                 
-                <button
-                  type="button"
+                <Button
                   onClick={openDateChangeModal}
                   disabled={isPastDate}
                   style={{ 
-                    background: 'none', 
+                    background: 'white', 
                     border: 'none', 
                     cursor: isPastDate ? 'not-allowed' : 'pointer',
                     fontSize: '14px',
-                    opacity: isPastDate ? 0.5 : 1
+                    opacity: isPastDate ? 0.5 : 1,
+                    height: 24,
+                    width: 24,
                   }}
+                  icon={<CalculatorOutlined />}
                 >
-                  📅
-                </button>
+                  
+                </Button>
                 
-                <button
-                  type="button"
+                <Button
                   onClick={triggerFileUpload}
                   disabled={isPastDate}
                   style={{ 
-                    background: 'none', 
+                    background: 'white', 
                     border: 'none', 
                     cursor: isPastDate ? 'not-allowed' : 'pointer',
-                    opacity: isPastDate ? 0.5 : 1
+                    opacity: isPastDate ? 0.5 : 1,
+                    height: 24,
+                    width: 24,
                   }}
+                  icon={<UploadOutlined />}
                 >
-                  📎
-                </button>
+                  </Button>
+
               </div>
               
               {/* Only show comments if not hidden */}
-              {!areCommentsHidden && (
                 <CommentCell
                   comments={comments}
                   rowId={log.id}
@@ -462,8 +486,11 @@ const toggleCommentsVisibility = (
                   setEditingComment={setEditingComment}
                   assigneeOptions={assigneeOptions}
                   disabled={isPastDate}
+                  visible={commentsVisible}
+                  isCommentText={true}
+
                 />
-              )}
+            
               
               {/* Attachments section */}
               {attachments && attachments.length > 0 && (
@@ -506,6 +533,19 @@ const toggleCommentsVisibility = (
 
   return (
     <div>
+
+      <styled.FiltersDiv>
+
+         <styled.CommentToggleButton 
+              onClick={toggleAllCommentsVisibility}
+              type="button"
+            >
+              {commentsVisible ? 'Hide Comments' : 'Show Comments'}
+            </styled.CommentToggleButton>
+  
+
+
+  </styled.FiltersDiv>
       
 
       <CustomTable

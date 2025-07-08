@@ -14,6 +14,7 @@ function getOrdinal(n: number) {
 export const formatDisplayDate = (date: string | Date | null | undefined) => {
   if (!date) return "";
   
+  console.log('Formatting date:', date);
   // Check for invalid "0000-00-00" date format
   if (typeof date === "string" && (date === "0000-00-00" || date.startsWith("0000-00-00"))) {
     return "";

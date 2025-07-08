@@ -5,6 +5,7 @@ import dayjs from 'dayjs';
 import CustomInput from '../../../../components/customInput/CustomInput';
 import DateInput from '../../../../components/CustomDateInput/CustomDateInput';
 import CustomModal from '../../../../components/customModal/CustomModal';
+import CustomSelect from '../../../../components/customSelect/CustomSelect';
 
 interface YourModalProps {
   open: boolean;
@@ -15,12 +16,21 @@ interface YourModalProps {
 
 const validationSchema = Yup.object().shape({
   name: Yup.string().required('Name is required'),
-  interval: Yup.number().min(1, 'Interval must be at least 1').required('Interval is required'),
+  // interval: Yup.number().min(1, 'Interval must be at least 1').required('Interval is required'),
   startDate: Yup.date().required('Start date is required'),
   endDate: Yup.date().required('End date is required'),
 });
 
 const RecursiveTaskModal: React.FC<YourModalProps> = ({ open, onClose, title, onSave }) => {
+
+
+  const intervalOptions = [
+    { label: "1 day", value: 1 },
+    { label: "3 days", value: 3 },
+    { label: "7 days", value: 7 },
+    { label: "15 days", value: 15 },
+    { label: "30 days", value: 30 },
+  ]
   const formik = useFormik({
     initialValues: {
       name: '',
@@ -57,7 +67,7 @@ const RecursiveTaskModal: React.FC<YourModalProps> = ({ open, onClose, title, on
             placeholder="Enter name"
             error={formik.touched.name && formik.errors.name ? formik.errors.name : ''}
           />
-          <CustomInput
+          {/* <CustomInput
             label="Interval (days)"
             name="interval"
             type="number"
@@ -66,7 +76,16 @@ const RecursiveTaskModal: React.FC<YourModalProps> = ({ open, onClose, title, on
             onBlur={formik.handleBlur}
             placeholder="Enter interval in days"
             error={formik.touched.interval && formik.errors.interval ? formik.errors.interval : ''}
-          />
+          /> */}
+
+          <CustomSelect
+  label="Interval"
+  options={intervalOptions}
+  value={intervalOptions.find(opt => opt.value === formik.values.interval) || intervalOptions[0]}
+  onChange={value => formik.setFieldValue('interval', value.value)}
+  placeholder="Select interval"
+  width="180px"
+/>
           <DateInput
             label="Start Date"
             value={formik.values.startDate}

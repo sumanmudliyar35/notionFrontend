@@ -535,10 +535,8 @@ const tableBodyRef = useRef<HTMLTableSectionElement>(null);
 // Then modify your useEffect to target both containers
 useEffect(() => {
   const handleKeyDown = (e: KeyboardEvent) => {
-    console.log('Key pressed:', e.key);
     // Handle Home key press - use Home key instead of ArrowLeft
     if (e.key === 'Home' && !e.ctrlKey && !e.altKey && !e.metaKey) {
-      console.log('Home key pressed');
       // Only trigger if no modifiers are pressed and we're not in an input field
       const activeElement = document.activeElement;
       const isInput = activeElement instanceof HTMLInputElement || 
@@ -953,6 +951,11 @@ function EditableCell({
 
     const inputRef = useRef<any>(null);
 
+    if(editorType === 'date' && value) {    
+      console.log('EditableCell value:', value);  
+
+    }
+
  useEffect(() => {
   if (editorType === 'input' && inputRef.current) {
     // For AntD Input.TextArea, get the real textarea element
@@ -1001,28 +1004,63 @@ function EditableCell({
     );
   }
 
-  if (editorType === 'date') {
-  return (
-    <Input
-      type="date"
-      autoFocus
-      value={editValue}
-      onChange={e => {
-        setEditValue(e.target.value);
-        onSave(e.target.value); // Call handleEdit immediately on date select
-        onCancel();             // Close the editor
-      }}
-      onBlur={() => {
-        onSave(editValue);
-        onCancel();
-      }}
+//   if (editorType === 'date') {
+//   return (
+//     <Input
+//       type="date"
+//       autoFocus
+//       value={editValue}
+//       onChange={e => {
+//         setEditValue(e.target.value);
+//         onSave(e.target.value); // Call handleEdit immediately on date select
+//         onCancel();             // Close the editor
+//       }}
+//       onBlur={() => {
+//         onSave(editValue);
+//         onCancel();
+//       }}
       
-      onFocus={e => {
-        e.target.showPicker && e.target.showPicker();
-      }}
-    />
-  );
-}
+//       onFocus={e => {
+//         e.target.showPicker && e.target.showPicker();
+//       }}
+//     />
+//   );
+// }
+
+
+if (editorType === 'date') {
+    return (
+      <DatePicker
+        autoFocus
+        value={editValue ? dayjs(editValue) : undefined}
+        onChange={(date, dateString) => {
+
+
+          
+          // Store the formatted date
+          if (date) {
+            const formattedDate = date.format('YYYY-MM-DD');
+            setEditValue(formattedDate);
+            onSave(formattedDate);
+          } else {
+            setEditValue(null);
+            onSave(null);
+          }
+        }}
+        format="DD-MM-YYYY"
+        style={{
+          width: '100%',
+           borderRadius: 4,
+          backgroundColor: 'rgb(25, 25, 25)',
+          color: 'white',
+        }}
+        placeholder="Select date"
+        onBlur={() => onCancel()}
+        // popupClassName="dark-theme-datepicker"
+        // dropdownStyle={{ backgroundColor: '#1f1f1f' }}
+      />
+    );
+  }
 
 
 

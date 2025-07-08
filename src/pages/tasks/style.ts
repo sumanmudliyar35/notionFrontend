@@ -4,6 +4,12 @@ import { Select } from 'antd';
 
 
 
+export  const FilterHeader = styled.div`
+  display: flex;
+  align-items: center;
+  // width: 100%;
+`;
+
 export const FilterTag = styled.div<{ active?: boolean; disabled?: boolean }>`
   display: inline-flex;
   align-items: center;
@@ -32,6 +38,31 @@ export const FilterTag = styled.div<{ active?: boolean; disabled?: boolean }>`
       disabled ? '#666' : active ? '#40a9ff' : '#eee'};
   }
 `;
+
+
+export const CommentToggleButton = styled.button`
+  background-color: #1f1f1f;
+  color: #f0f0f0;
+  border: 1px solid #333;
+  border-radius: 4px;
+  padding: 6px 12px;
+  font-size: 14px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  margin-left: 10px;
+  transition: all 0.3s ease;
+  
+  &:hover {
+    background-color: #2a2a2a;
+    border-color: #1890ff;
+  }
+  
+  &:active {
+    background-color: #252525;
+  }
+`;
+
 
 
 

@@ -14,6 +14,8 @@ interface CommentCellProps {
   setEditingComment: (value: { rowId: number; commentId: number } | null) => void;
   assigneeOptions: any[];
     disabled?: boolean;
+    visible?: boolean; // Optional prop to control visibility
+  isCommentText?: boolean; // Optional prop to control text display
 
 }
 
@@ -26,10 +28,28 @@ const CommentCell: React.FC<CommentCellProps> = ({
   editingComment,
   setEditingComment,
   assigneeOptions,
-  disabled = false
+  disabled = false,
+  visible = true, // Default to true if not provided
+    isCommentText = false, // Default to false if not provided
+
+
   
 }) => {
   // Find the comment being edited
+
+
+  if (!visible) {
+        return (
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <span style={{ color: '#aaa' }}>{comments.length > 0 ? `${comments.length} comments hidden` : '0 comments hidden'}</span>
+            <Button 
+              size="small" 
+              icon={<PlusOutlined />} 
+              onClick={() => openCommentModal({ id: rowId })}
+            />
+          </div>
+        );
+      }
   const editingIdx = comments.findIndex(
     (c, idx) =>
       editingComment &&
@@ -229,8 +249,26 @@ const CommentCell: React.FC<CommentCellProps> = ({
         );
       })}
       <div>
-        <Button size="small" icon={<PlusOutlined />} onClick={() => openCommentModal({ id: rowId })} />
-      </div>
+  {isCommentText ? (
+                <span
+          style={{
+            color: "#4fa3ff",
+            cursor: "pointer",
+            fontSize: 14,
+            textDecoration: "none",
+            padding: "2px 6px",
+            borderRadius: 4,
+            background: "#23272f",
+            display: "inline-block",
+          }}
+          onClick={() => openCommentModal({ id: rowId })}
+        >
+          Add comment
+        </span>
+      
+              ): (
+              <Button size="small" icon={<PlusOutlined />} onClick={() => openCommentModal({ id: rowId })} />
+              )}      </div>
     </div>
   );
 };

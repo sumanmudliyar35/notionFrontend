@@ -64,12 +64,12 @@ const adminMenuItems = [
     // adminOnly: true,
   },
 
-  //  {
-  //   key: 'dashboard',
-  //   label: 'Dashboard',
-  //   icon: <DashboardOutlined style={{ ...iconStyle, color: '#1890ff' }} />,
-  //   path: '/dashboard',
-  // },
+   {
+    key: 'dashboard',
+    label: 'Dashboard',
+    icon: <DashboardOutlined style={{ ...iconStyle, color: '#1890ff' }} />,
+    path: '/dashboard',
+  },
 
 
 ];
@@ -256,6 +256,7 @@ const filterMenu = (items: any[]): any[] =>
         open={isDrawerOpen}
         onClose={handleCloseDrawer}
         getContainer={drawerContainerRef.current || false}
+        userId={Number(userId)}
       />
     </styled.SidebarWrapper>
   );
