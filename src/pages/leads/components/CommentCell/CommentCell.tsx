@@ -79,7 +79,6 @@ const CommentCell: React.FC<CommentCellProps> = ({
   // Initialize the input value when editing starts
   useEffect(() => {
     if (editingCommentObj && !hasInitializedRef.current) {
-      console.log("Setting initial value:", editingCommentObj.comment);
       mentionProps.setInputValue(editingCommentObj.comment || "");
       hasInitializedRef.current = true;
     }

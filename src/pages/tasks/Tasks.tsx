@@ -352,11 +352,11 @@ const handleOpenDateTimeModal = (row: any, date: any, time: any) => {
 
 
   const taskStatusOptions = [
-      { id: 'notStarted', label: 'Not Started', value: 'notStarted' },
-      { id: 'inProgress', label: 'In Progress', value: 'inProgress' },
-      { id: 'forApproval', label: 'For Approval', value: 'forApproval' },
-      { id: 'completed', label: 'Done', value: 'completed' },
-    ];
+  { id: 'notStarted', label: 'Not Started', value: 'notStarted', color: '#ff4d4f' },      // red
+  { id: 'inProgress', label: 'In Progress', value: 'inProgress', color: '#faad14' },     // orange
+  { id: 'forApproval', label: 'For Approval', value: 'forApproval', color: '#1890ff' },  // blue
+  { id: 'completed', label: 'Done', value: 'completed', color: '#52c41a' },              // green
+];
 
 
 const columns :ColumnDef<Doc>[] = [
@@ -547,12 +547,13 @@ const columns :ColumnDef<Doc>[] = [
   },
   cell: ({ row, getValue }) => {
     const value = getValue();
-    const options = [
-      { id: 'notStarted', label: 'Not Started', value: 'notStarted' },
-      { id: 'inProgress', label: 'In Progress', value: 'inProgress' },
-      { id: 'forApproval', label: 'For Approval', value: 'forApproval' },
-      { id: 'completed', label: 'Done', value: 'completed' },
-    ];
+    // const options = [
+    //   { id: 'notStarted', label: 'Not Started', value: 'notStarted' },
+    //   { id: 'inProgress', label: 'In Progress', value: 'inProgress' },
+    //   { id: 'forApproval', label: 'For Approval', value: 'forApproval' },
+    //   { id: 'completed', label: 'Done', value: 'completed' },
+    // ];
+    const options = taskStatusOptions; // Use the predefined options array  
 
     // You may want to handle the change and update logic here
     const [selected, setSelected] = React.useState<string | number | null>(value as string | number | null);
@@ -576,6 +577,7 @@ const columns :ColumnDef<Doc>[] = [
         onChange={handleChange}
         placeholder="Select status..."
         allowCreate={false}
+        isWithDot={true}
       />
     );
   }
@@ -1619,6 +1621,7 @@ value={
             }  onChange={(newVals: any) => handleFilterChange(key, newVals)}
   placeholder={col.header?.toString()}
   allowCreate={false}
+  isWithDot={key === 'status' ? true : false}
 />
 ) 
      : meta?.editorType === 'select' ? (
@@ -1738,6 +1741,7 @@ onClick={() => {
   isDownloadable={false}
   handleColumnVisibilityChange={handleColumnVisibilityChange}
   onSelectionChange={handleDeleteTask}
+  highlightRowId={64}
   // onOffsetChange={(newOffset) => {
   //   setOffset(newOffset);
   //   console.log("Offset changed:", newOffset);

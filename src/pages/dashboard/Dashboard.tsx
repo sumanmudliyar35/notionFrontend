@@ -1,4 +1,4 @@
-import React, { useMemo } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { useGetChartDataByReference } from '../../api/get/getChartDataByReference';
 import CustomPieChart from '../../components/CustomPieChart/CustomPieChart';
 import styled from 'styled-components';
@@ -68,8 +68,80 @@ const LoadingContainer = styled.div`
   }
 `;
 
+const GridContainer = styled.div`
+  display: flex;
+  // flex-wrap: wrap;
+  flex-direction: column;
+  gap: 10px;
+`;
+
+const Item1 = styled.div`
+  grid-row: 1 / span 2;
+  grid-column: 1 / 2;
+  background-color: lightblue;
+  padding: 10px;
+`;
+
+const Item2 = styled.div`
+  grid-row: 1;
+  grid-column: 2;
+  background-color: lightgreen;
+  padding: 10px;
+`;
+
+const Item3 = styled.div`
+  grid-row: 2;
+  grid-column: 2;
+  background-color: lightcoral;
+  padding: 10px;
+`;
+
+
+const MainLeadDiv = styled.div`
+  display: flex;
+  flex-direction: row;
+  gap: 24px;
+  width: 100%;
+
+  > :first-child {
+    flex: 0 0 60%;
+    max-width: 60%;
+  }
+  > :nth-child(2) {
+    flex: 0 0 40%;
+    max-width: 40%;
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+  }
+
+  @media (max-width: 991px) {
+    flex-direction: column;
+    > :first-child,
+    > :nth-child(2) {
+      flex: 1 1 100%;
+      max-width: 100%;
+    }
+  }
+`;
+
+
 const Dashboard = () => {
   const {data: referenceData, isLoading} = useGetChartDataByReference('all');
+
+  const [totalLeads, setTotalLeads] = useState(referenceData?.analytics?.overallStats?.totalLeads || 0);
+
+
+
+  useEffect(() => {
+
+
+    if (referenceData?.analytics?.overallStats?.totalLeads) {
+      setTotalLeads(referenceData.analytics.overallStats.totalLeads);
+    }
+  }, [referenceData?.analytics?.overallStats?.totalLeads]);
+
+  console.log('Reference Data:', totalLeads);
 
 
    const columns: ColumnsType<any> = [
@@ -77,24 +149,61 @@ const Dashboard = () => {
       title: 'Source',
       dataIndex: 'name',
       key: 'name',
+      width: 150,
       sorter: (a, b) => a.name.localeCompare(b.name),
     },
     {
       title: 'Total Leads',
       dataIndex: 'totalLeads',
       key: 'totalLeads',
+      width: 100,
       sorter: (a, b) => a.totalLeads - b.totalLeads,
     },
+
+    {
+  title: 'Leads %',
+  key: 'leadsPercentage',
+  width: 120,
+  render: (_, record) => {
+    const leads = record.totalLeads || 0;
+    const percent = totalLeads > 0 ? (leads / totalLeads) * 100 : 0;
+    return `${percent.toFixed(2)}%`;
+  },
+  sorter: (a, b) => {
+    const percentA = totalLeads > 0 ? (a.totalLeads || 0) / totalLeads : 0;
+    const percentB = totalLeads > 0 ? (b.totalLeads || 0) / totalLeads : 0;
+    return percentA - percentB;
+  },
+},
     {
       title: 'Converted Leads',
       dataIndex: 'convertedLeads',
       key: 'convertedLeads',
+      width: 100,
       sorter: (a, b) => a.convertedLeads - b.convertedLeads,
     },
+
+    {
+  title: 'Conversion Ratio',
+  key: 'conversionRatio',
+  width: 120,
+  render: (_, record) => {
+    const converted = record.convertedLeads || 0;
+    const ratio = totalLeads > 0 ? (converted / totalLeads) * 100 : 0;
+    return `${ratio.toFixed(2)}%`;
+  },
+  sorter: (a, b) => {
+    const ratioA = totalLeads > 0 ? (a.convertedLeads || 0) / totalLeads : 0;
+    const ratioB = totalLeads > 0 ? (b.convertedLeads || 0) / totalLeads : 0;
+    return ratioA - ratioB;
+  },
+},
+    
     {
       title: 'Conversion Rate',
       dataIndex: 'conversionRate',
       key: 'conversionRate',
+      width: 100,
       render: (text) => text || '0%',
       sorter: (a, b) => {
         const rateA = parseFloat(a.conversionRateValue || 0);
@@ -241,6 +350,9 @@ const inquiredLeadsConversionPieData = useMemo(() => {
     
     return { series, labels };
   }, [referenceData?.analytics?.convertedLeadsByReference]);
+
+
+
   
   // Custom colors for the pie chart
   const colors = [
@@ -300,47 +412,53 @@ const inquiredLeadsConversionPieData = useMemo(() => {
         </Col>
       </Row>
       
-      <Row gutter={[24, 24]}>
-        <Col xs={24} md={24} lg={24} xl={24}>
+     
           <StyledCard title="Lead Source Performance Analytics">
-            <Row gutter={[24, 24]}>
-              <Col xs={24} lg={8}>
+
+
+<MainLeadDiv>
+
+
+            <DashboardTable
+                  data={referenceData?.analytics?.referenceAnalytics || []}
+                  columns={columns}
+                />
+            <GridContainer>
+
+
+           
+          
                 <ChartWrapper>
                   <CustomPieChart
                     series={inquiredLeadsPieData.series}
                     labels={inquiredLeadsPieData.labels}
                     colors={colors}
                     donut={false}
-                    height={350}
+                    height={220}
                     title="Lead Distribution by Source"
                   />
                 </ChartWrapper>
-              </Col>
               
-              <Col xs={24} lg={8}>
                 <ChartWrapper>
                   <CustomPieChart
                     series={inquiredLeadsConversionPieData.series}
                     labels={inquiredLeadsConversionPieData.labels}
                     colors={colors}
                     donut={false}
-                    height={350}
+                    height={220}
                     title="Lead Conversion by Source"
                   />
                 </ChartWrapper>
-              </Col>
+
+
+                            </GridContainer>
+
+              </MainLeadDiv>
+
               
-              <Col xs={24} lg={8}>
-                <DashboardTable
-                  data={referenceData?.analytics?.referenceAnalytics || []}
-                  height={350}
-                  columns={columns}
-                />
-              </Col>
-            </Row>
+           
           </StyledCard>
-        </Col>
-      </Row>
+        
 
        <Row gutter={[24, 24]} style={{ marginTop: '24px' }}>
         <Col xs={24} md={24} lg={24} xl={24}>

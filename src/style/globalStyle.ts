@@ -15,6 +15,16 @@ export const CustomSelectStyles = createGlobalStyle`
     color: white !important;
   }
 
+.ant-tabs-tab-btn {
+  color: white !important;
+}
+.ant-tabs-tab-active .ant-tabs-tab-btn {
+  color: #40a9ff !important; /* Optional: highlight active tab */
+}
+.ant-tabs-ink-bar {
+  background: #40a9ff !important; /* Optional: active tab underline */
+}
+
   /* Make Popconfirm text white and background dark */
   .ant-popover-inner {
     background: #202020 !important;

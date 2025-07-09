@@ -114,16 +114,54 @@ const TagMultiSelector: React.FC<TagSelectorProps> = ({
       >
         {isMulti ? (
           Array.isArray(selectedTags) && selectedTags.length > 0 ? (
-            <>
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
               {selectedTags.map((tag: Tag) => (
-                <React.Fragment key={tag.id}>
-                  <ColorDot color={tag.color || getTagColor(tag.label)} />
+                <span
+                  key={tag.id}
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    background: '#222',
+                    borderRadius: 6,
+                    padding: '2px 8px',
+                    marginRight: 4,
+                    marginBottom: 4,
+                    gap: 4,
+                  }}
+                >
+                {isWithDot && <ColorDot color={tag.color || getTagColor(tag.label)} />} 
                   <span>{tag.label}</span>
-                </React.Fragment>
+                  <span
+                    style={{
+                      marginLeft: 4,
+                      cursor: 'pointer',
+                      color: '#aaa',
+                      fontWeight: 'bold',
+                      fontSize: 16,
+                      lineHeight: 1,
+                    }}
+                    onClick={e => {
+                      e.stopPropagation();
+                      // Remove only this tag
+                      const newTags = selectedTags.filter((t: Tag) => t.id !== tag.id).map(t => t.id);
+                      onChange(newTags);
+                    }}
+                  >
+                    ×
+                  </span>
+                </span>
               ))}
-              {/* Move clear button here */}
+              {/* Clear all button */}
               <span
-                style={{ marginLeft: 8, cursor: 'pointer', color: '#aaa' }}
+                style={{
+                  marginLeft: 8,
+                  cursor: 'pointer',
+                  color: '#aaa',
+                  fontWeight: 'bold',
+                  fontSize: 18,
+                  alignSelf: 'center',
+                }}
+                title="Clear all"
                 onClick={e => {
                   e.stopPropagation();
                   onChange([]);
@@ -131,21 +169,21 @@ const TagMultiSelector: React.FC<TagSelectorProps> = ({
               >
                 ×
               </span>
-            </>
+            </div>
           ) : (
             placeholder
           )
         ) : (
           selectedTags && !Array.isArray(selectedTags) ? (
             <>
-              <ColorDot color={selectedTags.color || getTagColor(selectedTags.label)} />
+              {isWithDot && <ColorDot color={selectedTags.color || getTagColor(selectedTags.label)} />}
               <span>{selectedTags.label}</span>
             </>
           ) : (
             placeholder
           )
         )}
-        <DropdownIcon isOpen={isOpen}>▾</DropdownIcon>
+        {/* <DropdownIcon isOpen={isOpen}>▾</DropdownIcon> */}
       </SelectedTag>
       
       {isOpen && (
@@ -227,17 +265,16 @@ const SelectedTag = styled.div<{ isPlaceholder: boolean }>`
   gap: 8px;
   padding: 10px 12px;
   border-radius: 8px;
-  background-color: #2E3440;
-  border: 1px solid #3B4252;
+  background-color: #191919;
   cursor: pointer;
   color: ${props => props.isPlaceholder ? '#6C7A96' : '#E5E9F0'};
   font-size: 14px;
   transition: all 0.2s ease;
   
-  &:hover {
-    border-color: #4C566A;
-    background-color: #333B49;
-  }
+  // &:hover {
+  //   border-color: #4C566A;
+  //   background-color: #333B49;
+  // }
 `;
 
 const ColorDot = styled.div<{ color: string }>`
@@ -261,7 +298,7 @@ const DropdownContainer = styled.div<{ $position?: 'top' | 'bottom' }>`
  width: 150%;
   min-width: 220px;
   max-width: 500px;  
-  background-color: black;
+  background-color: #191919;
   border-radius: 8px;
   border: 1px solid #3B4252;
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
@@ -290,7 +327,7 @@ const SearchInput = styled.input`
   padding: 10px 12px;
   border: none;
   border-bottom: 1px solid #3B4252;
-  background-color: black;
+  background-color: #191919;
   color: #E5E9F0;
   font-size: 14px;
   outline: none;
@@ -314,11 +351,13 @@ const OptionsList = styled.div<{ $horizontal?: boolean }>`
   }
   
   &::-webkit-scrollbar-track {
-    background: #3B4252;
+    background: #191919
+;
   }
   
   &::-webkit-scrollbar-thumb {
-    background: #4C566A;
+    background: #191919
+;
     border-radius: 3px;
   }
 `;

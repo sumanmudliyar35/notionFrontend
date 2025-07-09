@@ -4,13 +4,13 @@ import axiosInstance from "../../connection/axiosInstance";
 
 // Fetch function to get recursive tasks by user ID
 const fetchRecursiveTaskByUser = async ({ queryKey }: QueryFunctionContext) => {
-  const [, userId] = queryKey;
-  const response = await axiosInstance.get(`/recursiveTask/getRecursiveTaskByUser?userId=${userId}`);
+  const [, userId, interval] = queryKey;
+  const response = await axiosInstance.get(`/recursiveTask/getRecursiveTaskByUser?userId=${userId}&interval=${interval}`);
   return response.data;
 };
 
 // Custom hook
-export const useGetRecursiveTaskByUser = (userId: number | string) => {
-  return useQuery(["recursiveTaskByUser", userId], fetchRecursiveTaskByUser);
+export const useGetRecursiveTaskByUser = (userId: number | string, interval: number) => {
+  return useQuery(["recursiveTaskByUser", userId, interval], fetchRecursiveTaskByUser);
 
 };

@@ -21,13 +21,36 @@ import { useUpdateRecursiveTask } from '../../api/put/updateRecursiveTask';
 import { useGetCommentByRecursiveTaskLogId } from '../../api/get/postGetCommentByRecursiveTaskLogs';
 import { formatDisplayDate } from '../../utils/commonFunction';
 import { CalculatorOutlined, EyeInvisibleOutlined, EyeOutlined, UploadOutlined } from '@ant-design/icons';
+import { Tabs } from 'antd';
+import type { TabsProps } from 'antd';
+
 
 import * as styled from './style';
 import { Button, Checkbox, Input } from 'antd';
+import CustomSelect from '../../components/customSelect/CustomSelect';
+import { Header } from 'antd/es/layout/layout';
+import TagSelector from '../../components/customSelectModal/CustomSelectModal';
+import DateInput from '../../components/CustomDateInput/CustomDateInput';
 
 const RecursiveTask = () => {
-  const { userid } = useParams()
-  const { data: recursiveTasks = [], isLoading, refetch: refetchRecursiveTasks } = useGetRecursiveTaskByUser(userid || '');
+  const { userid } = useParams();
+
+
+  
+const intervalOptions = [
+  { label: '1 Day', value: 1 },
+  { label: '3 Days', value: 3 },
+  { label: '7 Days', value: 7 },
+  { label: '15 Days', value: 15 },
+  { label: '30 Days', value: 30 },
+  { label: '3 Months', value: 90 },
+  { label: '6 Months', value: 180 },
+  { label: '1 Year', value: 365 },
+];
+
+  const [activeInterval, setActiveInterval] = useState<number>(1);
+
+  const { data: recursiveTasks = [], isLoading, refetch: refetchRecursiveTasks } = useGetRecursiveTaskByUser(userid || '', activeInterval);
   const [tasks, setTasks] = useState<any[]>([]);
 
       const {data: allMembersData} = useGetAllUsers();
@@ -117,7 +140,7 @@ const toggleCommentsVisibility = (
         title: data.name,
         startDate: data.startDate,
         endDate: data.endDate,
-        intervalDays: data.interval,
+        intervalDays: activeInterval,
         assignedTo: userid,
       }, userid]);
       setOpenRecursiveTaskModal(false);
@@ -228,7 +251,6 @@ const toggleCommentsVisibility = (
     const body = {
       deletedAt: new Date()
     }
-    console.log("commentid", commentId)
     const response = await useDeleteCommentMutate.mutateAsync([body, commentId]);
     const commentResponse = await postGetComment.mutateAsync([rowId]);
     
@@ -271,7 +293,6 @@ const toggleCommentsVisibility = (
   const updateRecursiveTaskLogsMutate = useUpdateRecursiveTaskLog();
 
   const handleCheck = useCallback((checked: boolean, log: any, date: string, taskId: any) => {
-    console.log('Checkbox changed:', checked, log, date, taskId);
     const body = {
       status: checked ? 'completed' : 'pending',
     };
@@ -319,6 +340,7 @@ const toggleCommentsVisibility = (
     {
       header: 'Name',
       accessorKey: 'title',
+      size: 250,
       meta: {
         editable: true,
       },
@@ -346,6 +368,7 @@ const toggleCommentsVisibility = (
     {
       header: "Interval",
       accessorKey: 'intervalDays',
+      size: 80,
       cell: ({ row }: { row: any }) => {
         const interval = row.original.intervalDays;
         return (
@@ -362,6 +385,7 @@ const toggleCommentsVisibility = (
       return {
         header: formatDisplayDate(date),
         accessorKey: date,
+        size:115,
         cell: ({ row }: { row: any }) => {
           const log = (row.original.recursiveTaskLogs || []).find((l: any) => l.date === date);
           if (!log) return null;
@@ -528,13 +552,230 @@ const toggleCommentsVisibility = (
     toggleCommentsVisibility // And this one
   ]);
 
+  const dateOption =[
+  { label: 'Before', value: 'before' },
+          { label: 'After', value: 'after' },
+          { label: 'On Date', value: 'on' },
+          { label: 'In Between', value: 'between' },
+]
+
+    const [filters, setFilters] = useState<Record<string, string | string[]>>({});
+      const [activeFilters, setActiveFilters] = useState<string[]>([]);
+      
+          
+         const availableFilterColumns = [
+ 
+  {header: 'Date', accessorKey: 'taskDate'},
+];
+
+
+const handleFilterChange = (key: string, value: string) => {
+  setFilters((prev) => ({
+    ...prev,
+    [key]: value,
+  }));
+};
+
+  const handleAddFilter = (columnKey: any) => {
+  console.log("Adding filter for column:", columnKey);
+  setActiveFilters((prev) => [...prev, columnKey.value]);
+};
+
+const handleRemoveFilter = (key: string) => {
+
+
+    const relatedKeys = {
+   
+      'createdAt': ['createdAt', 'createdAtType', 'createdAtStart', 'createdAtEnd'],
+
+
+  };
+
+
+    const keysToRemove = relatedKeys[key as keyof typeof relatedKeys] || [key];
+
+  // Remove all related keys from filters
+  setFilters((prev) => {
+    const newFilters = { ...prev };
+    keysToRemove.forEach(k => delete newFilters[k]);
+    return newFilters;
+  });
+
+  setActiveFilters((prev: string[]) => prev.filter((k) => k !== key));
+};
+
+    const filteredTasks = useMemo(() => {
+    return tasks.filter(task => task.intervalDays === activeInterval);
+  }, [tasks, activeInterval]);
+
+
+    // Tabs items
+  const tabItems: TabsProps['items'] = intervalOptions.map(opt => ({
+    key: String(opt.value),
+    label: opt.label,
+  }));
+
   if (isLoading) return <div>Loading...</div>
 
 
   return (
-    <div>
+    <styled.recursiveTaskContainer>
+
+      <Tabs
+          items={tabItems}
+          activeKey={String(activeInterval)}
+          onChange={key => setActiveInterval(Number(key))}
+        />
 
       <styled.FiltersDiv>
+
+       {activeFilters.map((key: any) => {
+  const col = columns.find((c: any) => c.accessorKey === key);
+  if (!col) return null;
+
+  // const meta: { editorType?: string; selectOptions?: Array<{ id: string | number; label: string; value: any }> } = col.meta || {};
+
+  // Special handling for dueDate filter
+  if (key === 'dueDate') {
+    const followupType = filters.followupType;
+    return (
+      <styled.FilterTag key={key} active={!!filters[key]} style={{ background: 'rgb(25, 25, 25)' }}>
+        <span style={{ color: '#bbb', marginRight: 6, fontWeight: 500, minWidth: "fit-content" }}>
+          {col.header?.toString()}:
+        </span>
+        <CustomSelect
+          size="small"
+          style={{ width: 100, marginRight: 8 }}
+          value={dateOption?.find(opt => opt.value === followupType) || null}
+          onChange={val => {
+            setFilters(prev => ({ ...prev, followupType: val.value }));
+          }}
+          options={dateOption}
+        />
+        {followupType === 'between' ? (
+          <>
+            <styled.singleDateDiv>
+              <DateInput
+                value={filters.followupStart || ''}
+                onChange={date =>
+                  setFilters(prev => ({
+                    ...prev,
+                    followupStart: date && dayjs(date).isValid() ? date.format('YYYY-MM-DD') : ''
+                  }))
+                }
+                placeholder="Start date"
+              />
+            </styled.singleDateDiv>
+            <styled.singleDateDiv>
+              <DateInput
+                value={filters.followupEnd || ''}
+                onChange={date =>
+                  setFilters(prev => ({
+                    ...prev,
+                    followupEnd: date && dayjs(date).isValid() ? date.format('YYYY-MM-DD') : ''
+                  }))
+                }
+                placeholder="End date"
+              />
+            </styled.singleDateDiv>
+          </>
+        ) : (
+          <styled.singleDateDiv>
+            <DateInput
+              value={filters[key] || ''}
+              onChange={date =>
+                handleFilterChange(
+                  key,
+                  date && dayjs(date).isValid() ? date.format('YYYY-MM-DD') : ''
+                )
+              }
+              placeholder="Select date"
+            />
+          </styled.singleDateDiv>
+        )}
+        <span
+          onClick={() => {
+            handleRemoveFilter('dueDate');
+            handleRemoveFilter('followupType');
+            handleRemoveFilter('followupStart');
+            handleRemoveFilter('followupEnd');
+          }}
+          style={{
+            cursor: 'pointer',
+            padding: '0 6px',
+            fontSize: 16,
+            color: 'white',
+          }}
+        >
+          ×
+        </span>
+      </styled.FilterTag>
+    );
+  }
+
+  // Default rendering for other filters
+  return (
+    <styled.FilterTag key={key} active={!!filters[key]} style={{ background: 'rgb(25, 25, 25)' }}>
+      <styled.FilterHeader>
+        <span style={{ color: '#bbb', marginRight: 6, fontWeight: 500 }}>
+          {col.header?.toString()}:
+        </span>
+      </styled.FilterHeader>
+      <styled.WhitePlaceholderInput
+        placeholder={col.header?.toString()}
+        size="small"
+        value={filters[key]}
+        onChange={(e: any) => handleFilterChange(key, e.target.value)}
+          style={{
+            width: 150,
+            background: 'rgb(25, 25, 25)',
+            color: 'white',
+            border: 'transparent',
+          }}
+        />
+    
+      <span
+        onClick={() => {
+          if (key === 'followup') {
+            handleRemoveFilter('followup');
+            handleRemoveFilter('followupType');
+          } else if (key === 'followupType') {
+            handleRemoveFilter('followupType');
+            handleRemoveFilter('followup');
+          } else if (key === 'eventData') {
+            handleRemoveFilter('eventData');
+            handleRemoveFilter('eventType');
+          } else if (key === 'eventType') {
+            handleRemoveFilter('eventType');
+            handleRemoveFilter('eventData');
+          } else {
+            handleRemoveFilter(key);
+          }
+        }}
+        style={{
+          cursor: 'pointer',
+          padding: '0 6px',
+          fontSize: 16,
+          color: 'white',
+        }}
+      >
+        ×
+      </span>
+    </styled.FilterTag>
+  );
+})}
+
+        <CustomSelect
+    placeholder="+ Filter"
+    size="small"
+    width="150px"
+    value={null}
+    onChange={handleAddFilter}
+    options={availableFilterColumns.map((col: any) => ({
+      label: col.header,
+      value: col.accessorKey,
+    }))}
+  />
 
          <styled.CommentToggleButton 
               onClick={toggleAllCommentsVisibility}
@@ -542,6 +783,8 @@ const toggleCommentsVisibility = (
             >
               {commentsVisible ? 'Hide Comments' : 'Show Comments'}
             </styled.CommentToggleButton>
+
+             
   
 
 
@@ -549,7 +792,8 @@ const toggleCommentsVisibility = (
       
 
       <CustomTable
-        data={tasks}
+          // data={tasks}
+        data={filteredTasks}
         columns={columns}
         onDataChange={() => {}  }
         isDownloadable={false}
@@ -558,9 +802,10 @@ const toggleCommentsVisibility = (
           return {};
         }}
         onRowEdit={handleRowEdit}
-        
+  scrollToColumn={dayjs().format('YYYY-MM-DD')}
         isWithNewRow={true}
         onSelectionChange={handleDeleteRecursiveTask}
+
       />
 
 {openRecursiveTaskModal && (
@@ -601,7 +846,7 @@ const toggleCommentsVisibility = (
           />
         )}
 
-    </div>
+    </styled.recursiveTaskContainer>
   )
 }
 

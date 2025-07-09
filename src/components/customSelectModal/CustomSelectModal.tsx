@@ -21,7 +21,7 @@ const TagSelector: React.FC<TagSelectorProps> = ({
   options,
   value,
   onChange,
-  placeholder = "Select a tag...",
+  placeholder,
   allowCreate = true,
   horizontalOptions = false, // <-- Default to false
   isWithDot = false, // <-- Default to true
@@ -100,13 +100,13 @@ const TagSelector: React.FC<TagSelectorProps> = ({
       >
         {selectedTag ? (
           <>
-            <ColorDot color={selectedTag.color || getTagColor(selectedTag.label)} />
+            {isWithDot && <ColorDot color={selectedTag.color || getTagColor(selectedTag.label)} />}
             <span>{selectedTag.label}</span>
           </>
         ) : (
           placeholder
         )}
-        <DropdownIcon isOpen={isOpen}>▾</DropdownIcon>
+        {/* <DropdownIcon isOpen={isOpen}>▾</DropdownIcon> */}
       </SelectedTag>
       
       {isOpen && (
@@ -114,7 +114,7 @@ const TagSelector: React.FC<TagSelectorProps> = ({
           <SearchInput 
             ref={inputRef}
             type="text" 
-            placeholder="Search tags..."
+            placeholder="Search"
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
           />
@@ -184,16 +184,18 @@ const SelectedTag = styled.div<{ isPlaceholder: boolean }>`
   gap: 8px;
   padding: 10px 12px;
   border-radius: 8px;
-  background-color: #2E3440;
-  border: 1px solid #3B4252;
+  background-color: #191919
+;
+  // border: 1px solid #3B4252;
   cursor: pointer;
   color: ${props => props.isPlaceholder ? '#6C7A96' : '#E5E9F0'};
   font-size: 14px;
   transition: all 0.2s ease;
   
   &:hover {
-    border-color: #4C566A;
-    background-color: #333B49;
+    border-color: #191919;
+    background-color: #191919
+;
   }
 `;
 
@@ -218,7 +220,7 @@ const DropdownContainer = styled.div<{ $position?: 'top' | 'bottom' }>`
   width: 150%;
   min-width: 220px;
   max-width: 500px;
-  background-color: black;
+  background-color: #191919;
   border-radius: 8px;
   border: 1px solid #3B4252;
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
@@ -247,7 +249,7 @@ const SearchInput = styled.input`
   padding: 10px 12px;
   border: none;
   border-bottom: 1px solid #3B4252;
-  background-color: black;
+  background-color: #191919;
   color: #E5E9F0;
   font-size: 14px;
   outline: none;
@@ -272,18 +274,19 @@ const OptionsList = styled.div<{ $horizontal?: boolean }>`
   }
   
   &::-webkit-scrollbar-track {
-    background: #3B4252;
+    background: #191919
+;
   }
   
   &::-webkit-scrollbar-thumb {
-    background: #4C566A;
+    background: #191919;
     border-radius: 3px;
   }
 `;
 
 const Option = styled.div<{ isSelected: boolean }>`
   display: flex;
-  // align-items: center;
+  align-items: center;
   gap: 4px;
   padding: 5px 6px;
   cursor: pointer;

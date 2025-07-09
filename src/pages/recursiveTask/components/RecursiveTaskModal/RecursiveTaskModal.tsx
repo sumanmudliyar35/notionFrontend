@@ -77,7 +77,7 @@ const RecursiveTaskModal: React.FC<YourModalProps> = ({ open, onClose, title, on
             placeholder="Enter interval in days"
             error={formik.touched.interval && formik.errors.interval ? formik.errors.interval : ''}
           /> */}
-
+{/* 
           <CustomSelect
   label="Interval"
   options={intervalOptions}
@@ -85,7 +85,7 @@ const RecursiveTaskModal: React.FC<YourModalProps> = ({ open, onClose, title, on
   onChange={value => formik.setFieldValue('interval', value.value)}
   placeholder="Select interval"
   width="180px"
-/>
+/> */}
           <DateInput
             label="Start Date"
             value={formik.values.startDate}

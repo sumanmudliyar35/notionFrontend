@@ -3,6 +3,7 @@ import { Button, Input } from 'antd';
 import { PlusOutlined, DeleteOutlined } from '@ant-design/icons';
 import { useMention } from '../../../../hooks/useMention';
 import { createPortal } from 'react-dom';
+import { formatDisplayDate } from '../../../../utils/commonFunction';
 
 interface CommentCellProps {
   comments: any[];
@@ -192,16 +193,20 @@ const CommentCell: React.FC<CommentCellProps> = ({
             ) : (
               <div
                 style={{
-                  cursor: "pointer",
+                  cursor: disabled ? "not-allowed" : "pointer",
                   display: "flex",
                   justifyContent: "space-between",
                   alignItems: "center",
+                  
+
+                  
+
                 }}
                 onClick={() => {
                   setEditingComment({ rowId, commentId: c.id || idx });
                 }}
               >
-                <div>
+                <div >
                   {/* <span style={{ whiteSpace: "pre-line" }}>
                     <strong>{c.comment}</strong>
                   </span> */}
@@ -220,7 +225,7 @@ const CommentCell: React.FC<CommentCellProps> = ({
                   <div style={{ fontSize: 12, color: "#aaa" }}>
                     By: {c.givenBy || "Unknown"} | At:{" "}
                     {c.givenAt
-                      ? new Date(c.givenAt).toLocaleString("en-IN", { timeZone: "Asia/Kolkata" })
+                      ? formatDisplayDate(c.givenAt)
                       : ""}
                   </div>
                 </div>
@@ -242,6 +247,8 @@ const CommentCell: React.FC<CommentCellProps> = ({
                     background: "lightgray",
                     borderColor: "lightgray",
                   }}
+                    disabled={disabled}
+
                 ></Button>
               </div>
             )}

@@ -11,6 +11,7 @@ import type { NotificationArgsProps } from 'antd';
 import Tasks from './pages/tasks/Tasks';
 import RecursiveTask from './pages/recursiveTask/RecursiveTask';
 import Dashboard from './pages/dashboard/Dashboard';
+import './customApp.css'; // Import your CSS file
 
 type NotificationPlacement = NotificationArgsProps['placement'];
 

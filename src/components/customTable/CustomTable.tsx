@@ -44,7 +44,7 @@ columns: ColumnDef<T>[];
   isWithNewRow?: boolean;
 
   data: T[]; // controlled data from parent
-  onDataChange: (newData: T[]) => void; // callback to update parent state
+  onDataChange?: (newData: T[]) => void; // callback to update parent state
   createEmptyRow: () => T;
   onRowCreate?: (newRow: T) => void; // ✅ New prop
     onRowEdit?: (updatedRow: T, rowIndex: number) => void; // ✅ new
@@ -57,6 +57,10 @@ isDownloadable?: boolean; // Optional prop to control download button visibility
 handleColumnVisibilityChange?: (columnId: string, visible: boolean) => void; // Optional prop for column visibility changes
 onSelectionChange?: (selectedIds: any[]) => void;
 onOffsetChange?: (newOffset: number) => void; // New prop for offset change
+  highlightRowId?: any; // Add this line
+    scrollToColumn?: string; // accessorKey or id of the column to scroll to
+
+
 }
 
 export function CustomTable<T extends object>(props: EditableTableProps<T>) {
@@ -83,6 +87,8 @@ export function CustomTable<T extends object>(props: EditableTableProps<T>) {
   const searchInputRef = useRef<HTMLInputElement>(null);
   const newRowRef = useRef<HTMLTableRowElement>(null);
   const addRowTriggeredRef = useRef(false);
+  const rowRefs = useRef<Record<any, HTMLTableRowElement | null>>({});
+  const columnRefs = useRef<Record<string, HTMLTableCellElement | null>>({});
   const timeout = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // ✅ DESTRUCTURE PROPS AFTER HOOKS
@@ -134,6 +140,12 @@ export function CustomTable<T extends object>(props: EditableTableProps<T>) {
   window.addEventListener('keydown', handleKeyDown);
   return () => window.removeEventListener('keydown', handleKeyDown);
 }, []);
+
+useEffect(() => {
+  if (props.highlightRowId && rowRefs.current[props.highlightRowId]) {
+    rowRefs.current[props.highlightRowId]?.scrollIntoView({ behavior: 'smooth', block: 'center'  });
+  }
+}, [props.highlightRowId]);
 
   // Initialize column manager order
   useEffect(() => {
@@ -303,7 +315,7 @@ if (index !== -1) {
     ...updated[index],
     [columnId]: value,
   };
-  onDataChange(updated);
+  onDataChange && onDataChange(updated);
   onRowEdit?.(updated[index], index);
 
 };
@@ -317,7 +329,7 @@ if (index !== -1) {
     if (addRowTriggeredRef.current) return;
     addRowTriggeredRef.current = true;
     const newRow = createEmptyRow();
-    onDataChange([...data, newRow]);
+    onDataChange && onDataChange([...data, newRow]);
     onRowCreate?.(newRow);
     
     setTimeout(() => {
@@ -327,7 +339,6 @@ if (index !== -1) {
       const lastRowIndex = table.getRowModel().rows.length;
       const firstEditableCol = columns.find((col: any) => col.meta?.editable);
       // if (firstEditableCol) {
-      //   console.log('First editable column:', table.getHeaderGroups()[0].headers[0].id
       
       // );
       //   setCurrentlyEditing({
@@ -335,7 +346,6 @@ if (index !== -1) {
       //     columnId: table.getHeaderGroups()[0].headers[0].id as keyof T,
       //   });
       // } else {
-      //   console.log('No editable column found');
       // }
     }, 0);
 
@@ -369,7 +379,7 @@ useEffect(() => {
     if (onRowDelete) {
       onRowDelete(rowIndex);
     }
-    onDataChange(updated);
+     onDataChange && onDataChange(updated);
   }, [data, onRowDelete, onDataChange]);
 
   const handleColumnManagerDragEnd = React.useCallback((event: any) => {
@@ -455,7 +465,6 @@ useEffect(() => {
     </>
   );
 
-  const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 5 } }));
 
   const tableContainerRef = useRef<HTMLDivElement>(null);
 
@@ -570,7 +579,6 @@ const scrollToTableTop = () => {
   // Log each attempt
   possibleScrollContainers.forEach((container, index) => {
     if (container) {
-      console.log(`Attempting to scroll container #${index}`);
       
       // Try both methods
       try {
@@ -602,12 +610,19 @@ const scrollToTableTop = () => {
   }
 };
 
+useEffect(() => {
+  if (props.scrollToColumn && columnRefs.current[props.scrollToColumn]) {
+    columnRefs.current[props.scrollToColumn]?.scrollIntoView({ behavior: 'smooth', inline: 'center', block: 'nearest' });
+  }
+}, [props.scrollToColumn]);
+
 
 
 
 
 
   // ✅ RENDER - All hooks are guaranteed to be called before this point
+
   return (
     <styled.tableMainContainer   ref={tableContainerRef}
 >
@@ -682,6 +697,10 @@ const scrollToTableTop = () => {
                 return (
                   <th
                     key={header.id}
+                     ref={el => {
+    const colId = header.column.id || header.column.accessorKey;
+    if (colId) columnRefs.current[colId] = el;
+  }}
                     style={{
                       border: '1px solid rgb(32,32,32)',
                       borderRight: '2px solid rgb(32,32,32)',
@@ -763,6 +782,10 @@ const scrollToTableTop = () => {
             {table.getRowModel().rows.map((row) => (
               <tr
                 key={row.id}
+                 ref={el => {
+    // @ts-ignore
+    rowRefs.current[row.original.id] = el;
+  }}
                 onMouseEnter={() => setHoveredRow(row.index)}
                 onMouseLeave={() => setHoveredRow(null)}
                 style={{

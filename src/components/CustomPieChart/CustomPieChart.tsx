@@ -35,7 +35,7 @@ const ChartTitle = styled.h3`
   margin-top: 0;
   margin-bottom: 20px;
   text-align: center;
-  font-size: 20px;
+  font-size: 16px;
   font-weight: 600;
   letter-spacing: 0.5px;
 `;
@@ -136,12 +136,12 @@ const CustomPieChart: React.FC<CustomPieChartProps> = ({
       position: legendPosition,
       horizontalAlign: 'center',
       fontWeight: 500,
-      fontSize: '14px',
+      fontSize: '10px',
       labels: {
         colors: '#f0f0f0',
       },
       markers: {
-        size: 8,
+        size: 4,
         strokeWidth: 0,
         offsetX: 0
       },
@@ -246,7 +246,7 @@ const CustomPieChart: React.FC<CustomPieChartProps> = ({
       theme: 'dark',
       fillSeriesColor: false,
       style: {
-        fontSize: '14px',
+        fontSize: '10px',
         fontFamily: 'sans-serif',  // Changed to sans-serif
       },
       y: {

@@ -271,7 +271,6 @@ useEffect(() => {
 }, [eventList]);
 
         useEffect(()=>{
-          console.log("suman");
           setTableData(LeadsData?.data)
 
         },[LeadsData]);
@@ -333,7 +332,6 @@ const openCommentModal = useCallback((data: any) => {
 
   const handleEditComment = async(rowId: any, commentId: any, commentText: string, mentionedMember: any) => {
 
-    console.log("Editing comment:", rowId, commentId, commentText, mentionedMember);
     // setEditingComment({ rowId, commentId });
     const body={
       comment: commentText,
@@ -360,7 +358,6 @@ const handleDeleteComment = async (rowId: any, commentId: any) => {
   const body={
     deletedAt: new Date()
   }
-  console.log("commentid", commentId)
   const reponse = await useDeleteCommentMutate.mutateAsync([body,commentId]);
  const commentsResponse = await usePostGetComment.mutateAsync([rowId]);
       setTableData(prev =>
@@ -390,13 +387,13 @@ const [editingRowValue, setEditingRowValue] = useState<any>({});
 
 
 const handleOpenDateTimeModal = (row: any, date: any, time: any) => {
+  console.log('Opening DateTimeModal for row:', row, 'with date:', date, 'and time:', time);
   setEditingRow(row);
   setEditingRowValue({ date, time });
   setIsTimeDateModalOpen(true)
 };
 
 const handleDescriptionChange = async (value: string, rowId: any, mentionedMembers: any[] ) => {
-  console.log("Description changed for row:", rowId, "New value:", value);
   const body = {
     description: value,
     mentionedMembers: mentionedMembers
@@ -496,7 +493,6 @@ const handleAddEvent = async (eventData: any, rowId: any) => {
 
 
 const handleComment= async(data: any)=>{
-  console.log("Comment data:", data);
 
   const body={
 
@@ -594,7 +590,6 @@ const toggleAllCommentsVisibility = useCallback(() => {
 }, []);
 
 
-console.log("Comments visibility:", commentsVisible);
 
 const columns = useMemo<ColumnDef<Doc>[]>(() => [
   {
@@ -934,12 +929,48 @@ const columns = useMemo<ColumnDef<Doc>[]>(() => [
  },
   { header: 'Status', accessorKey: 'status',
      meta: {
-      editable: true,
-      editorType: 'select',
+      // editable: true,
+      // editorType: 'select',
       selectOptions: [
         {id: 'open', label: 'Open', value: 'open' },
         {id: 'closed', label: 'Closed', value: 'closed' },
       ],
+    },
+
+
+
+    cell: ({ row }) => {
+
+      
+      const statusOptions =  [
+        {id: 'open', label: 'Open', value: 'open' },
+        {id: 'closed', label: 'Closed', value: 'closed' },
+      ];
+      
+    const handleChange = async (value: any) => {
+      const body = {  
+        status: value,
+      };
+
+
+                const response = await updateLeadMutate.mutateAsync([body,row.original.id, userid]);
+      setTableData(prev =>
+        prev.map(item => (item.id === row.original.id ? { ...item, status: value } : item))
+      );
+    };  
+
+       return (
+      <TagSelector
+        options={statusOptions}
+        value={row.original.status || ''}
+        onChange={handleChange}
+        allowCreate={false}
+        horizontalOptions={false}
+        isWithDot={false}
+
+      />
+    );
+      
     },
  },
   {
@@ -991,6 +1022,11 @@ const columns = useMemo<ColumnDef<Doc>[]>(() => [
  ,
     cell: (getValue: any) => {
   const { followup, followupTime } = getValue.row.original;
+
+
+  console.log("Followup value:", getValue.row.original.id);
+
+
   // if (!followup) return  <span style={{ color: '#888' }}>Set follow up</span>;
 
   // Combine date and time as a string in local time
@@ -998,23 +1034,6 @@ const columns = useMemo<ColumnDef<Doc>[]>(() => [
   const d = new Date(dateTimeString);
 
 
-  let displayValue = '';
-  if (isNaN(d.getTime())) {
-    displayValue = followup;
-  } else {
-    // Format as DD/MM/YYYY, hh:mm AM/PM (no timezone conversion)
-    const day = String(d.getDate()).padStart(2, '0');
-    const month = String(d.getMonth() + 1).padStart(2, '0');
-    const year = d.getFullYear();
-
-    let hour = d.getHours();
-    const minute = String(d.getMinutes()).padStart(2, '0');
-    const ampm = hour >= 12 ? 'PM' : 'AM';
-    hour = hour % 12;
-    hour = hour ? hour : 12; // the hour '0' should be '12'
-
-    displayValue = `${day}/${month}/${year}, ${String(hour).padStart(2, '0')}:${minute} ${ampm}`;
-  }
 
   return (
     <span
@@ -1134,23 +1153,101 @@ cell: ({ row }) => {
           },
             { header: 'Converted', accessorKey: 'converted',
                meta: {
-      editable: true,
-      editorType: 'select',
+      // editable: true,
+      // editorType: 'select',
       selectOptions: [
-        { label: 'Yes', value: 'yes' },
-        { label: 'No', value: 'no' },
+        { id: "yes", label: 'Yes', value: 'yes' },
+        { id: "no", label: 'No', value: 'no' },
       ],
-    }
-
+      
              },
+              cell: ({ row }) => {
+    const value = row.original.converted;
+
+
+    const convertedOptions =  [
+        { id: "yes", label: 'Yes', value: 'yes' },
+        { id: "no", label: 'No', value: 'no' },
+      ]
+
+
+
+    const option = referenceOptions.find(opt => String(opt.value) === String(value));
+
+      const [selected, setSelected] = React.useState<string | number | null>(value as string | number | null);
+    
+
+
+
+
+        const handleChange = async(newValue: string | number | null) => {
+          setSelected(newValue);
+          const body ={
+            converted: newValue || null, // Ensure this matches your API
+          }
+                const response = await updateLeadMutate.mutateAsync([body,row.original.id, userid]);
+                setTableData(prev => prev.map(item => item.id === row.original.id ? { ...item, converted: newValue } : item));
+
+         
+        };
+  
+     return (
+      <TagSelector
+        options={convertedOptions}
+        value={row.original.converted}
+        onChange={handleChange}
+        allowCreate={false}
+        horizontalOptions={false}
+        isWithDot={false}
+
+      />
+    );
+  },
+
+            },
              {
   header: 'Leads',
   accessorKey: 'leads',
   meta: {
-    editable: true,
-    editorType: 'select',
+    // editable: true,
+    // editorType: 'select',
     selectOptions:leadsOption,
   },
+    cell: ({ row }) => {
+    const value = row.original.leads;
+
+    const option = leadsOption.find(opt => String(opt.value) === String(value));
+
+      const [selected, setSelected] = React.useState<string | number | null>(value as string | number | null);
+    
+
+
+
+
+        const handleChange = async(newValue: string | number | null) => {
+          setSelected(newValue);
+          const body ={
+            leads: newValue || null, // Ensure this matches your API
+          }
+                const response = await updateLeadMutate.mutateAsync([body,row.original.id, userid]);
+                setTableData(prev => prev.map(item => item.id === row.original.id ? { ...item, leads: newValue } : item));
+
+         
+        };
+  
+     return (
+      <TagSelector
+        options={leadsOption}
+        value={row.original.leads}
+        onChange={handleChange}
+        allowCreate={false}
+        horizontalOptions={false}
+        isWithDot={false}
+
+      />
+    );
+  },
+
   
 },
               {
@@ -1163,10 +1260,17 @@ cell: ({ row }) => {
   },
   cell: ({ row }) => {
     const value = row.original.referenceId;
+
+
+
     const option = referenceOptions.find(opt => String(opt.value) === String(value));
 
       const [selected, setSelected] = React.useState<string | number | null>(value as string | number | null);
     
+
+
+
+
         const handleChange = async(newValue: string | number | null) => {
           setSelected(newValue);
           const body ={
@@ -1175,20 +1279,14 @@ cell: ({ row }) => {
                 const response = await updateLeadMutate.mutateAsync([body,row.original.id, userid]);
                 setTableData(prev => prev.map(item => item.id === row.original.id ? { ...item, referenceId: newValue } : item));
 
-          // Call your update logic here, e.g. API call or table update
-          // Example: updateTaskStatus(row.original.id, newValue);
+         
         };
-    // return option ? (
-    //   <CustomTag name={option.label} />
-    // ) : (
-    //   <span style={{ color: '#aaa' }}>No Reference</span>
-    // )
+  
      return (
       <TagSelector
         options={referenceOptions}
-        value={selected}
+        value={row.original.referenceId}
         onChange={handleChange}
-        placeholder="Select status..."
         allowCreate={false}
         horizontalOptions={false}
         isWithDot={false}
@@ -1201,18 +1299,42 @@ cell: ({ row }) => {
   header: 'Shoot',
   accessorKey: 'shootId',
   meta: {
-    editable: true,
-    editorType: 'select',
+    // editable: true,
+    // editorType: 'select',
     selectOptions: shootOptions,
   },
-  cell: ({ getValue }) => {
-    const value = getValue();
-    const option = shootOptions.find(opt => String(opt.value) === String(value));
-    return option ? (
-      <CustomTag name={option.label} />
-    ) : (
-      <span style={{ color: '#aaa' }}>No Shoot</span>
+  cell: ({ row }) => {
+    // const value = getValue();
+    // const option = shootOptions.find(opt => String(opt.value) === String(value));
+    // return option ? (
+    //   <CustomTag name={option.label} />
+    // ) : (
+    //   <span style={{ color: '#aaa' }}>No Shoot</span>
+    // );
+
+      const handleChange = async(newValue: string | number | null) => {
+          const body ={
+            shootId: newValue || null, // Ensure this matches your API
+          }
+                const response = await updateLeadMutate.mutateAsync([body,row.original.id, userid]);
+                setTableData(prev => prev.map(item => item.id === row.original.id ? { ...item, shootId: newValue } : item));
+
+         
+        };
+  
+     return (
+      <TagSelector
+        options={shootOptions}
+        value={row.original.shootId}
+        onChange={handleChange}
+        allowCreate={false}
+        horizontalOptions={false}
+        isWithDot={false}
+
+      />
     );
+
+
   },
 },
 {
@@ -1296,8 +1418,9 @@ const createEmptyDoc = (): Doc => {
     assignedTo: newRow.assignedTo,
   };
   const response = await newLeadsMutate.mutateAsync([body, userid]);
-  refetchLeadsData();
-}, [userid, newLeadsMutate, refetchLeadsData]);
+  setTableData(prev => [...prev, { ...newRow, id: response.id }]);
+
+}, [userid, newLeadsMutate]);
 
 
 
@@ -1330,7 +1453,6 @@ const createEmptyDoc = (): Doc => {
 
       const response = await updateLeadMutate.mutateAsync([body, updatedRow.id, userid]);
 
-      console.log("Response from updateLeadMutate:", response);
 
 setTableData(prev =>
     prev.map(row =>
@@ -1352,6 +1474,8 @@ setTableData(prev =>
 
 
     const handleFollowupChange = async (date: any,time: any, leadID: any) => {
+
+
       const body = {
         followup: date ,
         followupTime: time,
@@ -1438,6 +1562,9 @@ const savedActiveFiltersValue = useMemo(() => {
 const [filters, setFilters] = useState<Record<string, string | string[]>>(savedFiltersValue);
 const [activeFilters, setActiveFilters] = useState<string[]>(savedActiveFiltersValue);
 
+
+console.log("Active Filters:", activeFilters);
+
     
 
 
@@ -1473,6 +1600,8 @@ const availableFilterColumns = useMemo(() =>
 
 
 const handleFilterChange = useCallback((key: string, value: any) => {
+
+  console.log("Filter changed:", key, value);
   setFilters((prev) => ({
     ...prev,
     [key]: value,
@@ -1480,7 +1609,7 @@ const handleFilterChange = useCallback((key: string, value: any) => {
 }, []);
 
 const handleAddFilter = useCallback((columnKey: any) => {
-  console.log("Adding filter for column:", columnKey);
+  console.log("Adding filter for column:", columnKey, columnKey.value);
   if (columnKey.value === 'referenceId') {
     setFilters(prev => ({ ...prev, referenceId: [] }));
   }
@@ -1614,11 +1743,9 @@ const filteredData = React.useMemo(() => {
   // Check if any active filters have values AND are enabled
   const hasActiveFilters = Object.entries(filters).some(([key, val]) => {
     const isEnabled = enabledFilters[key] !== false; // Default to true if not set
-    console.log("Checking filter", key, "isEnabled:", isEnabled, "value:", val);
     return isEnabled && val !== undefined && val !== null && val !== '';
   });
 
-  console.log("Has active filters:", hasActiveFilters, "Filters:", filters); 
   
 
 
@@ -1729,7 +1856,6 @@ const dateVal = Array.isArray(val) ? new Date(val[0]) : new Date(val);  if (isNa
         return followupDate >= filters.followup;
       }
       if (followupType === 'on' && filters.followup) {
-                console.log("followupDate", followupDate, "filters.followup", filters.followup, followupDate=== filters.followup);
 
         return followupDate === filters.followup;
       }
@@ -1764,7 +1890,6 @@ const dateVal = Array.isArray(val) ? new Date(val[0]) : new Date(val);  if (isNa
   }
   
   if (filters.createdAtType === 'on' && filters.createdAt) {
-    console.log("createdAtDate", createdAtDate, "filters.createdAt", filters.createdAt, createdAtDate === filters.createdAt);
     return createdAtDate === filters.createdAt;
   }
   
@@ -1785,7 +1910,6 @@ const dateVal = Array.isArray(val) ? new Date(val[0]) : new Date(val);  if (isNa
     }
     if (key === 'mentions') {
 
-      console.log("Row mentions", row, "val", val);
       return Array.isArray(row.mentions)
   ? row.mentions.some((m: any) =>
       m.userId && String(m.userId).includes(String(val))
@@ -1821,17 +1945,10 @@ if(key === 'leads') {
   });
 });
 
-if (editingRow || editingComment || editingEvent) {
-    // Use setTimeout to avoid state updates during render
-    setTimeout(() => {
-      if (editingRow) setEditingRow(null);
-      if (editingComment) setEditingComment(null);
-      if (editingEvent) setEditingEvent(null);
-    }, 0);
-  }
+
 
 return result;
-}, [tableData, filters, filtersEnabled, enabledFilters]);
+}, [tableData, filters, filtersEnabled, enabledFilters, handleRowCreate, handleRowEdit]);
 
 
   const updateTablePreferences = useUpdateUsersTablePreference();
@@ -1899,7 +2016,6 @@ const response = updateTablePreferences.mutateAsync([body, columnId,"lead", user
 
 
 const handleColumnVisibilityChange = async(columnKey: string, isVisible: boolean) => {
-  console.log("Column visibility change:", columnKey, isVisible);
   const body = {
     isVisible: isVisible,
   };
@@ -1925,8 +2041,6 @@ useEffect(() => {
 useEffect(() => {
   localStorage.setItem('leadsEnabledFilters', JSON.stringify(enabledFilters));
 }, [enabledFilters]);
-
-console.log("Enabled filters:", enabledFilters);
 
 
 
@@ -2077,7 +2191,6 @@ onChange={val => {
       )}
       <span
        onClick={() => {
-  console.log("Removing filter for key:", key);
   if (key === 'followup') {
     handleRemoveFilter('followup');
     handleRemoveFilter('followupType');
@@ -2201,7 +2314,6 @@ onChange={val => {
           )}
           <span
 onClick={() => {
-  console.log("Removing filter for key:", key);
   if (key === 'followup') {
     handleRemoveFilter('followup');
     handleRemoveFilter('followupType');
@@ -2354,7 +2466,7 @@ onClick={() => {
 />
 ) 
 
-     : meta?.editorType === 'select' ? (
+     : meta?.editorType === 'select' || key === 'status' || key === 'converted' ? (
       // <CustomSelect
       //   placeholder={col.header?.toString()}
       //   isMulti={false}
@@ -2454,7 +2566,7 @@ onClick={() => {
         
         <CustomTable
          data={filteredData || []}
-          onDataChange={setTableData}
+          // onDataChange={setTableData}
           // columns={columns}
           columns={columnsWithWidth}
 
