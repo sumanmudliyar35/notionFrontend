@@ -42,12 +42,12 @@ const CommentCell: React.FC<CommentCellProps> = ({
   if (!visible) {
         return (
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-            <span style={{ color: '#aaa' }}>{comments.length > 0 ? `${comments.length} comments hidden` : '0 comments hidden'}</span>
-            <Button 
+            {/* <span style={{ color: '#aaa' }}>{comments.length > 0 ? `${comments.length} comments ` : '0 comments '}</span> */}
+            {/* <Button 
               size="small" 
               icon={<PlusOutlined />} 
               onClick={() => openCommentModal({ id: rowId })}
-            />
+            /> */}
           </div>
         );
       }
@@ -256,7 +256,7 @@ const CommentCell: React.FC<CommentCellProps> = ({
         );
       })}
       <div>
-  {isCommentText ? (
+  {/* {isCommentText ? (
                 <span
           style={{
             color: "#4fa3ff",
@@ -275,7 +275,10 @@ const CommentCell: React.FC<CommentCellProps> = ({
       
               ): (
               <Button size="small" icon={<PlusOutlined />} onClick={() => openCommentModal({ id: rowId })} />
-              )}      </div>
+              )}      */}
+              
+              
+               </div>
     </div>
   );
 };

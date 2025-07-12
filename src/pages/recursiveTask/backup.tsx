@@ -1,69 +1,54 @@
-import React, { useEffect, useMemo, useState, useCallback, useRef } from 'react'
+import React, { useEffect, useMemo, useState, useCallback } from 'react'
+import { useGetRecursiveTaskByUser } from '../../api/get/getRecursiveTaskByUser'
 import { useParams } from 'react-router-dom'
+import { CustomTable } from '../../components/customTable/CustomTable'
 import dayjs from 'dayjs';
-import isSameOrAfter from 'dayjs/plugin/isSameOrAfter';
-import isSameOrBefore from 'dayjs/plugin/isSameOrBefore';
-
-dayjs.extend(isSameOrAfter);
-dayjs.extend(isSameOrBefore);
-
-import { CalculatorOutlined, CommentOutlined, EyeInvisibleOutlined, EyeOutlined, UploadOutlined } from '@ant-design/icons';
-import { Badge, Tabs } from 'antd';
+import RecursiveTaskModal from './components/RecursiveTaskModal/RecursiveTaskModal';
+import { useCreateRecursiveTask } from '../../api/post/newRecursiveTask';
+import { useUpdateRecursiveTaskLog } from '../../api/put/updateRecursiveTaskLogs';
+import { useUpdateBulkRecursiveTask } from '../../api/put/updateBulkRecursiveTask';
+import { useCreateAttachment } from '../../api/post/newAttachment';
+import SharedCommentModal from '../../components/SharedCommentModal/SharedCommentModal';
+import { useGetAllUsers } from '../../api/get/getAllMember';
+import { useCreateComment } from '../../api/post/newComment';
+import CommentCell from './components/CommentCell/CommentCell';
+import { useUpdateComment } from '../../api/put/updateComment';
+import { useDeleteComment } from '../../api/delete/deleteComment';
+import ChangeDateModal from './components/ChangeDateModal/ChangeDateModal';
+import { useUpdateRecursiveTaskDate } from '../../api/put/updateRecursiveTaskDate';
+import { usePostGetRecursiveTaskById } from '../../api/get/postGetRecursiveTaskById';
+import { useUpdateRecursiveTask } from '../../api/put/updateRecursiveTask';
+import { useGetCommentByRecursiveTaskLogId } from '../../api/get/postGetCommentByRecursiveTaskLogs';
+import { formatDisplayDate } from '../../utils/commonFunction';
+import { CalculatorOutlined, EyeInvisibleOutlined, EyeOutlined, UploadOutlined } from '@ant-design/icons';
+import { Tabs } from 'antd';
 import type { TabsProps } from 'antd';
 
 
-import { Button, Checkbox, Input } from 'antd';
-import { Header } from 'antd/es/layout/layout';
-
 import * as styled from './style';
-import { useGetRecursiveTaskByUser } from '../../api/get/getRecursiveTaskByUser';
-import { useGetAllUsers } from '../../api/get/getAllMember';
-import { useCreateRecursiveTask } from '../../api/post/newRecursiveTask';
-import { useUpdateRecursiveTaskDate } from '../../api/put/updateRecursiveTaskDate';
-import { usePostGetRecursiveTaskById } from '../../api/get/postGetRecursiveTaskById';
-import { useUpdateComment } from '../../api/put/updateComment';
-import { useDeleteComment } from '../../api/delete/deleteComment';
-import { useUpdateBulkRecursiveTask } from '../../api/put/updateBulkRecursiveTask';
-import { useUpdateRecursiveTaskLog } from '../../api/put/updateRecursiveTaskLogs';
-import { useUpdateRecursiveTask } from '../../api/put/updateRecursiveTask';
-import { useCreateAttachment } from '../../api/post/newAttachment';
-import { DateWithThreeMonthletters, formatDisplayDate } from '../../utils/commonFunction';
-import CommentCell from './components/CommentCell/CommentCell';
-import { CustomTable } from '../../components/customTable/CustomTable';
-import RecursiveTaskModal from './components/RecursiveTaskModal/RecursiveTaskModal';
-import SharedCommentModal from '../../components/SharedCommentModal/SharedCommentModal';
-import ChangeDateModal from './components/ChangeDateModal/ChangeDateModal';
-import { useGetCommentByRecursiveTaskLogId } from '../../api/get/postGetCommentByRecursiveTaskLogs';
-import { useCreateComment } from '../../api/post/newComment';
-import DateInput from '../../components/CustomDateInput/CustomDateInput';
+import { Button, Checkbox, Input } from 'antd';
 import CustomSelect from '../../components/customSelect/CustomSelect';
+import { Header } from 'antd/es/layout/layout';
+import TagSelector from '../../components/customSelectModal/CustomSelectModal';
+import DateInput from '../../components/CustomDateInput/CustomDateInput';
 
-
-
-interface RecursiveTask {
-    intervalDays?: number;
-    customFilters?: Record<string, string | string[]>;
-    customActiveFilters?: string[];
-    isCommentVisible?: boolean;
-    customSearchText?: string;
-    tableIndex?: number; // Optional index prop for the table
-
-}
-
-const RecursiveTaskTable = ({intervalDays, customFilters, customActiveFilters, isCommentVisible, customSearchText, tableIndex}: RecursiveTask) => {
+const RecursiveTask = () => {
   const { userid } = useParams();
-    const loggedInUserId = Number(localStorage.getItem('userid'));
-
-    console.log("Logged in user ID:", customActiveFilters, customFilters);
 
 
+  
+const intervalOptions = [
+  { label: '1 Day', value: 1 },
+  { label: '3 Days', value: 3 },
+  { label: '7 Days', value: 7 },
+  { label: '15 Days', value: 15 },
+  { label: '30 Days', value: 30 },
+  { label: '3 Months', value: 90 },
+  { label: '6 Months', value: 180 },
+  { label: '1 Year', value: 365 },
+];
 
-
-
-
-    const [columnSizing, setColumnSizing] = useState<{ [key: string]: number }>({});
-
-  const [activeInterval, setActiveInterval] = useState<number>(intervalDays || 0);
+  const [activeInterval, setActiveInterval] = useState<number>(1);
 
   const { data: recursiveTasks = [], isLoading, refetch: refetchRecursiveTasks } = useGetRecursiveTaskByUser(userid || '', activeInterval);
   const [tasks, setTasks] = useState<any[]>([]);
@@ -77,14 +62,7 @@ const RecursiveTaskTable = ({intervalDays, customFilters, customActiveFilters, i
   const [selectedRecursiveTaskLogDate, setSelectedRecursiveTaskLogDate] = useState<any>(null);
   const [isCommentModalOpen, setIsCommentModalOpen] = useState(false);
 
-  const [commentsVisible, setCommentsVisible] = useState<boolean>(isCommentVisible || true);
-
-  useEffect(() => {
-    isCommentVisible? setCommentsVisible(isCommentVisible): setCommentsVisible(false);
-  }, [isCommentVisible]);
-
-
-
+  const [commentsVisible, setCommentsVisible] = useState<boolean>(true);
   
           const toggleAllCommentsVisibility = useCallback(() => {
             setCommentsVisible(prev => !prev);
@@ -142,6 +120,7 @@ const toggleCommentsVisibility = (
 
 
    const openCommentModal = (recursiveTaskLog: any) => {
+    console.log("Opening comment modal for task ID:", recursiveTaskLog.id);
           setSelectedTaskId(recursiveTaskLog.id)
           setIsCommentModalOpen(true);
   };
@@ -161,7 +140,7 @@ const toggleCommentsVisibility = (
         title: data.name,
         startDate: data.startDate,
         endDate: data.endDate,
-        intervalDays: data.interval,
+        intervalDays: activeInterval,
         assignedTo: userid,
       }, userid]);
       setOpenRecursiveTaskModal(false);
@@ -209,7 +188,7 @@ const toggleCommentsVisibility = (
       comment: data.comment,
       mentionedMembers: data.mentionedMembers || [],
       recursiveTaskLogId: selectedTaskId,
-      givenBy: loggedInUserId,
+      givenBy: userid,
     }
 
     const response = await commentMutate.mutateAsync([body, userid]);
@@ -362,10 +341,8 @@ const toggleCommentsVisibility = (
       header: 'Name',
       accessorKey: 'title',
       size: 250,
-      enableSorting: false,
       meta: {
         editable: true,
-        
       },
       cell: ({ row }: { row: any }) => (
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
@@ -391,9 +368,7 @@ const toggleCommentsVisibility = (
     {
       header: "Interval",
       accessorKey: 'intervalDays',
-      size: 60,
-            enableSorting: false,
-
+      size: 80,
       cell: ({ row }: { row: any }) => {
         const interval = row.original.intervalDays;
         return (
@@ -406,14 +381,11 @@ const toggleCommentsVisibility = (
     ...allDates.map(date => {
       // Check if the date is in the past
       const isPastDate = dayjs(date).isBefore(dayjs().startOf('day'));
-      console.log("Date:", DateWithThreeMonthletters(date), "is past:", isPastDate);
       
       return {
-        header: DateWithThreeMonthletters(date),
+        header: formatDisplayDate(date),
         accessorKey: date,
         size:115,
-              enableSorting: false,
-
         cell: ({ row }: { row: any }) => {
           const log = (row.original.recursiveTaskLogs || []).find((l: any) => l.date === date);
           if (!log) return null;
@@ -509,9 +481,6 @@ const toggleCommentsVisibility = (
                 >
                   
                 </Button>
-
-                <Badge count={attachments.length} size="small" color="#1677ff">
-
                 
                 <Button
                   onClick={triggerFileUpload}
@@ -527,27 +496,6 @@ const toggleCommentsVisibility = (
                   icon={<UploadOutlined />}
                 >
                   </Button>
-
-                  </Badge>
-
-
-<Badge count={comments.length} size="small" color="#1677ff">
-
-                      <Button
-                  onClick={()=>openCommentModal(log)}
-                  disabled={isPastDate}
-                  style={{ 
-                    background: 'white', 
-                    border: 'none', 
-                    cursor: isPastDate ? 'not-allowed' : 'pointer',
-                    opacity: isPastDate ? 0.5 : 1,
-                    height: 24,
-                    width: 24,
-                  }}
-  icon={<CommentOutlined />}
-                >
-                  </Button>
-                  </Badge>
 
               </div>
               
@@ -569,10 +517,7 @@ const toggleCommentsVisibility = (
             
               
               {/* Attachments section */}
-              {commentsVisible && ( 
-
-            
-              attachments && attachments.length > 0 && (
+              {attachments && attachments.length > 0 && (
                 <div style={{ marginTop: 4, fontSize: '0.8em' }}>
                   {attachments.map((attachment: any, idx: number) => (
                     <div key={idx} style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
@@ -587,11 +532,7 @@ const toggleCommentsVisibility = (
                     </div>
                   ))}
                 </div>
-              )
-
-
-                )}
-              
+              )}
             </div>
           );
         },
@@ -608,8 +549,7 @@ const toggleCommentsVisibility = (
     userid, 
     refetchRecursiveTasks,
     hiddenCommentRows, // Add this dependency
-    toggleCommentsVisibility, // And this one
-    activeInterval
+    toggleCommentsVisibility // And this one
   ]);
 
   const dateOption =[
@@ -619,16 +559,10 @@ const toggleCommentsVisibility = (
           { label: 'In Between', value: 'between' },
 ]
 
-
-
-   const [filters, setFilters] = useState<Record<string, string | string[]>>({});
-        const [activeFilters, setActiveFilters] = useState<string[]>([]);
-
-//       useEffect(() => {
-//   if (customFilters) setFilters(customFilters);
-//   if (customActiveFilters) setActiveFilters(customActiveFilters);
-// }, [customFilters, customActiveFilters]);
-
+    const [filters, setFilters] = useState<Record<string, string | string[]>>({});
+      const [activeFilters, setActiveFilters] = useState<string[]>([]);
+      
+          
          const availableFilterColumns = [
  
   {header: 'Date', accessorKey: 'taskDate'},
@@ -647,36 +581,18 @@ const handleFilterChange = (key: string, value: string) => {
   setActiveFilters((prev) => [...prev, columnKey.value]);
 };
 
-
- const handleColumnResize = (columnId: string, newSize: number) => {
-    const body={
-      width: newSize,
-
-    }
-    setColumnSizing((prev) => ({
-      ...prev,
-      [columnId]: newSize,
-    }));
-
-  };
-
 const handleRemoveFilter = (key: string) => {
-
 
 
     const relatedKeys = {
    
       'createdAt': ['createdAt', 'createdAtType', 'createdAtStart', 'createdAtEnd'],
-      'taskDate': ['taskDate', 'dateType', 'taskStartDate', 'taskEndDate'],
-      'taskStartDate': ['taskStartDate', 'dateType', 'taskDate', 'taskEndDate'],
-      'taskEndDate': ['taskEndDate', 'dateType', 'taskDate', 'taskStartDate'],
-      'assignedTo': ['assignedTo'],
+
 
   };
 
 
     const keysToRemove = relatedKeys[key as keyof typeof relatedKeys] || [key];
-
 
   // Remove all related keys from filters
   setFilters((prev) => {
@@ -688,145 +604,63 @@ const handleRemoveFilter = (key: string) => {
   setActiveFilters((prev: string[]) => prev.filter((k) => k !== key));
 };
 
-  //   const filteredTasks = useMemo(() => {
-  //     return tasks
-  // }, [tasks]);
-
-  const filteredTasks = useMemo(() => {
-  if (!tasks || tasks.length === 0) return [];
-
-  // Sort tasks by intervalDays (optional, if not already sorted)
-  const sortedTasks = [...tasks].sort((a, b) => a.intervalDays - b.intervalDays);
-
-  let lastInterval: number | null = null;
-  const result: any[] = [];
-
-  for (const task of sortedTasks) {
-    if (task.intervalDays !== lastInterval) {
-      // Insert a divider row
-      result.push({ __divider: true,  title: `${task.intervalDays} days` });
-      lastInterval = task.intervalDays;
-
-    }
-    result.push(task);
-  }
-
-  return result;
-}, [tasks]);
-
-
-
-  const filteredColumns = useMemo(() => {
-  // If no date filter, return all columns
-
-
-  if (!filters.dateType || !filters.taskDate) return columns;
-
-
-  // Find all date columns (skip the first two: 'Name' and 'Interval')
-  const dateColumns = columns.slice(2);
-
-  // Parse filter values
-  const filterDate = dayjs(Array.isArray(filters.taskDate) ? filters.taskDate[0] : filters.taskDate);
-  const startDate = filters.taskStartDate
-    ? dayjs(Array.isArray(filters.taskStartDate) ? filters.taskStartDate[0] : filters.taskStartDate)
-    : null;
-  const endDate = filters.taskEndDate
-    ? dayjs(Array.isArray(filters.taskEndDate) ? filters.taskEndDate[0] : filters.taskEndDate)
-    : null;
-
-  let filteredDateColumns = dateColumns;
-
-  if (filters.dateType === 'after') {
-    filteredDateColumns = dateColumns.filter(col =>
-      dayjs(col.accessorKey).isSameOrAfter(filterDate, 'day')
-    );
-  } else if (filters.dateType === 'before') {
-    filteredDateColumns = dateColumns.filter(col =>
-      dayjs(col.accessorKey).isSameOrBefore(filterDate, 'day')
-    );
-  } else if (filters.dateType === 'on') {
-    filteredDateColumns = dateColumns.filter(col =>
-      dayjs(col.accessorKey).isSame(filterDate, 'day')
-    );
-  } else if (filters.dateType === 'between' && startDate && endDate) {
-    filteredDateColumns = dateColumns.filter(col =>
-      dayjs(col.accessorKey).isSameOrAfter(startDate, 'day') &&
-      dayjs(col.accessorKey).isSameOrBefore(endDate, 'day')
-    );
-  }
-
-  // Always include the first two columns ('Name' and 'Interval')
-  return [...columns.slice(0, 2), ...filteredDateColumns];
-}, [columns, filters,customFilters, customActiveFilters]);
-
-
-
-const columnsWithSizing = filteredColumns.map(col =>{ 
-  
-  return ( {
-  ...col,
-  width: columnSizing?.[col.accessorKey] || 120, // fallback to default
-})});
-
-
-
-console.log("Filtered columns:", columnsWithSizing.slice(0, 3));
-console.log("Filtered tasks:", columnSizing?.['title']);
-
-
-
-
+    const filteredTasks = useMemo(() => {
+    return tasks.filter(task => task.intervalDays === activeInterval);
+  }, [tasks, activeInterval]);
 
 
     // Tabs items
-//   const tabItems: TabsProps['items'] = intervalOptions.map(opt => ({
-//     key: String(opt.value),
-//     label: opt.label,
-//   }));
+  const tabItems: TabsProps['items'] = intervalOptions.map(opt => ({
+    key: String(opt.value),
+    label: opt.label,
+  }));
 
   if (isLoading) return <div>Loading...</div>
-
-
-
-
-  
-
 
 
   return (
     <styled.recursiveTaskContainer>
 
+      <Tabs
+          items={tabItems}
+          activeKey={String(activeInterval)}
+          onChange={key => setActiveInterval(Number(key))}
+        />
 
       <styled.FiltersDiv>
 
-{activeFilters.map((key: any) => {
- 
-  if (key === 'taskDate') {
-    const dateType = filters.dateType;
+       {activeFilters.map((key: any) => {
+  const col = columns.find((c: any) => c.accessorKey === key);
+  if (!col) return null;
+
+  // const meta: { editorType?: string; selectOptions?: Array<{ id: string | number; label: string; value: any }> } = col.meta || {};
+
+  // Special handling for dueDate filter
+  if (key === 'dueDate') {
+    const followupType = filters.followupType;
     return (
       <styled.FilterTag key={key} active={!!filters[key]} style={{ background: 'rgb(25, 25, 25)' }}>
         <span style={{ color: '#bbb', marginRight: 6, fontWeight: 500, minWidth: "fit-content" }}>
-Date       
- </span>
+          {col.header?.toString()}:
+        </span>
         <CustomSelect
           size="small"
           style={{ width: 100, marginRight: 8 }}
-          value={dateOption?.find(opt => opt.value === dateType) || null}
+          value={dateOption?.find(opt => opt.value === followupType) || null}
           onChange={val => {
-            setFilters(prev => ({ ...prev, dateType: val.value }));
+            setFilters(prev => ({ ...prev, followupType: val.value }));
           }}
           options={dateOption}
         />
-        {dateType === 'between' ? (
+        {followupType === 'between' ? (
           <>
             <styled.singleDateDiv>
               <DateInput
-                value={filters.taskStartDate || ''}
+                value={filters.followupStart || ''}
                 onChange={date =>
                   setFilters(prev => ({
                     ...prev,
-                    taskStartDate: date && dayjs(date).isValid() ? date.format('YYYY-MM-DD') : ''
+                    followupStart: date && dayjs(date).isValid() ? date.format('YYYY-MM-DD') : ''
                   }))
                 }
                 placeholder="Start date"
@@ -834,11 +668,11 @@ Date
             </styled.singleDateDiv>
             <styled.singleDateDiv>
               <DateInput
-                value={filters.taskEndDate || ''}
+                value={filters.followupEnd || ''}
                 onChange={date =>
                   setFilters(prev => ({
                     ...prev,
-                    taskEndDate: date && dayjs(date).isValid() ? date.format('YYYY-MM-DD') : ''
+                    followupEnd: date && dayjs(date).isValid() ? date.format('YYYY-MM-DD') : ''
                   }))
                 }
                 placeholder="End date"
@@ -849,22 +683,22 @@ Date
           <styled.singleDateDiv>
             <DateInput
               value={filters[key] || ''}
-             onChange={date =>
-                             handleFilterChange(
-                               key,
-                               date && dayjs(date).isValid() ? date.format('YYYY-MM-DD') : ''
-                             )
-                           }
+              onChange={date =>
+                handleFilterChange(
+                  key,
+                  date && dayjs(date).isValid() ? date.format('YYYY-MM-DD') : ''
+                )
+              }
               placeholder="Select date"
             />
           </styled.singleDateDiv>
         )}
         <span
           onClick={() => {
-            handleRemoveFilter('dateType');
-            handleRemoveFilter('taskDate');
-            handleRemoveFilter('taskStartDate');
-            handleRemoveFilter('taskEndDate');
+            handleRemoveFilter('dueDate');
+            handleRemoveFilter('followupType');
+            handleRemoveFilter('followupStart');
+            handleRemoveFilter('followupEnd');
           }}
           style={{
             cursor: 'pointer',
@@ -877,24 +711,18 @@ Date
         </span>
       </styled.FilterTag>
     );
-  };
-
-
-
-
-  
-
-
+  }
 
   // Default rendering for other filters
   return (
     <styled.FilterTag key={key} active={!!filters[key]} style={{ background: 'rgb(25, 25, 25)' }}>
       <styled.FilterHeader>
         <span style={{ color: '#bbb', marginRight: 6, fontWeight: 500 }}>
-          Date
+          {col.header?.toString()}:
         </span>
       </styled.FilterHeader>
       <styled.WhitePlaceholderInput
+        placeholder={col.header?.toString()}
         size="small"
         value={filters[key]}
         onChange={(e: any) => handleFilterChange(key, e.target.value)}
@@ -908,9 +736,21 @@ Date
     
       <span
         onClick={() => {
-          
+          if (key === 'followup') {
+            handleRemoveFilter('followup');
+            handleRemoveFilter('followupType');
+          } else if (key === 'followupType') {
+            handleRemoveFilter('followupType');
+            handleRemoveFilter('followup');
+          } else if (key === 'eventData') {
+            handleRemoveFilter('eventData');
+            handleRemoveFilter('eventType');
+          } else if (key === 'eventType') {
+            handleRemoveFilter('eventType');
+            handleRemoveFilter('eventData');
+          } else {
             handleRemoveFilter(key);
-          
+          }
         }}
         style={{
           cursor: 'pointer',
@@ -921,16 +761,11 @@ Date
       >
         ×
       </span>
-
-     
-
-      
     </styled.FilterTag>
   );
 })}
 
-
-   <CustomSelect
+        <CustomSelect
     placeholder="+ Filter"
     size="small"
     width="150px"
@@ -940,20 +775,16 @@ Date
       label: col.header,
       value: col.accessorKey,
     }))}
-
-
   />
 
+         <styled.CommentToggleButton 
+              onClick={toggleAllCommentsVisibility}
+              type="button"
+            >
+              {commentsVisible ? 'Hide Comments' : 'Show Comments'}
+            </styled.CommentToggleButton>
 
-    <styled.CommentToggleButton 
-                      onClick={toggleAllCommentsVisibility}
-                      type="button"
-                    >
-                      {commentsVisible ? 'Hide Comments' : 'Show Comments'}
-                    </styled.CommentToggleButton>
-  
-  
-      
+             
   
 
 
@@ -963,33 +794,17 @@ Date
       <CustomTable
           // data={tasks}
         data={filteredTasks}
-        // columns={filteredColumns}
-                columns={columnsWithSizing}
-
-        
+        columns={columns}
         onDataChange={() => {}  }
         isDownloadable={false}
         createEmptyRow={() => {
           setOpenRecursiveTaskModal(true);
           return {};
         }}
-          onColumnSizingChange={(newSizing, columnId) => {
-    setColumnSizing(newSizing);
-    // You can also call any callback here with columnId and newSizing[columnId]
-    handleColumnResize(columnId, newSizing[columnId]);
-    
-  }}
-  columnSizing={columnSizing}
         onRowEdit={handleRowEdit}
-        scrollToColumn={dayjs().format('YYYY-MM-DD')}
-        
+  scrollToColumn={dayjs().format('YYYY-MM-DD')}
         isWithNewRow={true}
         onSelectionChange={handleDeleteRecursiveTask}
-        isManageColumn={false}
-        customSearchText={customSearchText || ''}
-        isVerticalScrolling={false}
-        tableIndex={tableIndex || 0}
-        // highlightRowId={0}
 
       />
 
@@ -1037,5 +852,5 @@ Date
 
 
 
-export default RecursiveTaskTable
+export default RecursiveTask
 

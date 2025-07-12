@@ -10,3 +10,25 @@
 .ant-tabs-ink-bar {
   background: #40a9ff !important; /* Optional: active tab underline */
 }
+
+.ant-collapse-item,
+.ant-collapse-content,
+.ant-collapse {
+  border-color: transparent !important;
+}
+
+
+
+.ant-collapse-content > .ant-collapse-content-box {
+  padding: 10 !important;
+  background-color: #191919
+;
+}
+
+.ant-collapse-content {
+  border-color: #23272f !important; /* Set your desired border color */
+}
+
+.ant-collapse-item {
+  border-color: #23272f !important; /* Optional: for the panel border */
+}

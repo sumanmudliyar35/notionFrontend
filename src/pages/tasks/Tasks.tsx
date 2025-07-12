@@ -5,8 +5,8 @@ import { useGetLeadsByUser } from "../../api/get/getLeadsByUser";
 import { useCreateLead } from "../../api/post/newLead";
 import { useUpdateLead } from "../../api/put/updateLead";
 import * as styled from './style'
-import { Button, DatePicker, Input, message, Select } from "antd";
-import { DeleteOutlined, PlusOutlined } from "@ant-design/icons";
+import { Badge, Button, DatePicker, Input, message, Select } from "antd";
+import { DeleteOutlined, PlusOutlined, UploadOutlined } from "@ant-design/icons";
 import { useGetAllUsers } from "../../api/get/getAllMember";
 import CustomTag from "../../components/customTag/CustomTag";
 import { useGetAllReferences } from "../../api/get/getAllReference";
@@ -47,7 +47,7 @@ import { useUpdateTask } from "../../api/put/updateTask";
 import SharedCommentModal from "../../components/SharedCommentModal/SharedCommentModal";
 import { useCreateComment } from "../../api/post/newComment";
 import { useCreateTaskVoiceRecord } from "../../api/post/newTaskVoiceRecord";
-import { useParams } from 'react-router-dom';
+import { useLocation, useParams } from 'react-router-dom';
 import { useGetTaskTablePreference } from "../../api/get/getTaskTablesPreference";
 import { useUpdateBulkTask } from "../../api/put/updateBulkTask";
 import { usePostGetByTask } from "../../api/get/postGetCommentByTask";
@@ -56,6 +56,8 @@ import { formatDisplayDate } from "../../utils/commonFunction";
 import TagSelector from "../../components/customSelectModal/CustomSelectModal";
 import TagMultiSelector from "../../components/CustomMultiSelectModal/CustomMultiSelectModal";
 import CustomSwitch from "../../components/customSwitch/CustomSwitch";
+import { usepostGetTaskAttachmentByTask } from "../../api/get/postGetTaskAttachmentByTask";
+import { useCreateMultipleAttachments } from "../../api/post/newMultipleAttachments";
 
 
 
@@ -115,6 +117,19 @@ const { userid } = useParams(); // If your route is defined as /user/:userId/rec
 const [offset, setOffset] = useState(0);
 
         const [tableData, setTableData] = useState<any[]>([]);
+
+         const location = useLocation();
+        
+             const [highlightRowId, setHighlightRowId] = useState<number | null>(null);
+        
+          useEffect(() => {
+            if (location.state && location.state.highlightRowId) {
+              setHighlightRowId(location.state.highlightRowId);
+              setTimeout(() => {
+                setHighlightRowId(null); // Clear highlight after 5 seconds
+              },3000);
+            }
+          }, [location.state]);
 
     const {data: TaskData, refetch: refetchTasksData} = useGetTasksByUser(Number(userid), offset);
 
@@ -217,7 +232,7 @@ const [offset, setOffset] = useState(0);
 
         const [selectedMentionLeadId, setSelectedMentionLeadId] = useState<number>();
 
-const [commentsVisible, setCommentsVisible] = useState<boolean>(true);
+const [commentsVisible, setCommentsVisible] = useState<boolean>(false);
 
         const toggleAllCommentsVisibility = useCallback(() => {
           setCommentsVisible(prev => !prev);
@@ -246,6 +261,8 @@ const [commentsVisible, setCommentsVisible] = useState<boolean>(true);
 
 
                 const createAttachmentMutation = useCreateAttachment();
+
+                const createMultipleAttachmentsMutation = useCreateMultipleAttachments();
         
        
 
@@ -279,9 +296,8 @@ const [commentsVisible, setCommentsVisible] = useState<boolean>(true);
       comment: commentText,
       mentionedMember: mentionedMember,
     }
-    const response = await useUpdateCommentMutate.mutateAsync([body, commentId, userid]);
+    const response = await useUpdateCommentMutate.mutateAsync([body, commentId, loggedInUserId]);
 
-    // refetchTasksData();
     setEditingComment(null);
     const commentsResponse = await postGetComment.mutateAsync([rowId]);
     setTableData(prev =>
@@ -300,9 +316,7 @@ const handleDeleteComment = async (rowId: any, commentId: any) => {
   const body={
     deletedAt: new Date()
   }
-  console.log("commentid", commentId)
   const reponse = await useDeleteCommentMutate.mutateAsync([body,commentId]);
-    // refetchTasksData();
     const commentsResponse = await postGetComment.mutateAsync([rowId]);
     setTableData(prev =>
       prev.map(row =>
@@ -357,6 +371,9 @@ const handleOpenDateTimeModal = (row: any, date: any, time: any) => {
   { id: 'forApproval', label: 'For Approval', value: 'forApproval', color: '#1890ff' },  // blue
   { id: 'completed', label: 'Done', value: 'completed', color: '#52c41a' },              // green
 ];
+
+
+const postGetTaskAttachmentMutate = usepostGetTaskAttachmentByTask();
 
 
 const columns :ColumnDef<Doc>[] = [
@@ -417,9 +434,12 @@ const columns :ColumnDef<Doc>[] = [
 
     const [selectedDate, setSelectedDate] = useState<any>(dueDateValue ? dayjs(dueDateValue) : null);
     
+      const [isPickerOpen, setIsPickerOpen] = useState(false); // <-- new state
+
     
     // Function to handle date changes
     const handleDateChange = (date: any) => {
+
       setSelectedDate(date);
       const formattedDate = date ? date.format('YYYY-MM-DD') : null;
       
@@ -436,12 +456,12 @@ const columns :ColumnDef<Doc>[] = [
         userid
       ]).then(() => {
         setIsEditing(false);
-        refetchTasksData();
+        setTableData(prev => prev.map(item => item.id === row.row.original.id ? { ...item, dueDate: formattedDate } : item));
       });
     };
     
     // Display editor when in edit mode
-    if (isEditing && row.row.original.createdBy=== loggedInUserId) {
+    if (isEditing && row.row.original.createdBy === loggedInUserId) {
       return (
         <DatePicker
                    autoFocus
@@ -455,6 +475,8 @@ const columns :ColumnDef<Doc>[] = [
             backgroundColor: 'rgb(25, 25, 25)',
             color: 'white',
           }}
+        open={isPickerOpen} // <-- control popup
+        onOpenChange={(open) => setIsPickerOpen(open)} // <-- handle popup open/close
 
         
           
@@ -468,7 +490,8 @@ const columns :ColumnDef<Doc>[] = [
       return (
         <span 
           style={{ color: '#aaa', cursor: 'pointer' }}
-          onClick={() => setIsEditing(true)}
+          onClick={() => {setIsEditing(true),           setIsPickerOpen(true); // <-- open calendar
+}}
         >
           Set due date
         </span>
@@ -487,7 +510,7 @@ const columns :ColumnDef<Doc>[] = [
       return (
         <span 
           style={{ color: 'green', fontWeight: 500, cursor: 'pointer' }}
-          onClick={() => setIsEditing(true)}
+          onClick={() => {setIsEditing(true), setIsPickerOpen(true)}}
         >
           {formatDisplayDate(dueDateValue)} ({diffDays} day{diffDays !== 1 ? 's' : ''})
         </span>
@@ -496,7 +519,7 @@ const columns :ColumnDef<Doc>[] = [
       return (
         <span 
           style={{ color: 'red', fontWeight: 500, cursor: 'pointer' }}
-          onClick={() => setIsEditing(true)}
+          onClick={() => {setIsEditing(true), setIsPickerOpen(true)}}
         >
           {formatDisplayDate(dueDateValue)} ({Math.abs(diffDays)} day{Math.abs(diffDays) !== 1 ? 's' : ''})
         </span>
@@ -705,6 +728,24 @@ const attachments = row.original.files
                           // Trigger click on the input
                           input.click();
                         };
+
+
+                        const triggerMultipleFileUpload = (e: React.MouseEvent) => {
+  e.preventDefault();
+  e.stopPropagation();
+  // Create a new file input element dynamically
+  const input = document.createElement('input');
+  input.type = 'file';
+  input.multiple = true; // <-- allow multiple files
+  input.onchange = (e) => {
+    const files = (e.target as HTMLInputElement).files;
+    if (files && files.length > 0) {
+      handleMultipleUpload(files, row.original, row.original.id); // <-- use your multiple upload handler
+    }
+  };
+  // Trigger click on the input
+  input.click();
+};
                 
                         // Modified handleUpload to take file directly
                         const handleUpload = async (file: File, log: any, taskId: any) => {
@@ -715,16 +756,18 @@ const attachments = row.original.files
                             formData.append("taskId", taskId);
                             // formData.append("logId", log.id);
                             
-                            for (let [key, value] of formData.entries()) {
-                              console.log(`${key}: ${value}`);
-                            }
+                           
                             
-                            if (!userid) {
-                              throw new Error("User ID is undefined");
-                            }
-                            
+                          
+      
                             const response = await createAttachmentMutation.mutateAsync([formData, userid]);
-                            refetchTasksData();
+
+                            const attachmentResponse = await postGetTaskAttachmentMutate.mutateAsync([row.original.id]);
+                            setTableData(prev =>
+                              prev.map(item => item.id === row.original.id ? { ...item, files: attachmentResponse } : item)
+                            );
+
+                            // refetchTasksData();
                             
                             
                           } catch (error) {
@@ -736,18 +779,62 @@ const attachments = row.original.files
                           }
                         };
 
+
+                        const handleMultipleUpload = async (files: FileList, log: any, taskId: any) => {
+  try {
+    const formData = new FormData();
+    // Append all files
+    Array.from(files).forEach(file => {
+      formData.append("files", file); // "files" should match your backend field for multiple files
+    });
+    formData.append("taskId", taskId);
+    // formData.append("logId", log.id);
+
+    // Use your multiple attachments mutation
+    const response = await createMultipleAttachmentsMutation.mutateAsync([formData, userid]);
+
+    const attachmentResponse = await postGetTaskAttachmentMutate.mutateAsync([log.id]);
+    setTableData(prev =>
+      prev.map(item => item.id === log.id ? { ...item, files: attachmentResponse } : item)
+    );
+
+    // refetchTasksData();
+
+  } catch (error) {
+    console.error("Error uploading files:", error);
+    if (error instanceof Error) {
+      console.error("Error message:", error.message);
+    }
+    alert("Failed to upload files. Please try again.");
+  }
+};
+
                         return (
                 <div>
-                   <button
-                type="button"
-                onClick={triggerFileUpload}
-                title="Upload file"
-                style={{ background: 'none', border: 'none', cursor: 'pointer' }}
-              >
-                📎
-              </button>
+                  <Badge count={attachments ? attachments.length : 0}>
 
-              {attachments && attachments.length > 0 &&  (
+                   <Button
+                onClick={triggerMultipleFileUpload}
+                                  icon={<UploadOutlined />}
+                                   style={{ 
+                    background: 'white', 
+                    border: 'none', 
+                    cursor:  'pointer',
+                    opacity:  1,
+                    height: 24,
+                    width: 24,
+                  }}
+
+              >
+              </Button>
+
+                                </Badge>
+
+
+{commentsVisible &&(
+
+
+              attachments && attachments.length > 0 &&  (
               <div style={{ marginTop: 4, fontSize: '0.8em' }}>
                 {attachments.map((attachment: any, idx: number) => (
                   <div key={idx} style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
@@ -762,6 +849,8 @@ const attachments = row.original.files
                   </div>
                 ))}
               </div>
+            )
+
             )}
 
                 </div>
@@ -1024,10 +1113,10 @@ const handleComment= async(data: any) => {
     comment: data.comment,
     mentionedMembers: data.mentionedUserIds || [],
     taskId: selectedTaskId,
-    givenBy: userid,
+    givenBy: loggedInUserId,
   }
 
-  const response = await commentMutate.mutateAsync([body, userid]);
+  const response = await commentMutate.mutateAsync([body, loggedInUserId]);
   const commentsResponse = await postGetComment.mutateAsync([selectedTaskId]);
   setTableData(prev =>
     prev.map(row =>
@@ -1741,7 +1830,7 @@ onClick={() => {
   isDownloadable={false}
   handleColumnVisibilityChange={handleColumnVisibilityChange}
   onSelectionChange={handleDeleteTask}
-  highlightRowId={64}
+  highlightRowId={highlightRowId}
   // onOffsetChange={(newOffset) => {
   //   setOffset(newOffset);
   //   console.log("Offset changed:", newOffset);

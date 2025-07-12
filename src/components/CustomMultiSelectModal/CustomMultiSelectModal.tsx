@@ -263,12 +263,12 @@ const SelectedTag = styled.div<{ isPlaceholder: boolean }>`
   display: flex;
   align-items: center;
   gap: 8px;
-  padding: 10px 12px;
+  padding: 5px 6px;
   border-radius: 8px;
   background-color: #191919;
   cursor: pointer;
   color: ${props => props.isPlaceholder ? '#6C7A96' : '#E5E9F0'};
-  font-size: 14px;
+  font-size: 12px;
   transition: all 0.2s ease;
   
   // &:hover {

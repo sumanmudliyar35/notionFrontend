@@ -42,3 +42,28 @@ export const formatDisplayDate = (date: string | Date | null | undefined) => {
   const time = d.format("h:mm A");
   return `${day}${getOrdinal(day)} ${month} ${year}${showTime ? " " + time : ""}`;
 }
+
+
+export function DateWithThreeMonthletters(date?: string | null): string {
+  if (!date) return "";
+  const d = dayjs(date);
+  if (!d.isValid()) return "";
+
+  const day = d.date();
+  const year = d.format('YY');
+  const month = d.format('MMM'); // 3-letter month
+
+  // Ordinal suffix
+  const getOrdinal = (n: number) => {
+    if (n > 3 && n < 21) return 'th';
+    switch (n % 10) {
+      case 1: return 'st';
+      case 2: return 'nd';
+      case 3: return 'rd';
+      default: return 'th';
+    }
+  };
+
+  return `${day}${getOrdinal(day)} ${month} '${year}`;
+
+};

@@ -7,6 +7,8 @@ import { Card, Row, Col, Spin } from 'antd';
 import StatsCard from './components/StatsCard/StatsCard';
 import { CheckCircleOutlined, PercentageOutlined, UserOutlined } from '@ant-design/icons';
 import type { ColumnsType } from 'antd/es/table';
+import { Progress } from 'antd';
+
 
 
 const DashboardContainer = styled.div`
@@ -183,29 +185,45 @@ const Dashboard = () => {
       sorter: (a, b) => a.convertedLeads - b.convertedLeads,
     },
 
-    {
-  title: 'Conversion Ratio',
-  key: 'conversionRatio',
-  width: 120,
-  render: (_, record) => {
-    const converted = record.convertedLeads || 0;
-    const ratio = totalLeads > 0 ? (converted / totalLeads) * 100 : 0;
-    return `${ratio.toFixed(2)}%`;
-  },
-  sorter: (a, b) => {
-    const ratioA = totalLeads > 0 ? (a.convertedLeads || 0) / totalLeads : 0;
-    const ratioB = totalLeads > 0 ? (b.convertedLeads || 0) / totalLeads : 0;
-    return ratioA - ratioB;
-  },
-},
+//     {
+//   title: 'Conversion Ratio',
+//   key: 'conversionRatio',
+//   width: 120,
+//   render: (_, record) => {
+//     const converted = record.convertedLeads || 0;
+//     const ratio = totalLeads > 0 ? (converted / totalLeads) * 100 : 0;
+//     return `${ratio.toFixed(2)}%`;
+//   },
+//   sorter: (a, b) => {
+//     const ratioA = totalLeads > 0 ? (a.convertedLeads || 0) / totalLeads : 0;
+//     const ratioB = totalLeads > 0 ? (b.convertedLeads || 0) / totalLeads : 0;
+//     return ratioA - ratioB;
+//   },
+// },
     
     {
       title: 'Conversion Rate',
       dataIndex: 'conversionRate',
       key: 'conversionRate',
       width: 100,
-      render: (text) => text || '0%',
-      sorter: (a, b) => {
+render: (text, record) => {
+    // Try to get a numeric value for the progress bar
+    const percent = parseFloat(record.conversionRateValue || text || '0');
+    return (
+<div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+        <span>{text || '0%'}</span>
+        <Progress
+          percent={isNaN(percent) ? 0 : percent}
+          size="small"
+          showInfo={false}
+          strokeColor="#52c41a"
+            // trailColor="#e0e0e0"
+
+          style={{ marginTop: 4 }}
+        />
+      </div>
+    );
+  },      sorter: (a, b) => {
         const rateA = parseFloat(a.conversionRateValue || 0);
         const rateB = parseFloat(b.conversionRateValue || 0);
         return rateA - rateB;
@@ -227,6 +245,12 @@ const Dashboard = () => {
     dataIndex: 'name',
     key: 'name',
     sorter: (a, b) => a.name.localeCompare(b.name),
+  },
+    {
+    title: 'Converted',
+    dataIndex: 'count',
+    key: 'count',
+    sorter: (a, b) => a.count.localeCompare(b.count),
   },
 
  
@@ -464,7 +488,7 @@ const inquiredLeadsConversionPieData = useMemo(() => {
         <Col xs={24} md={24} lg={24} xl={24}>
           <StyledCard title="Revenue Analytics by Lead Source">
             <Row gutter={[24, 24]}>
-              <Col xs={24} lg={10}>
+              {/* <Col xs={24} lg={10}>
                 <ChartWrapper>
                   <CustomPieChart
                     series={revenuePieData.series}
@@ -478,12 +502,12 @@ const inquiredLeadsConversionPieData = useMemo(() => {
   showTotal={true}
   legendPosition="bottom"                  />
                 </ChartWrapper>
-              </Col>
+              </Col> */}
               
               <Col xs={24} lg={14}>
                 <DashboardTable
                   data={referenceData?.analytics?.convertedLeadsByReference || []}
-                  height={350}
+                  // height={350}
                   columns={revenueColumns}
                 />
               </Col>
@@ -517,7 +541,7 @@ const inquiredLeadsConversionPieData = useMemo(() => {
         <Col xs={24} lg={14}>
           <DashboardTable
             data={referenceData?.analytics?.potentialRevenue || []}
-            height={350}
+            // height={350}
             columns={potentialRevenueColumns}
           />
         </Col>

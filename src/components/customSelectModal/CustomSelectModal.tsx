@@ -15,6 +15,7 @@ interface TagSelectorProps {
   allowCreate?: boolean;
   horizontalOptions?: boolean; // <-- Add this prop
   isWithDot?: boolean; // <-- Add this prop for color dot
+  onBlur?: () => void; // <-- Optional onBlur prop
 }
 
 const TagSelector: React.FC<TagSelectorProps> = ({
@@ -25,6 +26,7 @@ const TagSelector: React.FC<TagSelectorProps> = ({
   allowCreate = true,
   horizontalOptions = false, // <-- Default to false
   isWithDot = false, // <-- Default to true
+  onBlur = () => {}, // <-- Default no-op function
 }) => {
   const [isOpen, setIsOpen] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
@@ -97,11 +99,26 @@ const TagSelector: React.FC<TagSelectorProps> = ({
       <SelectedTag 
         onClick={() => setIsOpen(!isOpen)}
         isPlaceholder={!selectedTag}
+        onBlur={onBlur} // Call onBlur when the selected tag is blurred
       >
         {selectedTag ? (
           <>
-            {isWithDot && <ColorDot color={selectedTag.color || getTagColor(selectedTag.label)} />}
-            <span>{selectedTag.label}</span>
+           <span
+    style={
+      isWithDot && selectedTag
+        ? {
+            background: selectedTag.color || getTagColor(selectedTag.label),
+            color: '#fff',
+            borderRadius: 6,
+            padding: '2px 8px',
+            fontWeight: 400,
+            display: 'inline-block',
+          }
+        : undefined
+    }
+  >
+    {selectedTag.label}
+  </span>
           </>
         ) : (
           placeholder
@@ -127,8 +144,22 @@ const TagSelector: React.FC<TagSelectorProps> = ({
                   onClick={() => handleTagSelect(tag)}
                   isSelected={tag.id === value}
                 >
-                  {isWithDot && <ColorDot color={tag.color || getTagColor(tag.label)} />}
-                  {tag.label}
+                 <span
+  style={
+    isWithDot
+      ? {
+          background: tag.color || getTagColor(tag.label),
+          color: '#fff',
+          borderRadius: 6,
+          padding: '2px 8px',
+          fontWeight: 400,
+          display: 'inline-block',
+        }
+      : undefined
+  }
+>
+  {tag.label}
+</span>
                 </Option>
               ))
             ) : (
@@ -182,14 +213,14 @@ const SelectedTag = styled.div<{ isPlaceholder: boolean }>`
   display: flex;
   align-items: center;
   gap: 8px;
-  padding: 10px 12px;
+  padding: 5px 6px;
   border-radius: 8px;
   background-color: #191919
 ;
   // border: 1px solid #3B4252;
   cursor: pointer;
   color: ${props => props.isPlaceholder ? '#6C7A96' : '#E5E9F0'};
-  font-size: 14px;
+  font-size: 12px;
   transition: all 0.2s ease;
   
   &:hover {
@@ -290,7 +321,7 @@ const Option = styled.div<{ isSelected: boolean }>`
   gap: 4px;
   padding: 5px 6px;
   cursor: pointer;
-  font-size: 14px;
+  font-size: 12px;
   color: #E5E9F0;
   background-color: ${props => props.isSelected ? '#4C566A' : 'transparent'};
   // min-width: 120px;

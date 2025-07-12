@@ -14,34 +14,32 @@ import type { TabsProps } from 'antd';
 
 import { Button, Checkbox, Input } from 'antd';
 import { Header } from 'antd/es/layout/layout';
-
+import { useGetRecursiveTaskByUser } from '../../../../api/get/getRecursiveTaskByUser';
+import { useGetAllUsers } from '../../../../api/get/getAllMember';
+import { useCreateRecursiveTask } from '../../../../api/post/newRecursiveTask';
+import { useUpdateRecursiveTaskDate } from '../../../../api/put/updateRecursiveTaskDate';
+import { usePostGetRecursiveTaskById } from '../../../../api/get/postGetRecursiveTaskById';
+import { useGetCommentByRecursiveTaskLogId } from '../../../../api/get/postGetCommentByRecursiveTaskLogs';
+import { useCreateComment } from '../../../../api/post/newComment';
+import { useUpdateComment } from '../../../../api/put/updateComment';
+import { useDeleteComment } from '../../../../api/delete/deleteComment';
+import { useUpdateBulkRecursiveTask } from '../../../../api/put/updateBulkRecursiveTask';
+import { useUpdateRecursiveTaskLog } from '../../../../api/put/updateRecursiveTaskLogs';
+import { useUpdateRecursiveTask } from '../../../../api/put/updateRecursiveTask';
+import { useCreateAttachment } from '../../../../api/post/newAttachment';
+import { formatDisplayDate } from '../../../../utils/commonFunction';
+import CommentCell from '../CommentCell/CommentCell';
 import * as styled from './style';
-import { useGetRecursiveTaskByUser } from '../../api/get/getRecursiveTaskByUser';
-import { useGetAllUsers } from '../../api/get/getAllMember';
-import { useCreateRecursiveTask } from '../../api/post/newRecursiveTask';
-import { useUpdateRecursiveTaskDate } from '../../api/put/updateRecursiveTaskDate';
-import { usePostGetRecursiveTaskById } from '../../api/get/postGetRecursiveTaskById';
-import { useUpdateComment } from '../../api/put/updateComment';
-import { useDeleteComment } from '../../api/delete/deleteComment';
-import { useUpdateBulkRecursiveTask } from '../../api/put/updateBulkRecursiveTask';
-import { useUpdateRecursiveTaskLog } from '../../api/put/updateRecursiveTaskLogs';
-import { useUpdateRecursiveTask } from '../../api/put/updateRecursiveTask';
-import { useCreateAttachment } from '../../api/post/newAttachment';
-import { DateWithThreeMonthletters, formatDisplayDate } from '../../utils/commonFunction';
-import CommentCell from './components/CommentCell/CommentCell';
-import { CustomTable } from '../../components/customTable/CustomTable';
-import RecursiveTaskModal from './components/RecursiveTaskModal/RecursiveTaskModal';
-import SharedCommentModal from '../../components/SharedCommentModal/SharedCommentModal';
-import ChangeDateModal from './components/ChangeDateModal/ChangeDateModal';
-import { useGetCommentByRecursiveTaskLogId } from '../../api/get/postGetCommentByRecursiveTaskLogs';
-import { useCreateComment } from '../../api/post/newComment';
-import DateInput from '../../components/CustomDateInput/CustomDateInput';
-import CustomSelect from '../../components/customSelect/CustomSelect';
-
+import CustomSelect from '../../../../components/customSelect/CustomSelect';
+import DateInput from '../../../../components/CustomDateInput/CustomDateInput';
+import { CustomTable } from '../../../../components/customTable/CustomTable';
+import RecursiveTaskModal from '../RecursiveTaskModal/RecursiveTaskModal';
+import SharedCommentModal from '../../../../components/SharedCommentModal/SharedCommentModal';
+import ChangeDateModal from '../ChangeDateModal/ChangeDateModal';
 
 
 interface RecursiveTask {
-    intervalDays?: number;
+    intervalDays: number;
     customFilters?: Record<string, string | string[]>;
     customActiveFilters?: string[];
     isCommentVisible?: boolean;
@@ -63,7 +61,7 @@ const RecursiveTaskTable = ({intervalDays, customFilters, customActiveFilters, i
 
     const [columnSizing, setColumnSizing] = useState<{ [key: string]: number }>({});
 
-  const [activeInterval, setActiveInterval] = useState<number>(intervalDays || 0);
+  const [activeInterval, setActiveInterval] = useState<number>(intervalDays);
 
   const { data: recursiveTasks = [], isLoading, refetch: refetchRecursiveTasks } = useGetRecursiveTaskByUser(userid || '', activeInterval);
   const [tasks, setTasks] = useState<any[]>([]);
@@ -161,7 +159,7 @@ const toggleCommentsVisibility = (
         title: data.name,
         startDate: data.startDate,
         endDate: data.endDate,
-        intervalDays: data.interval,
+        intervalDays: activeInterval,
         assignedTo: userid,
       }, userid]);
       setOpenRecursiveTaskModal(false);
@@ -362,10 +360,8 @@ const toggleCommentsVisibility = (
       header: 'Name',
       accessorKey: 'title',
       size: 250,
-      enableSorting: false,
       meta: {
         editable: true,
-        
       },
       cell: ({ row }: { row: any }) => (
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
@@ -391,9 +387,7 @@ const toggleCommentsVisibility = (
     {
       header: "Interval",
       accessorKey: 'intervalDays',
-      size: 60,
-            enableSorting: false,
-
+      size: 80,
       cell: ({ row }: { row: any }) => {
         const interval = row.original.intervalDays;
         return (
@@ -406,14 +400,11 @@ const toggleCommentsVisibility = (
     ...allDates.map(date => {
       // Check if the date is in the past
       const isPastDate = dayjs(date).isBefore(dayjs().startOf('day'));
-      console.log("Date:", DateWithThreeMonthletters(date), "is past:", isPastDate);
       
       return {
-        header: DateWithThreeMonthletters(date),
+        header: formatDisplayDate(date),
         accessorKey: date,
         size:115,
-              enableSorting: false,
-
         cell: ({ row }: { row: any }) => {
           const log = (row.original.recursiveTaskLogs || []).find((l: any) => l.date === date);
           if (!log) return null;
@@ -621,13 +612,14 @@ const toggleCommentsVisibility = (
 
 
 
-   const [filters, setFilters] = useState<Record<string, string | string[]>>({});
-        const [activeFilters, setActiveFilters] = useState<string[]>([]);
 
-//       useEffect(() => {
-//   if (customFilters) setFilters(customFilters);
-//   if (customActiveFilters) setActiveFilters(customActiveFilters);
-// }, [customFilters, customActiveFilters]);
+    const [filters, setFilters] = useState<Record<string, string | string[]>>(customFilters || {});
+      const [activeFilters, setActiveFilters] = useState<string[]>(customActiveFilters || []);
+
+      useEffect(() => {
+  if (customFilters) setFilters(customFilters);
+  if (customActiveFilters) setActiveFilters(customActiveFilters);
+}, [customFilters, customActiveFilters]);
 
          const availableFilterColumns = [
  
@@ -688,41 +680,21 @@ const handleRemoveFilter = (key: string) => {
   setActiveFilters((prev: string[]) => prev.filter((k) => k !== key));
 };
 
-  //   const filteredTasks = useMemo(() => {
-  //     return tasks
-  // }, [tasks]);
-
-  const filteredTasks = useMemo(() => {
-  if (!tasks || tasks.length === 0) return [];
-
-  // Sort tasks by intervalDays (optional, if not already sorted)
-  const sortedTasks = [...tasks].sort((a, b) => a.intervalDays - b.intervalDays);
-
-  let lastInterval: number | null = null;
-  const result: any[] = [];
-
-  for (const task of sortedTasks) {
-    if (task.intervalDays !== lastInterval) {
-      // Insert a divider row
-      result.push({ __divider: true,  title: `${task.intervalDays} days` });
-      lastInterval = task.intervalDays;
-
-    }
-    result.push(task);
-  }
-
-  return result;
-}, [tasks]);
+    const filteredTasks = useMemo(() => {
+    return tasks.filter(task => task.intervalDays === activeInterval);
+  }, [tasks, activeInterval]);
 
 
 
   const filteredColumns = useMemo(() => {
   // If no date filter, return all columns
 
+  console.log("Current filters:", 1);
 
   if (!filters.dateType || !filters.taskDate) return columns;
 
 
+  console.log("Filtering columns based on date filters:", filters);
   // Find all date columns (skip the first two: 'Name' and 'Interval')
   const dateColumns = columns.slice(2);
 
@@ -800,159 +772,6 @@ console.log("Filtered tasks:", columnSizing?.['title']);
 
       <styled.FiltersDiv>
 
-{activeFilters.map((key: any) => {
- 
-  if (key === 'taskDate') {
-    const dateType = filters.dateType;
-    return (
-      <styled.FilterTag key={key} active={!!filters[key]} style={{ background: 'rgb(25, 25, 25)' }}>
-        <span style={{ color: '#bbb', marginRight: 6, fontWeight: 500, minWidth: "fit-content" }}>
-Date       
- </span>
-        <CustomSelect
-          size="small"
-          style={{ width: 100, marginRight: 8 }}
-          value={dateOption?.find(opt => opt.value === dateType) || null}
-          onChange={val => {
-            setFilters(prev => ({ ...prev, dateType: val.value }));
-          }}
-          options={dateOption}
-        />
-        {dateType === 'between' ? (
-          <>
-            <styled.singleDateDiv>
-              <DateInput
-                value={filters.taskStartDate || ''}
-                onChange={date =>
-                  setFilters(prev => ({
-                    ...prev,
-                    taskStartDate: date && dayjs(date).isValid() ? date.format('YYYY-MM-DD') : ''
-                  }))
-                }
-                placeholder="Start date"
-              />
-            </styled.singleDateDiv>
-            <styled.singleDateDiv>
-              <DateInput
-                value={filters.taskEndDate || ''}
-                onChange={date =>
-                  setFilters(prev => ({
-                    ...prev,
-                    taskEndDate: date && dayjs(date).isValid() ? date.format('YYYY-MM-DD') : ''
-                  }))
-                }
-                placeholder="End date"
-              />
-            </styled.singleDateDiv>
-          </>
-        ) : (
-          <styled.singleDateDiv>
-            <DateInput
-              value={filters[key] || ''}
-             onChange={date =>
-                             handleFilterChange(
-                               key,
-                               date && dayjs(date).isValid() ? date.format('YYYY-MM-DD') : ''
-                             )
-                           }
-              placeholder="Select date"
-            />
-          </styled.singleDateDiv>
-        )}
-        <span
-          onClick={() => {
-            handleRemoveFilter('dateType');
-            handleRemoveFilter('taskDate');
-            handleRemoveFilter('taskStartDate');
-            handleRemoveFilter('taskEndDate');
-          }}
-          style={{
-            cursor: 'pointer',
-            padding: '0 6px',
-            fontSize: 16,
-            color: 'white',
-          }}
-        >
-          ×
-        </span>
-      </styled.FilterTag>
-    );
-  };
-
-
-
-
-  
-
-
-
-  // Default rendering for other filters
-  return (
-    <styled.FilterTag key={key} active={!!filters[key]} style={{ background: 'rgb(25, 25, 25)' }}>
-      <styled.FilterHeader>
-        <span style={{ color: '#bbb', marginRight: 6, fontWeight: 500 }}>
-          Date
-        </span>
-      </styled.FilterHeader>
-      <styled.WhitePlaceholderInput
-        size="small"
-        value={filters[key]}
-        onChange={(e: any) => handleFilterChange(key, e.target.value)}
-          style={{
-            width: 150,
-            background: 'rgb(25, 25, 25)',
-            color: 'white',
-            border: 'transparent',
-          }}
-        />
-    
-      <span
-        onClick={() => {
-          
-            handleRemoveFilter(key);
-          
-        }}
-        style={{
-          cursor: 'pointer',
-          padding: '0 6px',
-          fontSize: 16,
-          color: 'white',
-        }}
-      >
-        ×
-      </span>
-
-     
-
-      
-    </styled.FilterTag>
-  );
-})}
-
-
-   <CustomSelect
-    placeholder="+ Filter"
-    size="small"
-    width="150px"
-    value={null}
-    onChange={handleAddFilter}
-    options={availableFilterColumns.map((col: any) => ({
-      label: col.header,
-      value: col.accessorKey,
-    }))}
-
-
-  />
-
-
-    <styled.CommentToggleButton 
-                      onClick={toggleAllCommentsVisibility}
-                      type="button"
-                    >
-                      {commentsVisible ? 'Hide Comments' : 'Show Comments'}
-                    </styled.CommentToggleButton>
-  
-  
       
   
 
@@ -974,18 +793,19 @@ Date
           return {};
         }}
           onColumnSizingChange={(newSizing, columnId) => {
+    console.log("Columnresized:", columnId, "New size:", newSizing[columnId]);
     setColumnSizing(newSizing);
     // You can also call any callback here with columnId and newSizing[columnId]
     handleColumnResize(columnId, newSizing[columnId]);
     
   }}
-  columnSizing={columnSizing}
         onRowEdit={handleRowEdit}
         scrollToColumn={dayjs().format('YYYY-MM-DD')}
         
         isWithNewRow={true}
         onSelectionChange={handleDeleteRecursiveTask}
         isManageColumn={false}
+        isSearchable={false}
         customSearchText={customSearchText || ''}
         isVerticalScrolling={false}
         tableIndex={tableIndex || 0}

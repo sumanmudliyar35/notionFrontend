@@ -60,6 +60,7 @@ import EventCell from "./components/EventCell/EventCell";
 import CustomSwitch from "../../components/customSwitch/CustomSwitch";
 import TagSelector from "../../components/customSelectModal/CustomSelectModal";
 import TagMultiSelector from "../../components/CustomMultiSelectModal/CustomMultiSelectModal";
+import { useLocation } from "react-router-dom";
 
 
 
@@ -110,6 +111,24 @@ const Leads = () => {
 
   const userid = Number(localStorage.getItem('userid'));
   const roleid = localStorage.getItem('roleid');
+  
+
+    const location = useLocation();
+
+     const [highlightRowId, setHighlightRowId] = useState<number | null>(null);
+
+  useEffect(() => {
+    if (location.state && location.state.highlightRowId) {
+      setHighlightRowId(location.state.highlightRowId);
+      setTimeout(() => {
+        setHighlightRowId(null); // Clear highlight after 5 seconds
+      },3000);
+    }
+  }, [location.state]);
+
+
+  console.log("Highlight Row ID:", highlightRowId);
+
 
     const {data: LeadsData, refetch: refetchLeadsData} = useGetLeadsByUser(Number(userid));
 
@@ -1024,7 +1043,6 @@ const columns = useMemo<ColumnDef<Doc>[]>(() => [
   const { followup, followupTime } = getValue.row.original;
 
 
-  console.log("Followup value:", getValue.row.original.id);
 
 
   // if (!followup) return  <span style={{ color: '#888' }}>Set follow up</span>;
@@ -2587,6 +2605,7 @@ onClick={() => {
   isDownloadable={true}
   handleColumnVisibilityChange={handleColumnVisibilityChange}
    onSelectionChange={handleDeleteLead}
+   highlightRowId={highlightRowId}
 
         />
 

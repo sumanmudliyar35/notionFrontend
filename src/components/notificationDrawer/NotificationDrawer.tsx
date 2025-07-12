@@ -5,6 +5,7 @@ import { CloseOutlined, CheckOutlined } from '@ant-design/icons';
 import { formatDisplayDate } from '../../utils/commonFunction';
 import { useUpdateMentionById } from '../../api/put/updateMentionById';
 import DoneAllIcon from '@mui/icons-material/DoneAll';
+import { useNavigate } from 'react-router-dom';
 
 
 interface NotificationDrawerProps {
@@ -22,6 +23,9 @@ const NotificationDrawer: React.FC<NotificationDrawerProps> = ({
 }) => {
   // Responsive width: 350px for desktop, 90vw for mobile
   const drawerWidth = window.innerWidth < 600 ? '90vw' : 350;
+
+  const navigate = useNavigate();
+
 
   // Get userId from localStorage or context as needed
   // const userId = Number(localStorage.getItem('userid'));
@@ -57,6 +61,21 @@ const NotificationDrawer: React.FC<NotificationDrawerProps> = ({
     }
   };
 
+  const handleNotificationClick = (item: any) => {
+
+    console.log('Notification clicked:', item);
+  if (item.type === 'lead') {
+    navigate('/leads', { state: { highlightRowId: item.leadId } });
+    onClose(); // Optionally close the drawer
+  }
+
+  if (item.type === 'task') {
+    navigate('/user/' + item.assignedTo + `/task/`, { state: { highlightRowId: item.taskId } });
+    onClose(); // Optionally close the drawer
+  }
+  // Add more types if needed
+};
+
   return (
     <Drawer
       title="Notifications"
@@ -88,6 +107,8 @@ const NotificationDrawer: React.FC<NotificationDrawerProps> = ({
                 transition: 'background-color 0.2s',
               }}
               className="notification-item"
+                onClick={() => handleNotificationClick(item)}
+
             >
               <div style={{ display: 'flex', alignItems: 'center', width: '100%' }}>
                 <Typography.Text strong style={{ color: '#52c41a' }}>

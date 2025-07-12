@@ -119,7 +119,7 @@ const Admin = () => {
                     columns={columns}
                     isWithNewRow={false}
                     onDataChange={() => {}}
-                    createEmptyRow={() => ({})}
+                    createEmptyRow={() => ({ id: Date.now() })}
                     isDownloadable={false}
             
 

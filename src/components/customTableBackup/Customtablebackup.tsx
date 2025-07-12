@@ -27,6 +27,7 @@ import { CSS } from '@dnd-kit/utilities';
 import { MenuOutlined } from '@ant-design/icons';
 import ManageColumn from '../../pages/leads/components/ManageColumn/ManageColumn';
 import { DownloadOutlined } from '@ant-design/icons';
+import DateInput from '../CustomDateInput/CustomDateInput';
 
 
 interface CustomColumnMeta {
@@ -43,7 +44,7 @@ columns: ColumnDef<T>[];
   isWithNewRow?: boolean;
 
   data: T[]; // controlled data from parent
-  onDataChange: (newData: T[]) => void; // callback to update parent state
+  onDataChange?: (newData: T[]) => void; // callback to update parent state
   createEmptyRow: () => T;
   onRowCreate?: (newRow: T) => void; // ✅ New prop
     onRowEdit?: (updatedRow: T, rowIndex: number) => void; // ✅ new
@@ -56,11 +57,33 @@ isDownloadable?: boolean; // Optional prop to control download button visibility
 handleColumnVisibilityChange?: (columnId: string, visible: boolean) => void; // Optional prop for column visibility changes
 onSelectionChange?: (selectedIds: any[]) => void;
 onOffsetChange?: (newOffset: number) => void; // New prop for offset change
+  highlightRowId?: any; // Add this line
+    scrollToColumn?: string; // accessorKey or id of the column to scroll to
+    isManageColumn?: boolean; // Whether to show the column management modal  
+    isSearchable?: boolean; // Whether to enable search functionality
+    isVerticalScrolling?: boolean; // Whether to enable vertical scrolling
+    customSearchText?: string; // Custom search text to control search input value
+    tableIndex?: number; // Optional index prop for the table
+      tableScrollRef?: React.RefObject<HTMLDivElement>;
+
+    
+
 }
 
-export function CustomTable<T extends object>(props: EditableTableProps<T>) {
+interface RowWithId {
+  id: string | number;
+}
+
+export function CustomTable<T extends RowWithId>(props: EditableTableProps<T>) {
   // ✅ ALL HOOKS FIRST - NO CONDITIONS
-  const [searchText, setSearchText] = useState('');
+  const [searchText, setSearchText] = useState(props.customSearchText || '');
+
+  useEffect(() => {
+
+    setSearchText(props.customSearchText || '');
+  }, [props.customSearchText]);
+
+
   const [selectMenuOpen, setSelectMenuOpen] = useState(true);
   const [hasAdded, setHasAdded] = useState(false);
   const [currentlyEditing, setCurrentlyEditing] = useState<{
@@ -82,6 +105,8 @@ export function CustomTable<T extends object>(props: EditableTableProps<T>) {
   const searchInputRef = useRef<HTMLInputElement>(null);
   const newRowRef = useRef<HTMLTableRowElement>(null);
   const addRowTriggeredRef = useRef(false);
+  const rowRefs = useRef<Record<any, HTMLTableRowElement | null>>({});
+  const columnRefs = useRef<Record<string, HTMLTableCellElement | null>>({});
   const timeout = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // ✅ DESTRUCTURE PROPS AFTER HOOKS
@@ -101,6 +126,10 @@ export function CustomTable<T extends object>(props: EditableTableProps<T>) {
     isDownloadable = true, // Default to true if not provided
     handleColumnVisibilityChange,
     onSelectionChange,
+    isManageColumn= true,
+    isSearchable = true, // Default to false if not provided
+    isVerticalScrolling=true
+    
   } = props;
 
 
@@ -133,6 +162,8 @@ export function CustomTable<T extends object>(props: EditableTableProps<T>) {
   window.addEventListener('keydown', handleKeyDown);
   return () => window.removeEventListener('keydown', handleKeyDown);
 }, []);
+
+
 
   // Initialize column manager order
   useEffect(() => {
@@ -284,7 +315,6 @@ export function CustomTable<T extends object>(props: EditableTableProps<T>) {
   // );
 
   const handleEdit = React.useCallback((rowIndex: any, row: any, columnId: keyof T, value: any) => {
-    console.log('Editing row:', rowIndex, 'column:',  columnId, 'value:', value, 'data:', row);
     // const updated = [...data];
 
     
@@ -303,7 +333,7 @@ if (index !== -1) {
     ...updated[index],
     [columnId]: value,
   };
-  onDataChange(updated);
+  onDataChange && onDataChange(updated);
   onRowEdit?.(updated[index], index);
 
 };
@@ -317,7 +347,7 @@ if (index !== -1) {
     if (addRowTriggeredRef.current) return;
     addRowTriggeredRef.current = true;
     const newRow = createEmptyRow();
-    onDataChange([...data, newRow]);
+    onDataChange && onDataChange([...data, newRow]);
     onRowCreate?.(newRow);
     
     setTimeout(() => {
@@ -327,7 +357,6 @@ if (index !== -1) {
       const lastRowIndex = table.getRowModel().rows.length;
       const firstEditableCol = columns.find((col: any) => col.meta?.editable);
       // if (firstEditableCol) {
-      //   console.log('First editable column:', table.getHeaderGroups()[0].headers[0].id
       
       // );
       //   setCurrentlyEditing({
@@ -335,7 +364,6 @@ if (index !== -1) {
       //     columnId: table.getHeaderGroups()[0].headers[0].id as keyof T,
       //   });
       // } else {
-      //   console.log('No editable column found');
       // }
     }, 0);
 
@@ -369,7 +397,7 @@ useEffect(() => {
     if (onRowDelete) {
       onRowDelete(rowIndex);
     }
-    onDataChange(updated);
+     onDataChange && onDataChange(updated);
   }, [data, onRowDelete, onDataChange]);
 
   const handleColumnManagerDragEnd = React.useCallback((event: any) => {
@@ -383,46 +411,7 @@ useEffect(() => {
     }
   }, [columnManagerOrder, onColumnOrderChange]);
 
-  // ✅ COMPONENT FUNCTIONS
-  function SortableColumnRow({ column }: { column: any }) {
-    const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
-      id: column.id,
-    });
-    const visible = column.getIsVisible();
-    
-    return (
-      <div
-        ref={setNodeRef}
-        style={{
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "space-between",
-          padding: "8px 0",
-          borderBottom: "1px solid #222",
-          background: isDragging ? "#222" : undefined,
-          transform: CSS.Transform.toString(transform),
-          transition,
-          opacity: isDragging ? 0.5 : 1,
-          cursor: "grab",
-        }}
-        {...attributes}
-        {...listeners}
-      >
-        <span style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-          <MenuOutlined style={{ cursor: 'grab', color: '#888' }} />
-          {column.columnDef.header as string}
-        </span>
-        <span
-          style={{ cursor: "pointer", fontSize: 18 }}
-          onClick={() => column.toggleVisibility()}
-          title={visible ? "Hide" : "Show"}
-        >
-          {visible ? <EyeOutlined /> : <EyeInvisibleOutlined />}
-        </span>
-      </div>
-    );
-  }
-
+ 
   const handleCheckboxChange = (rowId: any, checked: boolean) => {
   setSelectedIds(prev => {
     const newSelected = checked
@@ -455,7 +444,6 @@ useEffect(() => {
     </>
   );
 
-  const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 5 } }));
 
   const tableContainerRef = useRef<HTMLDivElement>(null);
 
@@ -511,6 +499,7 @@ useEffect(() => {
   const lastOffsetTrigger = useRef<number | null>(null);
 
 useEffect(() => {
+
   if (table.getRowModel().rows.length < 3) return;
   const lastVisibleIndex = table.getRowModel().rows.length - 1;
   if (
@@ -526,7 +515,155 @@ useEffect(() => {
   }
 }, [hoveredRow, table.getRowModel().rows.length, props]);
 
-  // ✅ RENDER - All hooks are guaranteed to be called before this point
+
+
+// First, add a separate ref for the scrollable table body
+const tableBodyRef = useRef<HTMLTableSectionElement>(null);
+
+const verticalScrollingRef = useRef<HTMLDivElement>(null);
+
+
+// Then modify your useEffect to target both containers
+useEffect(() => {
+  const handleKeyDown = (e: KeyboardEvent) => {
+    // Handle Home key press - use Home key instead of ArrowLeft
+    if (e.key === 'Home' && !e.ctrlKey && !e.altKey && !e.metaKey) {
+      // Only trigger if no modifiers are pressed and we're not in an input field
+      const activeElement = document.activeElement;
+      const isInput = activeElement instanceof HTMLInputElement || 
+                      activeElement instanceof HTMLTextAreaElement ||
+                      activeElement instanceof HTMLSelectElement;
+                      
+      if (!isInput) {
+        e.preventDefault();
+        scrollToTableTop();
+      }
+    }
+  };
+  
+  window.addEventListener('keydown', handleKeyDown);
+  return () => window.removeEventListener('keydown', handleKeyDown);
+}, []);
+
+
+
+const scrollToTableTop = () => {
+  // Try all possible scroll containers
+  const possibleScrollContainers = [
+    tableContainerRef.current,
+    document.querySelector('.ant-table-body'),
+    document.querySelector('.ant-table-content'),
+    document.querySelector('tbody'),
+    tableContainerRef.current?.parentElement,
+    tableContainerRef.current?.querySelector('div[style*="overflow"]')
+  ];
+  
+  // Log each attempt
+  possibleScrollContainers.forEach((container, index) => {
+    if (container) {
+      
+      // Try both methods
+      try {
+        container.scrollTo({ top: 0, behavior: 'smooth' });
+      } catch (e) {
+        console.log(`scrollTo failed on container #${index}:`, e);
+      }
+      
+      try {
+        if (container instanceof HTMLElement) {
+          container.scrollTop = 0;
+        }
+      } catch (e) {
+        console.log(`scrollTop failed on container #${index}:`, e);
+      }
+    }
+  });
+  
+  // Also try to scroll window as a last resort
+  window.scrollTo(0, 0);
+  
+  // Reset pagination
+  setOffset(0);
+  if (props.onOffsetChange) props.onOffsetChange(0);
+  
+  // Focus the first row
+  if (table.getRowModel().rows.length > 0) {
+    setHoveredRow(0);
+  }
+};
+
+useEffect(() => {
+
+  if ( props.scrollToColumn && columnRefs.current[props.scrollToColumn]) {
+    console.log('Scrolling to column:', props.scrollToColumn);
+    columnRefs.current[props.scrollToColumn]?.scrollIntoView({ behavior: 'smooth', inline: 'center', block: 'nearest' });
+  }
+}, [props.scrollToColumn]);
+
+
+
+// useEffect(() => {
+//   if (
+//     typeof props.scrollToColumn !== 'undefined' &&
+//     props.scrollToColumn !== null &&
+//     columnRefs.current[props.scrollToColumn as keyof typeof columnRefs.current]
+//   ) {
+//     // Stagger scrolls by table index (e.g., 100ms per table)
+//     const delay = props.tableIndex ? props.tableIndex * 100 : 0;
+//     const timeout = setTimeout(() => {
+//       columnRefs.current[props.scrollToColumn as keyof typeof columnRefs.current]?.scrollIntoView({
+//         behavior: 'smooth',
+//         inline: 'center',
+//         block: 'nearest'
+//       });
+//     }, delay);
+//     return () => clearTimeout(timeout);
+//   }
+// }, [props.scrollToColumn, props.tableIndex]);
+
+
+
+
+useEffect(() => {
+
+  if(isVerticalScrolling){
+    console.log('Vertical scrolling enabled');
+  if (props.highlightRowId && rowRefs.current[props.highlightRowId] && verticalScrollingRef.current) {
+    const rowEl = rowRefs.current[props.highlightRowId];
+    const container = verticalScrollingRef.current;
+        const index = data.findIndex((d: any) => d.id === props.highlightRowId);
+
+        setHoveredRow(index);
+
+
+    // Get the offset of the row relative to the container
+    if (!rowEl || !container) return;
+
+    console.log('Row Element:', rowEl);
+    const rowRect = rowEl.getBoundingClientRect();
+    const containerRect = container.getBoundingClientRect();
+
+    // Calculate the scroll position to center the row
+    const offset = rowEl.offsetTop - container.offsetTop - (container.clientHeight / 2) + (rowEl.clientHeight / 2);
+
+    console.log('Container Element:', container);
+    console.log('Row Rect:', rowRect);
+    console.log('Container Rect:', containerRect);
+    console.log('Scroll Offset:', offset);
+
+    container.scrollTo({
+      top: offset + 70,
+      behavior: 'smooth'
+    });
+  }
+}
+}, [props.highlightRowId ]);
+
+
+
+
+
+
   return (
     <styled.tableMainContainer   ref={tableContainerRef}
 >
@@ -541,7 +678,9 @@ useEffect(() => {
             />
           </Tooltip>
         )}
-        {renderColumnManager()}
+        {isManageColumn && renderColumnManager()}
+
+        {isSearchable && (
         <CustomSearchInput
           placeholder="Search"
           allowClear
@@ -551,6 +690,8 @@ useEffect(() => {
             ref={searchInputRef}
 
         />
+
+  )}
       
       {isDownloadable && (
          <Button
@@ -565,11 +706,19 @@ useEffect(() => {
    
       </styled.tableActionsDiv>
       
-      <div style={{ overflow: 'auto', width: '100%',
-      scrollbarWidth: 'none', // Firefox
-    msOverflowStyle: 'none',
-        
-       }}>
+    <div
+      ref={el => {
+        verticalScrollingRef.current = el as HTMLDivElement | null;
+        if (props.tableScrollRef) {
+          (props.tableScrollRef as React.MutableRefObject<HTMLDivElement | null>).current = el as HTMLDivElement | null;
+        }
+      }}
+      style={{
+        overflow: 'auto',
+        width: '100%',
+        scrollbarWidth: 'none', // Firefox
+        msOverflowStyle: 'none',
+      }}>
         <table style={{ borderCollapse: 'collapse', tableLayout: 'fixed', position: 'sticky', zIndex: 120, top: 0 }}>
           <thead>
             <tr>
@@ -601,6 +750,10 @@ useEffect(() => {
                 return (
                   <th
                     key={header.id}
+                     ref={el => {
+    const colId = header.column.id || header.column.accessorKey;
+    if (colId) columnRefs.current[colId] = el;
+  }}
                     style={{
                       border: '1px solid rgb(32,32,32)',
                       borderRight: '2px solid rgb(32,32,32)',
@@ -668,23 +821,70 @@ useEffect(() => {
           </thead>
         </table>
         
-        <table  style={{borderSpacing: 0}}>
-          <tbody style={{
+        <table  style={{borderSpacing: 0}}  >
+          <tbody   ref={tableBodyRef}
+ style={{
+            
+
           //  overflowY: 'auto',
             maxHeight: 'calc(100vh - 260px)',
 
             // maxHeight: '60vh',
             display: 'block'
           }}>
-            {table.getRowModel().rows.map((row) => (
+            {table.getRowModel().rows.map((row) =>{ 
+
+              // Type guard for divider rows
+              if (row.original && typeof row.original === 'object' && '__divider' in row.original) {
+    return (
+      <tr key={`divider-${(row.original as any).title}`}  >
+
+     
+       
+       
+        <td
+          colSpan={columns.length + 1}
+                                      className={'custom-table-sticky-col'}
+
+          style={{
+  
+    border: 'none',
+    padding: 0,
+    position: 'sticky',
+    left: 0,
+      color: '#1677ff',
+      fontWeight: 600,
+      fontSize: 15,
+            background: '#181f2a',
+
+    zIndex: 101,
+  }}
+        >
+          {(row.original as any).title}
+        </td>
+      </tr>
+    );
+              }
+              
+              return (
               <tr
                 key={row.id}
+                 ref={el => {
+    // @ts-ignore
+    rowRefs.current[row.original.id] = el;
+  }}
                 onMouseEnter={() => setHoveredRow(row.index)}
                 onMouseLeave={() => setHoveredRow(null)}
+                
                 style={{
-                  background: hoveredRow === row.index ? 'white' : undefined,
-                  transition: 'background 0.2s',
-                }}
+      background:
+        props.highlightRowId === row.original.id
+          ? 'white' // highlighted color (light yellow)
+          : hoveredRow === row.index
+          ? 'white'
+          : undefined,
+      transition: 'background 0.2s',
+    }}
               >
 
                 {/* Action column for delete button   */}
@@ -784,6 +984,10 @@ useEffect(() => {
                   return (
                     <td
                       key={cell.id}
+                       ref={el => {
+    // @ts-ignore
+    rowRefs.current[row.original.id] = el;
+  }}
                       className={cell.column.getIndex() === 0 ? 'custom-table-sticky-col' : ''}
                       style={{
                         border: '1px solid rgb(32,32,32)',
@@ -820,7 +1024,12 @@ useEffect(() => {
                   );
                 })}
               </tr>
-            ))}
+            )
+            
+
+          }
+            
+            )}
 
             {isWithNewRow && (
               <tr ref={newRowRef}>
@@ -865,10 +1074,32 @@ function EditableCell({
 }) {
   const [editValue, setEditValue] = React.useState(value ?? '');
 
+    const inputRef = useRef<any>(null);
+
+    if(editorType === 'date' && value) {    
+      console.log('EditableCell value:', value);  
+
+    }
+
+ useEffect(() => {
+  if (editorType === 'input' && inputRef.current) {
+    // For AntD Input.TextArea, get the real textarea element
+    const textarea = inputRef.current?.resizableTextArea?.textArea;
+    if (textarea) {
+      textarea.focus();
+      const val = textarea.value ?? '';
+      const length = val.length;
+      textarea.setSelectionRange(length, length);
+    }
+  }
+}, [editorType]);
+
+
   if (editorType === 'input') {
     return (
       <Input.TextArea
         value={editValue}
+        ref={inputRef}
         autoFocus
         onChange={e => setEditValue(e.target.value)}
         onBlur={() => {
@@ -898,36 +1129,65 @@ function EditableCell({
     );
   }
 
-  if (editorType === 'date') {
-  return (
-    <Input
-      type="date"
-      autoFocus
-      value={editValue}
-      onChange={e => {
-        setEditValue(e.target.value);
-        onSave(e.target.value); // Call handleEdit immediately on date select
-        onCancel();             // Close the editor
-      }}
-      onBlur={() => {
-        onSave(editValue);
-        onCancel();
-      }}
-      style={{
-        width: '100%',
-        position: 'absolute',
-        top: 0,
-        left: 0,
-        zIndex: 2,
-        background: '#202020',
-        color: 'white',
-      }}
-      onFocus={e => {
-        e.target.showPicker && e.target.showPicker();
-      }}
-    />
-  );
-}
+//   if (editorType === 'date') {
+//   return (
+//     <Input
+//       type="date"
+//       autoFocus
+//       value={editValue}
+//       onChange={e => {
+//         setEditValue(e.target.value);
+//         onSave(e.target.value); // Call handleEdit immediately on date select
+//         onCancel();             // Close the editor
+//       }}
+//       onBlur={() => {
+//         onSave(editValue);
+//         onCancel();
+//       }}
+      
+//       onFocus={e => {
+//         e.target.showPicker && e.target.showPicker();
+//       }}
+//     />
+//   );
+// }
+
+
+if (editorType === 'date') {
+    return (
+      <DatePicker
+        autoFocus
+        value={editValue ? dayjs(editValue) : undefined}
+        onChange={(date, dateString) => {
+
+
+          
+          // Store the formatted date
+          if (date) {
+            const formattedDate = date.format('YYYY-MM-DD');
+            setEditValue(formattedDate);
+            onSave(formattedDate);
+          } else {
+            setEditValue(null);
+            onSave(null);
+          }
+        }}
+        format="DD-MM-YYYY"
+        style={{
+          width: '100%',
+           borderRadius: 4,
+          backgroundColor: 'rgb(25, 25, 25)',
+          color: 'white',
+        }}
+        placeholder="Select date"
+        onBlur={() => onCancel()}
+        // popupClassName="dark-theme-datepicker"
+        // dropdownStyle={{ backgroundColor: '#1f1f1f' }}
+      />
+    );
+  }
+
+
 
   if (editorType === 'select') {
     return (
