@@ -37,6 +37,9 @@ import { useGetCommentByRecursiveTaskLogId } from '../../api/get/postGetCommentB
 import { useCreateComment } from '../../api/post/newComment';
 import DateInput from '../../components/CustomDateInput/CustomDateInput';
 import CustomSelect from '../../components/customSelect/CustomSelect';
+import { useCreateMultipleAttachments } from '../../api/post/newMultipleAttachments';
+import { usepostGetRecursiveTaskLogsAttachmentByTask } from '../../api/get/postGetAttachmentByRecursiveTaskLog';
+import RecursiveTaskLogCell from './components/RecursiveTaskLogCell/RecursiveTaskLogCell';
 
 
 
@@ -54,7 +57,6 @@ const RecursiveTaskTable = ({intervalDays, customFilters, customActiveFilters, i
   const { userid } = useParams();
     const loggedInUserId = Number(localStorage.getItem('userid'));
 
-    console.log("Logged in user ID:", customActiveFilters, customFilters);
 
 
 
@@ -65,7 +67,11 @@ const RecursiveTaskTable = ({intervalDays, customFilters, customActiveFilters, i
 
   const [activeInterval, setActiveInterval] = useState<number>(intervalDays || 0);
 
-  const { data: recursiveTasks = [], isLoading, refetch: refetchRecursiveTasks } = useGetRecursiveTaskByUser(userid || '', activeInterval);
+  const currentMonth = dayjs().month() + 1; // 1 = January, 12 = December
+  const currentYear = dayjs().year();
+
+
+  const { data: recursiveTasks = [], isLoading, refetch: refetchRecursiveTasks } = useGetRecursiveTaskByUser(userid || '', currentMonth, currentYear);
   const [tasks, setTasks] = useState<any[]>([]);
 
       const {data: allMembersData} = useGetAllUsers();
@@ -254,7 +260,7 @@ const toggleCommentsVisibility = (
           ? { 
               ...task, 
               recursiveTaskLogs: task.recursiveTaskLogs.map((log: any) => 
-                log.id === selectedTaskId 
+                log.id === commentResponse?.[0]?.recursiveTaskLogId 
                   ? { ...log, comments: commentResponse } 
                   : log
               ) 
@@ -354,7 +360,86 @@ const toggleCommentsVisibility = (
     );  
   }, [updateRecursiveTaskMutate]);
 
-  const createAttachmentMutation = useCreateAttachment();
+  const createAttachmentMutation = useCreateMultipleAttachments();
+
+  const postGetAttachmentByTask= usepostGetRecursiveTaskLogsAttachmentByTask();
+
+     const handleMultipleUpload = async (files: FileList, log: any, date: any,taskId: any) => {
+            try {
+              const formData = new FormData();
+
+              const rescursiveTaskLogId = log.id;   
+              // Append all files
+              Array.from(files).forEach(file => {
+                formData.append("files", file); // "files" should match your backend field for multiple files
+              });
+              formData.append("recursiveTaskLogId", taskId);
+              formData.append("logId", log.id);
+              formData.append("date", date);          
+              // Use your multiple attachments mutation
+              await createAttachmentMutation.mutateAsync([formData, userid]);
+              const attachmentResponse = await postGetAttachmentByTask.mutateAsync([log.id]);
+
+              setTasks(prev =>
+      prev.map(task => {
+        return task.id === log.id
+          ? { 
+              ...task, 
+              recursiveTaskLogs: task.recursiveTaskLogs.map((log: any) => 
+                log.id === rescursiveTaskLogId 
+                  ? { ...log, files: attachmentResponse } 
+                  : log
+              ) 
+            } 
+          : task;
+      })
+    );
+
+              // setTasks(prev =>
+              //   prev.map(item => item.id === log.id ? { ...item, files: attachmentResponse } : item)
+              // );
+          
+              // refetchTasksData();
+          
+            } catch (error) {
+              console.error("Error uploading files:", error);
+              if (error instanceof Error) {
+                console.error("Error message:", error.message);
+              }
+              alert("Failed to upload files. Please try again.");
+            }
+          };
+
+
+            const triggerMultipleFileUpload = (e: React.MouseEvent, log: any, date: any) => {
+            e.preventDefault();
+            e.stopPropagation();
+            // Create a new file input element dynamically
+            const input = document.createElement('input');
+            input.type = 'file';
+            input.multiple = true; // <-- allow multiple files
+            input.onchange = (e) => {
+              const files = (e.target as HTMLInputElement).files;
+              if (files && files.length > 0) {
+                handleMultipleUpload(files, log, date, log.id); // <-- use your multiple upload handler
+              }
+            };
+            // Trigger click on the input
+            input.click();
+          };
+
+
+           const openDateChangeModal = (e: React.MouseEvent, log: any, date: any) => {
+                  const isPastDate = dayjs(date).isBefore(dayjs().startOf('day'));
+
+            if (isPastDate) return;
+            
+            e.preventDefault();
+            e.stopPropagation();
+            setSelectedRecursiveTask(log.id);
+            setSelectedRecursiveTaskLogDate(date);
+            setOpenChangeDateModal(true);
+          };
   
 
   const columns = useMemo(() => [
@@ -406,195 +491,50 @@ const toggleCommentsVisibility = (
     ...allDates.map(date => {
       // Check if the date is in the past
       const isPastDate = dayjs(date).isBefore(dayjs().startOf('day'));
-      console.log("Date:", DateWithThreeMonthletters(date), "is past:", isPastDate);
       
       return {
         header: DateWithThreeMonthletters(date),
         accessorKey: date,
         size:115,
               enableSorting: false,
+cell: ({ row }: { row: any }) => {
+    const log = (row.original.recursiveTaskLogs || []).find((l: any) => l.date === date);
+  if (!log) return null;
 
-        cell: ({ row }: { row: any }) => {
-          const log = (row.original.recursiveTaskLogs || []).find((l: any) => l.date === date);
-          if (!log) return null;
-          
-          const checked = log.status === 'completed';
-          const attachments = log.files || [];
-          const comments = log.comments || [];
-          
-          // Create handlers inside the cell renderer, but they use the memoized parent handlers
-          const triggerFileUpload = (e: React.MouseEvent) => {
-            if (isPastDate) return;
-            
-            e.preventDefault();
-            e.stopPropagation();
-            const input = document.createElement('input');
-            input.type = 'file';
-            input.onchange = (e) => {
-              const files = (e.target as HTMLInputElement).files;
-              if (files && files.length > 0) {
-                handleUpload(files[0], log, date, log.id);
-              }
-            };
-            input.click();
-          };
-          
-          const openDateChangeModal = (e: React.MouseEvent) => {
-            if (isPastDate) return;
-            
-            e.preventDefault();
-            e.stopPropagation();
-            setSelectedRecursiveTask(row.original.id);
-            setSelectedRecursiveTaskLogDate(date);
-            setOpenChangeDateModal(true);
-          };
-          
-          // Modified handleUpload to take file directly
-          const handleUpload = async (file: File, log: any, date: string, taskId: any) => {
-            try {
-              const formData = new FormData();
-              formData.append("file", file);
-              formData.append("recursiveTaskLogId", taskId);
-              formData.append("logId", log.id);
-              formData.append("date", date);
-              
-              if (!userid) {
-                throw new Error("User ID is undefined");
-              }
-              
-              await createAttachmentMutation.mutateAsync([formData, userid]);
-              refetchRecursiveTasks();
-            } catch (error) {
-              console.error("Error uploading file:", error);
-              alert("Failed to upload file. Please try again.");
-            }
-          };
-          
-          return (
-            <div style={{ 
-              display: 'flex', 
-              flexDirection: 'column', 
-              gap: 4,
-              opacity: isPastDate ? 0.7 : 1 
-            }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                <Input
-                type="checkbox"
-  checked={checked}
-  onChange={(e: any)=> !isPastDate && handleCheck(e.target.checked, log, date, row.original.id)}
-  disabled={isPastDate}
-  style={{
-    accentColor: checked ? '#52c41a' : '#aaa',
-    transform: 'scale(1.2)',
-    cursor: isPastDate ? 'not-allowed' : 'pointer',
-    height: 20,
-    width: 20,
-    transition: 'accent-color 0.2s'
-  }}
-/>
-                
-                <Button
-                  onClick={openDateChangeModal}
-                  disabled={isPastDate}
-                  style={{ 
-                    background: 'white', 
-                    border: 'none', 
-                    cursor: isPastDate ? 'not-allowed' : 'pointer',
-                    fontSize: '14px',
-                    opacity: isPastDate ? 0.5 : 1,
-                    height: 24,
-                    width: 24,
-                  }}
-                  icon={<CalculatorOutlined />}
-                >
-                  
-                </Button>
+  const checked = log.status === 'completed';
+  const attachments = log.files || [];
+  const comments = log.comments || [];
 
-                <Badge count={attachments.length} size="small" color="#1677ff">
-
-                
-                <Button
-                  onClick={triggerFileUpload}
-                  disabled={isPastDate}
-                  style={{ 
-                    background: 'white', 
-                    border: 'none', 
-                    cursor: isPastDate ? 'not-allowed' : 'pointer',
-                    opacity: isPastDate ? 0.5 : 1,
-                    height: 24,
-                    width: 24,
-                  }}
-                  icon={<UploadOutlined />}
-                >
-                  </Button>
-
-                  </Badge>
+   return (
+    <RecursiveTaskLogCell
+      log={log}
+      date={date}
+      row={row}
+      isPastDate={isPastDate}
+      checked={checked}
+      attachments={attachments}
+      comments={comments}
+      handleCheck={handleCheck}
+      handleMultipleUpload={handleMultipleUpload}
+      openDateChangeModal={openDateChangeModal}
+      triggerMultipleFileUpload={triggerMultipleFileUpload}
+      openCommentModal={openCommentModal}
+      handleEditComment={handleEditComment}
+      handleDeleteComment={handleDeleteComment}
+      editingComment={editingComment}
+      setEditingComment={setEditingComment}
+      assigneeOptions={assigneeOptions}
+      commentsVisible={commentsVisible}
+    />
+  );
 
 
-<Badge count={comments.length} size="small" color="#1677ff">
-
-                      <Button
-                  onClick={()=>openCommentModal(log)}
-                  disabled={isPastDate}
-                  style={{ 
-                    background: 'white', 
-                    border: 'none', 
-                    cursor: isPastDate ? 'not-allowed' : 'pointer',
-                    opacity: isPastDate ? 0.5 : 1,
-                    height: 24,
-                    width: 24,
-                  }}
-  icon={<CommentOutlined />}
-                >
-                  </Button>
-                  </Badge>
-
-              </div>
-              
-              {/* Only show comments if not hidden */}
-                <CommentCell
-                  comments={comments}
-                  rowId={log.id}
-                  openCommentModal={isPastDate ? () => {} : openCommentModal}
-                  handleEditComment={handleEditComment}
-                  handleDeleteComment={handleDeleteComment}
-                  editingComment={editingComment}
-                  setEditingComment={setEditingComment}
-                  assigneeOptions={assigneeOptions}
-                  disabled={isPastDate}
-                  visible={commentsVisible}
-                  isCommentText={true}
-
-                />
-            
-              
-              {/* Attachments section */}
-              {commentsVisible && ( 
-
-            
-              attachments && attachments.length > 0 && (
-                <div style={{ marginTop: 4, fontSize: '0.8em' }}>
-                  {attachments.map((attachment: any, idx: number) => (
-                    <div key={idx} style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
-                      <a 
-                        href={attachment?.downloadUrl} 
-                        target="_blank" 
-                        rel="noopener noreferrer"
-                        style={{ color: '#1677ff', textDecoration: 'underline' }}
-                      >
-                        {attachment?.fileName || `File ${idx + 1}`}
-                      </a>
-                    </div>
-                  ))}
-                </div>
-              )
 
 
-                )}
-              
-            </div>
-          );
-        },
+},
+
+
+
       };
     }),
   ], [
@@ -602,14 +542,12 @@ const toggleCommentsVisibility = (
     handleCheck, 
     handleEditComment, 
     handleDeleteComment, 
-    assigneeOptions, 
     editingComment, 
     createAttachmentMutation, 
     userid, 
-    refetchRecursiveTasks,
     hiddenCommentRows, // Add this dependency
     toggleCommentsVisibility, // And this one
-    activeInterval
+    
   ]);
 
   const dateOption =[
@@ -771,8 +709,6 @@ const columnsWithSizing = filteredColumns.map(col =>{
 
 
 
-console.log("Filtered columns:", columnsWithSizing.slice(0, 3));
-console.log("Filtered tasks:", columnSizing?.['title']);
 
 
 

@@ -50,7 +50,7 @@ const intervalOptions = [
 
   const [activeInterval, setActiveInterval] = useState<number>(1);
 
-  const { data: recursiveTasks = [], isLoading, refetch: refetchRecursiveTasks } = useGetRecursiveTaskByUser(userid || '', activeInterval);
+  const { data: recursiveTasks = [], isLoading, refetch: refetchRecursiveTasks } = useGetRecursiveTaskByUser(userid || '');
   const [tasks, setTasks] = useState<any[]>([]);
 
       const {data: allMembersData} = useGetAllUsers();

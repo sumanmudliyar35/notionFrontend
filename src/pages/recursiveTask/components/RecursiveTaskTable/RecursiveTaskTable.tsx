@@ -63,7 +63,7 @@ const RecursiveTaskTable = ({intervalDays, customFilters, customActiveFilters, i
 
   const [activeInterval, setActiveInterval] = useState<number>(intervalDays);
 
-  const { data: recursiveTasks = [], isLoading, refetch: refetchRecursiveTasks } = useGetRecursiveTaskByUser(userid || '', activeInterval);
+  const { data: recursiveTasks = [], isLoading, refetch: refetchRecursiveTasks } = useGetRecursiveTaskByUser(userid || '');
   const [tasks, setTasks] = useState<any[]>([]);
 
       const {data: allMembersData} = useGetAllUsers();

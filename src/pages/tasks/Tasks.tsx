@@ -58,6 +58,7 @@ import TagMultiSelector from "../../components/CustomMultiSelectModal/CustomMult
 import CustomSwitch from "../../components/customSwitch/CustomSwitch";
 import { usepostGetTaskAttachmentByTask } from "../../api/get/postGetTaskAttachmentByTask";
 import { useCreateMultipleAttachments } from "../../api/post/newMultipleAttachments";
+import { TaskCustomTable } from "./components/TaskCustomTable/TaskCustomTable";
 
 
 
@@ -114,7 +115,9 @@ const { userid } = useParams(); // If your route is defined as /user/:userId/rec
   const roleid = localStorage.getItem('roleid');
   const loggedInUserId = Number(localStorage.getItem('userid'));
 
-const [offset, setOffset] = useState(0);
+       const [offset, setOffset] = useState(0);
+
+       const [currentPage, setCurrentPage] = useState(0);
 
         const [tableData, setTableData] = useState<any[]>([]);
 
@@ -131,7 +134,30 @@ const [offset, setOffset] = useState(0);
             }
           }, [location.state]);
 
-    const {data: TaskData, refetch: refetchTasksData} = useGetTasksByUser(Number(userid), offset);
+
+            const savedActiveFiltersValue = useMemo(() => {
+      const activeFilters = localStorage.getItem('tasksActiveFilters');
+      return activeFilters ? JSON.parse(activeFilters) : [];
+    }, []);
+
+     const savedFiltersValue = useMemo(() => {
+      const filters = localStorage.getItem('tasksFilters');
+      return filters ? JSON.parse(filters) : {};
+    }, []);
+
+    const [filters, setFilters] = useState<Record<string, string | string[]>>(savedFiltersValue);
+    const [activeFilters, setActiveFilters] = useState<string[]>(savedActiveFiltersValue);
+    
+    const savedEnabledFiltersValue = useMemo(() => {
+      const enabledFilters = localStorage.getItem('leadsEnabledFilters');
+      return enabledFilters ? JSON.parse(enabledFilters) : {};
+    }, []);
+    
+    const [enabledFilters, setEnabledFilters] = useState<Record<string, boolean>>(savedEnabledFiltersValue);
+    
+        
+
+    const {data: TaskData, refetch: refetchTasksData} = useGetTasksByUser(Number(userid), offset, filters, enabledFilters);
 
     const {data: taskTablePreference, refetch: refetchTaskTablePreference} = useGetTaskTablePreference(userid);
 
@@ -142,7 +168,7 @@ const [offset, setOffset] = useState(0);
       if (offset === 0) return TaskData.data;
       console.log("Previous Table Data:", prev);
       console.log("Appending TaskData:", Array.isArray(prev), TaskData.data);
-      return Array.isArray(prev) ? [...prev, ...TaskData.data] : [...TaskData.data];
+      return [...TaskData.data];
     });
   }
 }, [TaskData, offset]);
@@ -170,13 +196,8 @@ const [offset, setOffset] = useState(0);
     const [columnSizing, setColumnSizing] = useState({});
 
 
-     const savedEnabledFiltersValue = useMemo(() => {
-      const enabledFilters = localStorage.getItem('leadsEnabledFilters');
-      return enabledFilters ? JSON.parse(enabledFilters) : {};
-    }, []);
-    
-    const [enabledFilters, setEnabledFilters] = useState<Record<string, boolean>>(savedEnabledFiltersValue);
-    
+     
+     
 
 
 
@@ -1047,20 +1068,9 @@ const reminderMutate = useCreateReminder();
       }
     };
 
-      const savedFiltersValue = useMemo(() => {
-      const filters = localStorage.getItem('tasksFilters');
-      return filters ? JSON.parse(filters) : {};
-    }, []);
+     
     
-    const savedActiveFiltersValue = useMemo(() => {
-      const activeFilters = localStorage.getItem('tasksActiveFilters');
-      return activeFilters ? JSON.parse(activeFilters) : [];
-    }, []);
-
-    const [filters, setFilters] = useState<Record<string, string | string[]>>(savedFiltersValue);
-    const [activeFilters, setActiveFilters] = useState<string[]>(savedActiveFiltersValue);
-    
-        
+ 
 
     const filterableKeys = [
   "status",
@@ -1345,12 +1355,14 @@ console.log("Filters", hasActiveFilters, filters);
           )
         : false;
     }
+
+    console.log("keysuman", key, "val", val, "row[key]", row[key as keyof Doc]);
     return val
       ? String(row[key as keyof Doc] || '').toLowerCase().includes(String(val).toLowerCase())
       : true;
   });
 });
-}, [tableData, filters, enabledFilters]);
+}, [tableData, filters, enabledFilters, offset]);
 
 
   const updateTablePreferences = useUpdateUsersTablePreference();
@@ -1808,7 +1820,7 @@ onClick={() => {
 
 
         
-        <CustomTable
+        <TaskCustomTable
          data={filteredData || []}
           onDataChange={setTableData}
           // columns={columns}
@@ -1831,6 +1843,12 @@ onClick={() => {
   handleColumnVisibilityChange={handleColumnVisibilityChange}
   onSelectionChange={handleDeleteTask}
   highlightRowId={highlightRowId}
+  onPageChange={(newPage) => {
+    console.log("Page changed to:", newPage);
+    setOffset(10 * (newPage-1));
+    setCurrentPage(newPage);
+  }}
+  totalDataCount={TaskData?.totalCount}
   // onOffsetChange={(newOffset) => {
   //   setOffset(newOffset);
   //   console.log("Offset changed:", newOffset);
