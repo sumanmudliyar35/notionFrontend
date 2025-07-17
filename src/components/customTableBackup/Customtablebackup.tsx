@@ -595,7 +595,6 @@ const scrollToTableTop = () => {
 useEffect(() => {
 
   if ( props.scrollToColumn && columnRefs.current[props.scrollToColumn]) {
-    console.log('Scrolling to column:', props.scrollToColumn);
     columnRefs.current[props.scrollToColumn]?.scrollIntoView({ behavior: 'smooth', inline: 'center', block: 'nearest' });
   }
 }, [props.scrollToColumn]);
@@ -627,7 +626,6 @@ useEffect(() => {
 useEffect(() => {
 
   if(isVerticalScrolling){
-    console.log('Vertical scrolling enabled');
   if (props.highlightRowId && rowRefs.current[props.highlightRowId] && verticalScrollingRef.current) {
     const rowEl = rowRefs.current[props.highlightRowId];
     const container = verticalScrollingRef.current;

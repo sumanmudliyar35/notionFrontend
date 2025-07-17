@@ -6,6 +6,8 @@ import { formatDisplayDate } from '../../utils/commonFunction';
 import { useUpdateMentionById } from '../../api/put/updateMentionById';
 import DoneAllIcon from '@mui/icons-material/DoneAll';
 import { useNavigate } from 'react-router-dom';
+import TaskPreview from '../TaskPreview/TaskPreview';
+import LeadsPreview from '../LeadsPreview/LeadsPreview';
 
 
 interface NotificationDrawerProps {
@@ -23,6 +25,8 @@ const NotificationDrawer: React.FC<NotificationDrawerProps> = ({
 }) => {
   // Responsive width: 350px for desktop, 90vw for mobile
   const drawerWidth = window.innerWidth < 600 ? '90vw' : 350;
+  const roleid = Number(localStorage.getItem('roleid'));
+
 
   const navigate = useNavigate();
 
@@ -65,15 +69,38 @@ const NotificationDrawer: React.FC<NotificationDrawerProps> = ({
 
     console.log('Notification clicked:', item);
   if (item.type === 'lead') {
+    setSelectedLeadId(item.leadId);
+    setOpenLeadsModal(true);
+    return;
     navigate('/leads', { state: { highlightRowId: item.leadId } });
     onClose(); // Optionally close the drawer
   }
 
   if (item.type === 'task') {
+    setSelectedTaskId(item.taskId);
+    setOpenTaskModal(true);
+
+    return ;
+    if( roleid === 1){
     navigate('/user/' + item.assignedTo + `/task/`, { state: { highlightRowId: item.taskId } });
+    }
+    else{
+          navigate('/user/' + userId + `/task/`, { state: { highlightRowId: item.taskId } });
+
+      
+    }
     onClose(); // Optionally close the drawer
   }
   // Add more types if needed
+};
+
+const [openTaskModal, setOpenTaskModal] = useState(false);
+const [openLeadsModal, setOpenLeadsModal] = useState(false);
+const [selectedLeadId, setSelectedLeadId] = useState<number | null>(null);
+const [selectedTaskId, setSelectedTaskId] = useState<number | null>(null);
+const handleTaskModalOpen = (taskId: number) => {
+  setSelectedTaskId(taskId);
+  setOpenTaskModal(true);
 };
 
   return (
@@ -107,7 +134,6 @@ const NotificationDrawer: React.FC<NotificationDrawerProps> = ({
                 transition: 'background-color 0.2s',
               }}
               className="notification-item"
-                onClick={() => handleNotificationClick(item)}
 
             >
               <div style={{ display: 'flex', alignItems: 'center', width: '100%' }}>
@@ -156,10 +182,13 @@ const NotificationDrawer: React.FC<NotificationDrawerProps> = ({
                   )}
                 </div>
               </div>
-              <div style={{ 
+              <div                 onClick={() => handleNotificationClick(item)}
+ style={{ 
                 color: item.status === 'read' ? '#aaa' : '#fff', 
                 marginTop: 4,
-                fontWeight: item.status === 'read' ? 'normal' : 'medium'
+                fontWeight: item.status === 'read' ? 'normal' : 'medium',
+
+
               }}>
                 {item.message || 'You were mentioned.'}
               </div>
@@ -171,6 +200,16 @@ const NotificationDrawer: React.FC<NotificationDrawerProps> = ({
           No new notifications.
         </div>
       )}
+
+{openTaskModal && selectedTaskId && (
+  <TaskPreview   taskId={selectedTaskId} open={openTaskModal} onClose={() => setOpenTaskModal(false)} title="Task Preview" />
+)}
+
+{openLeadsModal && selectedLeadId && (
+  <LeadsPreview leadId={selectedLeadId} open={openLeadsModal} onClose={() => setOpenLeadsModal(false)} title="Lead Preview" />
+
+)}
+
     </Drawer>
   );
 };

@@ -49,8 +49,15 @@ const intervalOptions = [
 ];
 
   const [activeInterval, setActiveInterval] = useState<number>(1);
+  
 
-  const { data: recursiveTasks = [], isLoading, refetch: refetchRecursiveTasks } = useGetRecursiveTaskByUser(userid || '');
+
+  const currentMonth = dayjs().month() + 1; // 1 = January, 12 = December
+  const currentYear = dayjs().year();
+
+
+  const { data: recursiveTasks = [], isLoading, refetch: refetchRecursiveTasks } = useGetRecursiveTaskByUser(userid || '', currentMonth, currentYear);
+
   const [tasks, setTasks] = useState<any[]>([]);
 
       const {data: allMembersData} = useGetAllUsers();

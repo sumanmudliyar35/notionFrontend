@@ -24,6 +24,15 @@ const Sidebar: React.FC<SidebarProps> = ({ collapsed }) => {
   
   const {data: usersMenu} = useGetUsersMenu(userId || '0');
 
+
+  const [showLeads, setShowLeads] = useState(false);
+
+  useEffect(() => {
+    if (usersMenu?.data) {
+      setShowLeads(usersMenu?.showLeads || false);
+    }
+  }, [usersMenu, userId]);
+
   const {data: unseenNotificationCount} = useGetUnseenNotificationCount(userId || '0');
 
 
@@ -35,12 +44,23 @@ const Sidebar: React.FC<SidebarProps> = ({ collapsed }) => {
     icon: <BellOutlined style={{ ...iconStyle, color: '#52c41a' }} />,
     onClick: 'drawer',
   },
-  {
-    key: 'leads',
-    label: 'Leads',
-    icon: <TeamOutlined style={{ ...iconStyle, color: '#fa8c16' }} />, // <-- new icon and color
-    path: '/leads',
-  },
+
+  ...(showLeads
+    ? [
+        {
+          key: 'leads',
+          label: 'Leads',
+          icon: <TeamOutlined style={{ ...iconStyle, color: '#fa8c16' }} />,
+          path: '/leads',
+        },
+      ]
+    : []),
+  // {
+  //   key: 'leads',
+  //   label: 'Leads',
+  //   icon: <TeamOutlined style={{ ...iconStyle, color: '#fa8c16' }} />, // <-- new icon and color
+  //   path: '/leads',
+  // },
 
   // {
   //   key: 'tasks',

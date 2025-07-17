@@ -97,4 +97,5 @@ export const paginationContainer = styled.div`
   export const searchAndManagerDiv = styled.div`
   display: flex;
   justify-content: flex-end;
+  gap:8px;
   `;

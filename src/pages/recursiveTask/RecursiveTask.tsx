@@ -40,6 +40,10 @@ import CustomSelect from '../../components/customSelect/CustomSelect';
 import { useCreateMultipleAttachments } from '../../api/post/newMultipleAttachments';
 import { usepostGetRecursiveTaskLogsAttachmentByTask } from '../../api/get/postGetAttachmentByRecursiveTaskLog';
 import RecursiveTaskLogCell from './components/RecursiveTaskLogCell/RecursiveTaskLogCell';
+import { TaskCustomTable } from '../tasks/components/TaskCustomTable/TaskCustomTable';
+import CustomEditableCell from '../../components/CustomEditableCell/CustomEditableCell';
+import { useUpdateUsersTablePreference } from '../../api/put/updateUsersTablePreference';
+import { useGetRecursiveTaskTablePreference } from '../../api/get/getRecursiveTaskTablePreference';
 
 
 
@@ -72,6 +76,28 @@ const RecursiveTaskTable = ({intervalDays, customFilters, customActiveFilters, i
 
 
   const { data: recursiveTasks = [], isLoading, refetch: refetchRecursiveTasks } = useGetRecursiveTaskByUser(userid || '', currentMonth, currentYear);
+
+
+
+  const {data: recursiveTaskTablePreference} = useGetRecursiveTaskTablePreference(userid || '');
+
+
+
+   const columnWidthMap = useMemo(() => {
+    if (!recursiveTaskTablePreference) return {};
+    return recursiveTaskTablePreference.reduce((acc: any, pref: any) => {
+      acc[pref.accessorKey] = pref.width;
+      acc[pref.orderId] = pref.orderId;
+      return acc;
+    }, {});
+  }, [recursiveTaskTablePreference]);
+
+
+
+
+ 
+
+  
   const [tasks, setTasks] = useState<any[]>([]);
 
       const {data: allMembersData} = useGetAllUsers();
@@ -176,6 +202,8 @@ const toggleCommentsVisibility = (
       console.error('Error creating recursive task:', error);
     }
   }, [useCreateRecursiveTaskMutate, userid, refetchRecursiveTasks]);
+
+  console.log('sdsdsfgh',openRecursiveTaskModal)
   
 
   const UpdateRecursiveTaskDateMutate = useUpdateRecursiveTaskDate();
@@ -447,30 +475,23 @@ const toggleCommentsVisibility = (
       header: 'Name',
       accessorKey: 'title',
       size: 250,
+      headerStyle: { textAlign: 'center', fontSize: 24, display: 'flex', alignItems: 'center', justifyContent: 'center' },
+
       enableSorting: false,
       meta: {
-        editable: true,
         
       },
       cell: ({ row }: { row: any }) => (
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-          <span>{row.original.title}</span>
-          <button
-            type="button"
-            onClick={(e) => toggleCommentsVisibility(e, row.original.id)}
-            title={hiddenCommentRows[row.original.id] ? "Show comments" : "Hide comments"}
-            style={{ 
-              background: 'none', 
-              border: 'none', 
-              cursor: 'pointer',
-              fontSize: '14px',
-              padding: '2px 6px',
-              marginLeft: '8px',
-              color: '#1677ff'
-            }}
-          >
-          </button>
-        </div>
+          <CustomEditableCell
+          value={row.original.title} // or any string value you want to edit
+          onSave={newValue => {
+
+            handleRowEdit({ id: row.original.id, title: newValue });
+            // handle save logic here, e.g. update state or call API
+          }}
+        />
+
+      
       ),
     },
     {
@@ -573,6 +594,23 @@ cell: ({ row }: { row: any }) => {
 ];
 
 
+ const columnsWithWidth = columns
+  .map((col: any) => ({
+    ...col,
+    size: columnWidthMap[col.accessorKey as string] || col.size || 200,
+    orderId: recursiveTaskTablePreference?.find((p: any) => p.accessorKey === col.accessorKey)?.orderId ?? col.orderId,
+    isVisible: recursiveTaskTablePreference?.find((p: any) => p.accessorKey === col.accessorKey)?.isVisible ?? col.isVisible,
+
+
+  }))
+  .sort((a, b) => {
+    // If both have orderId, sort numerically; otherwise, keep original order
+    if (typeof a.orderId === "number" && typeof b.orderId === "number") {
+      return a.orderId - b.orderId;
+    }
+    return 0;
+  });
+
 const handleFilterChange = (key: string, value: string) => {
   setFilters((prev) => ({
     ...prev,
@@ -586,11 +624,21 @@ const handleFilterChange = (key: string, value: string) => {
 };
 
 
+  const updateTablePreferences = useUpdateUsersTablePreference();
+
+
  const handleColumnResize = (columnId: string, newSize: number) => {
     const body={
       width: newSize,
+    }
+
+    if(columnId === 'title') {
+    updateTablePreferences.mutateAsync([body, columnId,"recursiveTask",  userid]);
 
     }
+
+
+
     setColumnSizing((prev) => ({
       ...prev,
       [columnId]: newSize,
@@ -639,15 +687,49 @@ const handleRemoveFilter = (key: string) => {
   let lastInterval: number | null = null;
   const result: any[] = [];
 
-  for (const task of sortedTasks) {
-    if (task.intervalDays !== lastInterval) {
-      // Insert a divider row
-      result.push({ __divider: true,  title: `${task.intervalDays} days` });
-      lastInterval = task.intervalDays;
+  // for (const task of sortedTasks) {
+  //   if (task.intervalDays !== lastInterval) {
+  //     // Insert a divider row
+  //     result.push({ __divider: true,  title: `${task.intervalDays} days` });
+  //     lastInterval = task.intervalDays;
 
-    }
-    result.push(task);
+  //   }
+  //   result.push(task);
+  // }
+
+  for (const task of sortedTasks) {
+  let intervalLabel = `${task.intervalDays} days`;
+  // Map specific intervals to months/years
+  switch (task.intervalDays) {
+    case 1:
+      intervalLabel = 'Every Day';
+      break;
+    case 30:
+      intervalLabel = '1 Month';
+      break;
+    case 60:
+      intervalLabel = '2 Months';
+      break;
+    case 90:
+      intervalLabel = '3 Months';
+      break;
+    case 180:
+      intervalLabel = '6 Months';
+      break;
+    case 365:
+      intervalLabel = '1 Year';
+      break;
+    default:
+      intervalLabel = `${task.intervalDays} days`;
   }
+
+  if (task.intervalDays !== lastInterval) {
+    // Insert a divider row
+    result.push({ __divider: true, title: intervalLabel });
+    lastInterval = task.intervalDays;
+  }
+  result.push(task);
+}
 
   return result;
 }, [tasks]);
@@ -658,11 +740,11 @@ const handleRemoveFilter = (key: string) => {
   // If no date filter, return all columns
 
 
-  if (!filters.dateType || !filters.taskDate) return columns;
+  if (!filters.dateType || !filters.taskDate) return columnsWithWidth;
 
 
   // Find all date columns (skip the first two: 'Name' and 'Interval')
-  const dateColumns = columns.slice(2);
+  const dateColumns = columnsWithWidth.slice(2);
 
   // Parse filter values
   const filterDate = dayjs(Array.isArray(filters.taskDate) ? filters.taskDate[0] : filters.taskDate);
@@ -695,8 +777,8 @@ const handleRemoveFilter = (key: string) => {
   }
 
   // Always include the first two columns ('Name' and 'Interval')
-  return [...columns.slice(0, 2), ...filteredDateColumns];
-}, [columns, filters,customFilters, customActiveFilters]);
+  return [...columnsWithWidth.slice(0, 2), ...filteredDateColumns];
+}, [columnsWithWidth, filters,customFilters, customActiveFilters]);
 
 
 
@@ -896,18 +978,21 @@ Date
   </styled.FiltersDiv>
       
 
-      <CustomTable
+      <TaskCustomTable
           // data={tasks}
         data={filteredTasks}
         // columns={filteredColumns}
                 columns={columnsWithSizing}
+                isColumnHeaderCentered={true}
+                
 
         
         onDataChange={() => {}  }
         isDownloadable={false}
         createEmptyRow={() => {
+          console.log('Creating empty row');
           setOpenRecursiveTaskModal(true);
-          return {};
+          return{}
         }}
           onColumnSizingChange={(newSizing, columnId) => {
     setColumnSizing(newSizing);
@@ -919,12 +1004,19 @@ Date
         onRowEdit={handleRowEdit}
         scrollToColumn={dayjs().format('YYYY-MM-DD')}
         
-        isWithNewRow={true}
+        // isWithNewRow={true}
         onSelectionChange={handleDeleteRecursiveTask}
         isManageColumn={false}
         customSearchText={customSearchText || ''}
         isVerticalScrolling={false}
         tableIndex={tableIndex || 0}
+        isRowHovered={false}
+        isColumnHovered={true}
+        openRecursiveTaskModal={openRecursiveTaskModal}
+        setOpenRecursiveTaskModal={setOpenRecursiveTaskModal}
+        withPagination={false}
+        isWithNewRowButton={true}
+        
         // highlightRowId={0}
 
       />
@@ -937,7 +1029,6 @@ Date
         title="Add Recursive Task"
         onSave={(data) => {
           handleCreateRecursiveTask(data);
-          setOpenRecursiveTaskModal(false);
         }}
       />
 

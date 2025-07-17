@@ -39,7 +39,12 @@ const Login = () => {
           localStorage.setItem('userid', response.data.userId);
           localStorage.setItem('roleid', response.data.roleId);
           localStorage.setItem('name', response.data.name);
+          if(response.data.showLeads) {
           navigate('/leads');
+          }else{
+            navigate(`/user/${response.data.userId}/task`);
+
+          }
         } else {
           responseMessage.open({
             type: 'error',

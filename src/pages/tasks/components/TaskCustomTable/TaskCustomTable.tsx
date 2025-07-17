@@ -37,6 +37,7 @@ interface EditableTableProps<T> {
 
 columns: ColumnDef<T>[];
   isWithNewRow?: boolean;
+  isWithNewRowButton?: boolean; // Add this line
     onPageChange?: (page: number, pageSize: number) => void; // Add this line
 
 
@@ -63,8 +64,17 @@ onOffsetChange?: (newOffset: number) => void; // New prop for offset change
     tableIndex?: number; // Optional index prop for the table
       tableScrollRef?: React.RefObject<HTMLDivElement>;
       totalDataCount?: number; // Total count of data for pagination
+      pageSize?: number; // Initial page size for pagination
+      withPagination?: boolean; // Whether to show pagination controls
 
-    
+    onIncrementNearEnd?: () => void;
+    isColumnHeaderCentered?: boolean; // Whether to center column headers
+    isColumnHovered?: boolean; // Whether to enable column hover effects
+    isRowHovered?: boolean; // Whether to enable row hover effects
+    currentOffset?: number; // Current offset for pagination
+    openRecursiveTaskModal?: boolean; // Whether the recursive task modal is open
+    setOpenRecursiveTaskModal?: (open: boolean) => void; // Function to set the modal open state
+
 
 }
 
@@ -84,6 +94,10 @@ export function TaskCustomTable<T extends RowWithId>(props: EditableTableProps<T
 
   const [selectMenuOpen, setSelectMenuOpen] = useState(true);
   const [hasAdded, setHasAdded] = useState(false);
+
+
+  const [hoveredColIndex, setHoveredColIndex] = useState<number | null>(null);
+  
   const [currentlyEditing, setCurrentlyEditing] = useState<{
     rowIndex: number;
     columnId: keyof T;
@@ -108,7 +122,7 @@ export function TaskCustomTable<T extends RowWithId>(props: EditableTableProps<T
   const timeout = useRef<ReturnType<typeof setTimeout> | null>(null);
 
    const [currentPage, setCurrentPage] = useState(1);
-  const [pageSize, setPageSize] = useState(10);
+  // const [pageSize, setPageSize] = useState(10);
 
 
   // ✅ DESTRUCTURE PROPS AFTER HOOKS
@@ -121,6 +135,7 @@ export function TaskCustomTable<T extends RowWithId>(props: EditableTableProps<T
     onRowEdit,
     onRowDelete,
     isWithNewRow,
+    isWithNewRowButton=false,
     columnSizing = {},
     onColumnSizingChange,
     onColumnOrderChange,
@@ -130,8 +145,12 @@ export function TaskCustomTable<T extends RowWithId>(props: EditableTableProps<T
     onSelectionChange,
     isManageColumn= true,
     isSearchable = true, // Default to false if not provided
-    isVerticalScrolling=true
-    
+    isVerticalScrolling=true,
+    withPagination = true, // Default to true if not provided
+    isColumnHeaderCentered = false, // Default to false if not provided
+    isColumnHovered = false, // Default to false if not provided
+    isRowHovered = true, // Default to false if not provided
+
   } = props;
 
 
@@ -325,38 +344,60 @@ if (index !== -1) {
     onDataChange && onDataChange([newRow, ...data]);
     onRowCreate?.(newRow);
     
-    setTimeout(() => {
-      if (newRowRef.current) {
-        newRowRef.current.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
-      }
-      const lastRowIndex = table.getRowModel().rows.length;
-      const firstEditableCol = columns.find((col: any) => col.meta?.editable);
-      // if (firstEditableCol) {
+    // setTimeout(() => {
+    //   if (newRowRef.current) {
+    //     newRowRef.current.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    //   }
+    //   const lastRowIndex = table.getRowModel();
+    //   const firstEditableCol = columns.find((col: any) => col.meta?.editable);
+    //   // if (firstEditableCol) {
       
-      // );
-      //   setCurrentlyEditing({
-      //     rowIndex: lastRowIndex,
-      //     columnId: table.getHeaderGroups()[0].headers[0].id as keyof T,
-      //   });
-      // } else {
-      // }
-    }, 0);
+    //   // );
+    //   //   setCurrentlyEditing({
+    //   //     rowIndex: lastRowIndex,
+    //   //     columnId: table.getHeaderGroups()[0].headers[0].id as keyof T,
+    //   //   });
+    //   // } else {
+    //   // }
+    // }, 0);
 
-    setTimeout(() => {
-      addRowTriggeredRef.current = false;
-    }, 300);
+    // setTimeout(() => {
+    //   addRowTriggeredRef.current = false;
+    // }, 300);
 
     setHasAdded(true);
   }, [data, createEmptyRow, onDataChange, onRowCreate, table, columns]);
 
 
-  const prevRowCount = useRef(data.length);
+//   const prevRowCount = useRef(data.length);
+// useEffect(() => {
+//   // Only run if not initial mount and a row was added
+//   if (prevRowCount.current !== 0 && data.length > prevRowCount.current) {
+//     // const lastRowIndex = table.getRowModel().rows.length - 1;
+//         const lastRowIndex =  0;
+
+//     const firstEditableCol = columns.find((col: any) => col.meta?.editable);
+//     if (firstEditableCol) {
+//       setCurrentlyEditing({
+//         rowIndex: lastRowIndex,
+//         columnId: table.getHeaderGroups()[0].headers[0].id as keyof T,
+//       });
+//     }
+//   }
+//   prevRowCount.current = data.length;
+// }, [data.length, columns, table]);
+
+
+const prevRowCount = useRef(data.length);
 useEffect(() => {
   // Only run if not initial mount and a row was added
   if (prevRowCount.current !== 0 && data.length > prevRowCount.current) {
-    // const lastRowIndex = table.getRowModel().rows.length - 1;
-        const lastRowIndex =  0;
-
+    // Scroll to top when a row is added
+    if (verticalScrollingRef.current) {
+      verticalScrollingRef.current.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+    // Focus first editable cell in the new row
+    const lastRowIndex = 0;
     const firstEditableCol = columns.find((col: any) => col.meta?.editable);
     if (firstEditableCol) {
       setCurrentlyEditing({
@@ -556,69 +597,91 @@ const scrollToTableTop = () => {
 useEffect(() => {
 
   if ( props.scrollToColumn && columnRefs.current[props.scrollToColumn]) {
-    console.log('Scrolling to column:', props.scrollToColumn);
     columnRefs.current[props.scrollToColumn]?.scrollIntoView({ behavior: 'smooth', inline: 'center', block: 'nearest' });
   }
 }, [props.scrollToColumn]);
 
 
 
+
+
+
+
 // useEffect(() => {
-//   if (
-//     typeof props.scrollToColumn !== 'undefined' &&
-//     props.scrollToColumn !== null &&
-//     columnRefs.current[props.scrollToColumn as keyof typeof columnRefs.current]
-//   ) {
-//     // Stagger scrolls by table index (e.g., 100ms per table)
-//     const delay = props.tableIndex ? props.tableIndex * 100 : 0;
-//     const timeout = setTimeout(() => {
-//       columnRefs.current[props.scrollToColumn as keyof typeof columnRefs.current]?.scrollIntoView({
-//         behavior: 'smooth',
-//         inline: 'center',
-//         block: 'nearest'
-//       });
-//     }, delay);
-//     return () => clearTimeout(timeout);
+
+//   if(isVerticalScrolling){
+//   if (props.highlightRowId && rowRefs.current[props.highlightRowId] && verticalScrollingRef.current) {
+//     const rowEl = rowRefs.current[props.highlightRowId];
+//     const container = verticalScrollingRef.current;
+//         const index = data.findIndex((d: any) => d.id === props.highlightRowId);
+
+//         setHoveredRow(index);
+
+
+//     // Get the offset of the row relative to the container
+//     if (!rowEl || !container) return;
+
+//     console.log('Row Element:', rowEl);
+//     const rowRect = rowEl.getBoundingClientRect();
+//     const containerRect = container.getBoundingClientRect();
+
+//     // Calculate the scroll position to center the row
+//     const offset = rowEl.offsetTop - container.offsetTop - (container.clientHeight / 2) + (rowEl.clientHeight / 2);
+
+   
+
+//     container.scrollTo({
+//       top: offset + 70,
+//       behavior: 'smooth'
+//     });
 //   }
-// }, [props.scrollToColumn, props.tableIndex]);
+// }
+// }, [props.highlightRowId ]);
 
 
+// Add this effect in your TaskCustomTable component
+
+useEffect(() => {
+  
+  if (!verticalScrollingRef.current || !props.onIncrementNearEnd) return;
+
+  const handleScroll = () => {
+    if (!container) return;
+    const { scrollTop, scrollHeight, clientHeight } = container;
+    // If user is within 200px of the bottom, trigger the callback
+    if (scrollHeight - scrollTop - clientHeight < 500) {
+
+  
+      console.log("sds",props.totalDataCount, props.currentOffset);
+      props.onIncrementNearEnd && props.onIncrementNearEnd();
+      
+    }
+
+  };
+
+  const container = verticalScrollingRef.current;
+  container.addEventListener('scroll', handleScroll);
+
+  // return () => {
+  //   container.removeEventListener('scroll', handleScroll);
+  // };
+}, [props.onIncrementNearEnd]);
 
 
 useEffect(() => {
+  if(data.length < 20){
+    
+        props.onIncrementNearEnd && props.onIncrementNearEnd();
+      
+    
 
-  if(isVerticalScrolling){
-    console.log('Vertical scrolling enabled');
-  if (props.highlightRowId && rowRefs.current[props.highlightRowId] && verticalScrollingRef.current) {
-    const rowEl = rowRefs.current[props.highlightRowId];
-    const container = verticalScrollingRef.current;
-        const index = data.findIndex((d: any) => d.id === props.highlightRowId);
-
-        setHoveredRow(index);
-
-
-    // Get the offset of the row relative to the container
-    if (!rowEl || !container) return;
-
-    console.log('Row Element:', rowEl);
-    const rowRect = rowEl.getBoundingClientRect();
-    const containerRect = container.getBoundingClientRect();
-
-    // Calculate the scroll position to center the row
-    const offset = rowEl.offsetTop - container.offsetTop - (container.clientHeight / 2) + (rowEl.clientHeight / 2);
-
-    console.log('Container Element:', container);
-    console.log('Row Rect:', rowRect);
-    console.log('Container Rect:', containerRect);
-    console.log('Scroll Offset:', offset);
-
-    container.scrollTo({
-      top: offset + 70,
-      behavior: 'smooth'
-    });
   }
-}
-}, [props.highlightRowId ]);
+
+
+}, [data]);
+
+
+
 
 
 
@@ -629,26 +692,34 @@ useEffect(() => {
     <styled.tableMainContainer   ref={tableContainerRef}
 >
       <styled.tableActionsDiv>
-        <styled.paginationContainer>
+          <styled.paginationContainer>
 
 
-
+{withPagination && (
 
   <Pagination
     current={currentPage}
-    pageSize={pageSize}
+    pageSize={props.pageSize || 10}
     total={props.totalDataCount}
+    showSizeChanger={false}
     // showSizeChanger
     // pageSizeOptions={['5', '10', '20', '50']}
     onChange={(page, size) => {
       setCurrentPage(page);
-      setPageSize(size || 10);
       if (props.onPageChange) {
         props.onPageChange(page, size || 10); // Pass page and pageSize to parent
       }
     }}
   />
-          </styled.paginationContainer>
+
+
+)}
+
+            </styled.paginationContainer>
+
+
+
+  
 
 
 
@@ -665,6 +736,23 @@ useEffect(() => {
             />
           </Tooltip>
         )}
+
+        {isWithNewRowButton && (
+          <Button
+            type="primary"
+            onClick={() => {
+              if (props.setOpenRecursiveTaskModal) {
+                props.setOpenRecursiveTaskModal(!props.openRecursiveTaskModal);
+              }
+              setHasAdded(false);
+            }}
+          >
+            Add 
+          </Button>
+        )}
+
+
+        
         {isManageColumn && renderColumnManager()}
 
         {isSearchable && (
@@ -684,7 +772,6 @@ useEffect(() => {
          <Button
           icon={<DownloadOutlined />}
           onClick={downloadData ? () => downloadData() : undefined}
-          style={{ marginLeft: 8 }}
         >
           Download
         </Button>
@@ -738,6 +825,8 @@ useEffect(() => {
                 return (
                   <th
                     key={header.id}
+                    onMouseEnter={() => setHoveredColIndex(header.index)}
+  onMouseLeave={() => setHoveredColIndex(null)}
                      ref={el => {
     const colId = header.column.id || header.column.accessorKey;
     if (colId) columnRefs.current[colId] = el;
@@ -752,7 +841,7 @@ useEffect(() => {
                       position: header.index === 0 ? 'sticky' : 'relative',
                       left: header.index === 0 ? actionCollapsed ? 30 : 40 : undefined,
                       top: header.index === 0 ? 0 : undefined,
-                      background: '#1a1a1a',
+                      background: isColumnHovered &&  hoveredColIndex === header.index ? '#23272f' : '#1a1a1a',
                       userSelect: 'none',
                       zIndex: header.column.getIndex() === 0 ? 101 : undefined,
                       cursor: canSort ? 'pointer' : 'default',
@@ -761,7 +850,7 @@ useEffect(() => {
                       if (canSort) header.column.toggleSorting?.();
                     }}
                   >
-                    <div style={{ display: 'flex', alignItems: 'center', width: '100%', gap: 6 }}>
+                    <div style={{ display: 'flex', alignItems: 'center', width: '100%', gap:6 , justifyContent: isColumnHeaderCentered ? 'center' : 'flex-start' }}>
                       {header.isPlaceholder ? null : header.column.columnDef.header}
                       {canSort && (
                         <span>
@@ -785,7 +874,9 @@ useEffect(() => {
                             right: 0,
                             top: 0,
                             zIndex: 10,
-                            background: 'rgb(25, 25, 25)',
+                            // background: 'rgb(25, 25, 25)',
+                                                  background: isColumnHovered &&  hoveredColIndex === header.index ? '#23272f' : '#1a1a1a',
+
                           }}
                           onDoubleClick={() => {
                             const colId = header.column.id;
@@ -820,48 +911,86 @@ useEffect(() => {
             // maxHeight: '60vh',
             display: 'block'
           }}>
-            {table.getRowModel().rows.map((row) =>{ 
+            {table.getRowModel().rows.map((row, idx) =>{ 
 
-              // Type guard for divider rows
-              if (row.original && typeof row.original === 'object' && '__divider' in row.original) {
-    return (
-      <tr key={`divider-${(row.original as any).title}`}  >
+                const isFifthLast = idx === data.length - 5;
+                  
+
+
+  //             // Type guard for divider rows
+  //             if (row.original && typeof row.original === 'object' && '__divider' in row.original) {
+  //   return (
+  //     <tr key={`divider-${(row.original as any).title}`}  >
 
      
        
        
-        <td
-          colSpan={columns.length + 1}
-                                      className={'custom-table-sticky-col'}
+  //       <td
+  //         colSpan={columns.length + 1}
 
-          style={{
+  //         style={{
   
-    border: 'none',
-    padding: 0,
-    position: 'sticky',
-    left: 0,
-      color: '#1677ff',
-      fontWeight: 600,
-      fontSize: 15,
-            background: '#181f2a',
+  //     border: 'none',
+  //     padding: 0,
+  //     position: 'sticky',
+  //     left: 0,
+  //     color: '#1677ff',
+  //     fontWeight: 500,
+  //     fontSize: 15,
+  //     background: '#181f2a',
 
-    zIndex: 101,
-  }}
-        >
-          {(row.original as any).title}
-        </td>
-      </tr>
-    );
-              }
+  //   zIndex: 101,
+  // }}
+  //       >
+  //         {(row.original as any).title}
+  //       </td>
+  //     </tr>
+  //   );
+  //             }
+
+
+              if (row.original && typeof row.original === 'object' && '__divider' in row.original) {
+  return (
+    <tr key={`divider-${(row.original as any).title}`}  style={{display: 'flex', alignItems: 'center',   background: '#181f2a',
+}}>
+      <td
+        style={{
+          border: 'none',
+          padding: 0,
+          position: 'sticky',
+          left: 0,
+          display: 'flex',
+          color: '#1677ff',
+          fontWeight: 500,
+          fontSize: 15,
+          background: '#181f2a',
+          zIndex: 101,
+        }}
+      >
+        {(row.original as any).title}
+      </td>
+      {/* Render empty cells for the rest of the columns */}
+      {Array.from({ length: columns.length }).map((_, idx) => (
+        <td key={idx} style={{ border: 'none', background: '#181f2a', padding: 0 }} />
+      ))}
+    </tr>
+  );
+}
               
               return (
               <tr
                 key={row.id}
                  ref={el => {
     // @ts-ignore
-    rowRefs.current[row.original.id] = el;
+    rowRefs.current[row.original.id] = el; 
+    
   }}
-                onMouseEnter={() => setHoveredRow(row.index)}
+                onMouseEnter={() =>{ setHoveredRow(row.index);
+          
+
+
+
+                }}
                 onMouseLeave={() => setHoveredRow(null)}
                 
                 style={{
@@ -872,7 +1001,7 @@ useEffect(() => {
           ? 'white'
           : undefined,
       transition: 'background 0.2s',
-    }}
+  }}
               >
 
                 {/* Action column for delete button   */}
@@ -984,11 +1113,23 @@ useEffect(() => {
                         width: cell.column.getSize(),
                         minWidth: cell.column.getSize(),
                         maxWidth: cell.column.getSize(),
-                        background: hoveredRow === row.index ? '#23272f' : '#1a1a1a',
-                        position: cell.column.getIndex() === 0 ? 'sticky' : 'relative',
+background:
+  isColumnHovered && hoveredColIndex === cell.column.getIndex()
+    ? '#23272f'
+    : isRowHovered && hoveredRow === row.index
+    ? '#23272f'
+    : '#1a1a1a',
+        
+        position: cell.column.getIndex() === 0 ? 'sticky' : 'relative',
                         left: cell.column.getIndex() === 0 ? (actionCollapsed ? 30 : 40) : undefined,
                         zIndex: cell.column.getIndex() === 0 ? 101 : undefined,
+                      
+
+
                       }}
+
+                       onMouseEnter={() => setHoveredColIndex(cell.column.getIndex())}
+  onMouseLeave={() => setHoveredColIndex(null)}
                       onClick={() => {
                         if (columnId !== 'description' && isEditable) {
                           setCurrentlyEditing({ rowIndex: row.index, columnId });
@@ -1088,12 +1229,19 @@ function EditableCell({
       <Input.TextArea
         value={editValue}
         ref={inputRef}
-        autoFocus
-        onChange={e => setEditValue(e.target.value)}
+
+        onChange={e => { setEditValue(e.target.value);
+             e.target.style.height = "auto";
+    e.target.style.height = e.target.scrollHeight + "px";
+
+                    console.log('Input value:', e.target.value);
+
+         }}
         onBlur={() => {
           onSave(editValue);
           onCancel();
         }}
+
         style={{
           width: '100%',
           opacity: 1,
@@ -1104,7 +1252,7 @@ function EditableCell({
           top: 0,
           left: 0,
           transition: 'opacity 0.2s',
-          zIndex: 2,
+          zIndex: 1000000,
         }}
         onKeyDown={e => {
           if (e.key === 'Enter' && !e.shiftKey) {

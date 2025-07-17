@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useRef, useState } from 'react';
+import React, { use, useEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 
 const DROPDOWN_HEIGHT = 150; // px
@@ -7,10 +7,20 @@ const DROPDOWN_HEIGHT = 150; // px
 
 
 
+interface DescriptionCellProps {  value?: string;
+  onChange?: (value: string, leadid: string | number, mentionedUserIds: string[]) => void;
+  leadid?: string | number;
+  assigneeOptions?: { id: string | number; label: string; value: any }[];
+  customIsEdited?: boolean;
+}``
 
+const DescriptionCell = ({ value = '', onChange, leadid, assigneeOptions = [], customIsEdited }: any) => {
+  const [isEditing, setIsEditing] = useState(customIsEdited || false);
 
-const DescriptionCell = ({ value = '', onChange, leadid, assigneeOptions = [] }: any) => {
-  const [isEditing, setIsEditing] = useState(false);
+  useEffect(() => {
+    setIsEditing(customIsEdited || false);
+  }, [customIsEdited]);
+
   const [inputValue, setInputValue] = useState(value);
   const [showDropdown, setShowDropdown] = useState(false);
   const [searchText, setSearchText] = useState('');

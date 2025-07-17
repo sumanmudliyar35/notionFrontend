@@ -6,6 +6,8 @@ interface EditableTextAreaProps {
   autoFocus?: boolean;
   onChange: (val: string) => void;
   onEnter?: () => void;
+    onKeyDown?: (e: React.KeyboardEvent<HTMLTextAreaElement>) => void; // <-- Add this line
+
 }
 
 const CustomTextArea: React.FC<EditableTextAreaProps> = ({
@@ -13,12 +15,20 @@ const CustomTextArea: React.FC<EditableTextAreaProps> = ({
   autoFocus,
   onChange,
   onEnter,
+  onKeyDown, // <-- Add this line
 }) => {
   return (
     <Input.TextArea
       value={value}
       autoFocus={autoFocus}
       onChange={e => onChange(e.target.value)}
+       onKeyDown={e => {
+        if (onKeyDown) onKeyDown(e); // <-- Call custom onKeyDown if provided
+        if (e.key === 'Enter' && !e.shiftKey) {
+          e.preventDefault();
+          onEnter?.();
+        }
+      }}
       style={{
         width: '100%',
         opacity: 1,
@@ -30,12 +40,7 @@ const CustomTextArea: React.FC<EditableTextAreaProps> = ({
         transition: 'opacity 0.2s',
         zIndex: 2,
       }}
-      onKeyDown={e => {
-        if (e.key === 'Enter' && !e.shiftKey) {
-          e.preventDefault();
-          onEnter?.();
-        }
-      }}
+      
     />
   );
 };

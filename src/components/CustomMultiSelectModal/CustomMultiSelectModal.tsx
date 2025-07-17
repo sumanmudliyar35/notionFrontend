@@ -16,6 +16,7 @@ interface TagSelectorProps {
   horizontalOptions?: boolean;
   isMulti?: boolean; // <-- NEW
   isWithDot?: boolean; // <-- NEW prop for color dot
+  isCustomOpen?: boolean; // <-- NEW prop to control dropdown open state
 }
 
 const TagMultiSelector: React.FC<TagSelectorProps> = ({
@@ -27,8 +28,9 @@ const TagMultiSelector: React.FC<TagSelectorProps> = ({
   isWithDot = false, // <-- Default to true
   horizontalOptions = false, // <-- Default to false
   isMulti = false, // <-- NEW prop for multi-select
+  isCustomOpen = false, // <-- NEW prop to control dropdown open state
 }) => {
-  const [isOpen, setIsOpen] = useState(false);
+  const [isOpen, setIsOpen] = useState(isCustomOpen);
   const [searchTerm, setSearchTerm] = useState('');
   const [dropdownPosition, setDropdownPosition] = useState<'bottom' | 'top'>('bottom');
   const containerRef = useRef<HTMLDivElement>(null);

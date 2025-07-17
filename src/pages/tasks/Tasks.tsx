@@ -59,6 +59,8 @@ import CustomSwitch from "../../components/customSwitch/CustomSwitch";
 import { usepostGetTaskAttachmentByTask } from "../../api/get/postGetTaskAttachmentByTask";
 import { useCreateMultipleAttachments } from "../../api/post/newMultipleAttachments";
 import { TaskCustomTable } from "./components/TaskCustomTable/TaskCustomTable";
+import { usePostGetTaskByTaskId } from "../../api/get/postGetTaskByTask";
+import CustomEditableCell from "../../components/CustomEditableCell/CustomEditableCell";
 
 
 
@@ -111,15 +113,33 @@ const Tasks = () => {
 
   // const userid = Number(localStorage.getItem('userid'));
 
-const { userid } = useParams(); // If your route is defined as /user/:userId/recursive-task
-  const roleid = localStorage.getItem('roleid');
+  const { userid } = useParams(); // If your route is defined as /user/:userId/recursive-task
+  const roleid = Number(localStorage.getItem('roleid'));
   const loggedInUserId = Number(localStorage.getItem('userid'));
 
        const [offset, setOffset] = useState(0);
 
+       console.log("User ID:", offset);
+
+       const [limit, setLimit] = useState(30);
+
        const [currentPage, setCurrentPage] = useState(0);
 
         const [tableData, setTableData] = useState<any[]>([]);
+
+        const [totalTasks, setTotalTasks] = useState(0);
+
+        const [isOffsetLoading, setIsOffsetLoading] = useState(false);
+
+        const isOffsetLoadingRef = useRef(false);
+
+useEffect(() => {
+  isOffsetLoadingRef.current = isOffsetLoading;
+}, [isOffsetLoading]);
+
+useEffect(() => {
+  setOffset(0);
+}, [userid]);
 
          const location = useLocation();
         
@@ -161,20 +181,26 @@ const { userid } = useParams(); // If your route is defined as /user/:userId/rec
 
     const {data: taskTablePreference, refetch: refetchTaskTablePreference} = useGetTaskTablePreference(userid);
 
-    useEffect(() => {
+useEffect(() => {
   if (TaskData?.data) {
-    console.log("TaskData:", offset);
     setTableData(prev => {
-      if (offset === 0) return TaskData.data;
-      console.log("Previous Table Data:", prev);
-      console.log("Appending TaskData:", Array.isArray(prev), TaskData.data);
-      return [...TaskData.data];
+      if (offset === 0) {
+        setTotalTasks(TaskData?.totalCount);
+        // Only include tasks assigned to the current user
+        return TaskData.data.filter((item: any) => String(item.assignedTo) === String(userid));
+      }
+      setTotalTasks(TaskData?.totalCount);
+      // Filter prev to only include tasks assigned to the current user
+      const filteredPrev = prev.filter((item: any) => String(item.assignedTo) === String(userid));
+      const existingIds = new Set(filteredPrev.map(item => item.id));
+      const newRows = TaskData.data
+        .filter((item: any) => !existingIds.has(item.id))
+        .filter((item: any) => String(item.assignedTo) === String(userid));
+      return [...filteredPrev, ...newRows];
     });
+    setIsOffsetLoading(false);
   }
-}, [TaskData, offset]);
-
-
-
+}, [TaskData, offset, userid]);
 
     const columnWidthMap = useMemo(() => {
   if (!taskTablePreference) return {};
@@ -218,7 +244,7 @@ const { userid } = useParams(); // If your route is defined as /user/:userId/rec
  
 
   useEffect(() => {
-  if (roleid === "3") {
+  if (roleid === 3) {
     // Only allow current user as assignee
     // setAssigneeOptions([
     //   {
@@ -240,18 +266,15 @@ const { userid } = useParams(); // If your route is defined as /user/:userId/rec
   }
 }, [allMembersData, roleid, userid]);
 
-      const [isEventModalOpen, setIsEventModalOpen] = useState(false);
 
             const [isCommentModalOpen, setIsCommentModalOpen] = useState(false);
 
-            const [isMentionModalOpen, setIsMentionModalOpen] = useState(false);
 
         // const [tableData, setTableData] = useState<any[]>(TaskData?.data);
 
         const [selectedTaskId, setSelectedTaskId] = useState<number>();
 
 
-        const [selectedMentionLeadId, setSelectedMentionLeadId] = useState<number>();
 
 const [commentsVisible, setCommentsVisible] = useState<boolean>(false);
 
@@ -272,10 +295,7 @@ const [commentsVisible, setCommentsVisible] = useState<boolean>(false);
 
 
 
-        // useEffect(()=>{
-        //   setTableData(TaskData?.data)
-
-        // },[TaskData]);
+ 
 
 
        
@@ -292,15 +312,7 @@ const [commentsVisible, setCommentsVisible] = useState<boolean>(false);
           setIsCommentModalOpen(true);
   };
 
-  const openMentionModal = (rowData: Doc) => {
-          setSelectedMentionLeadId(rowData?.id);
-          setIsMentionModalOpen(true);
-  };
 
-  const openVoiceModal = (rowData: Doc) => {
-          setSelectedVoiceRow(rowData);
-          setIsVoiceModalOpen(true);
-  };
 
 
   const handleOpenReminderModal = (rowId: any, reminder: any) => {
@@ -404,15 +416,39 @@ const columns :ColumnDef<Doc>[] = [
 
     size: 500,
 
-    meta: { editable: true },
+    meta: { 
+      // editable: true
+
+     },
       enableSorting: true,
-      cell: ({ row }) => (
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-          <span  style={{ whiteSpace: 'pre-line' }}>{row.original.name}</span>
+      cell: ({ row }) => { 
+        
+
+      const handleUpdate = async (newValue: string) => {
+        const response = await updateTaskMutate.mutateAsync([{name: newValue}, row.original.id, userid]);
+        setNewAddedRow(null); // Reset newAddedRow after saving
+        setTableData(prev => prev.map(item => item.id === row.original.id ? { ...item, name: newValue } : item));
+
+      }
+        
+        
+        
+        return (
+        // <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+        //   <span  style={{ whiteSpace: 'pre-line' }}>{row.original.name}</span>
          
            
-        </div>
-      ),
+        // </div>
+        
+        <CustomEditableCell
+  value={row.original.name} // or any string value you want to edit
+  onSave={newValue => {
+    
+    handleUpdate(newValue);
+  }}
+  isCellActive={newAddedRow === row.original.id} 
+/>
+      )},
   },
 
    {
@@ -472,7 +508,10 @@ const columns :ColumnDef<Doc>[] = [
       
       // Call your API to update the task
       updateTaskMutate.mutateAsync([
-        { dueDate: formattedDate }, 
+        { dueDate: formattedDate,
+          dueDateModifiedBy: loggedInUserId, // Add this line to set the modifier
+
+         }, 
         row.row.original.id, 
         userid
       ]).then(() => {
@@ -482,7 +521,7 @@ const columns :ColumnDef<Doc>[] = [
     };
     
     // Display editor when in edit mode
-    if (isEditing && row.row.original.createdBy === loggedInUserId) {
+    if (isEditing && (row.row.original.dueDateModifiedBy== null || (row.row.original.assignedTo === row.row.original.dueDateModifiedBy || roleid == 1))) {
       return (
         <DatePicker
                    autoFocus
@@ -554,7 +593,7 @@ const columns :ColumnDef<Doc>[] = [
       header: 'Assignee',
       accessorKey: 'assignedTo', // or 'assignedTo' if that's your field
       meta: {
-        editable: roleid ==="1" ? true : false, // Only allow editing for admin
+        editable: roleid === 1 ? true : false, // Only allow editing for admin
         editorType: 'select',
         selectOptions: assigneeOptions,
       },
@@ -947,18 +986,25 @@ const createEmptyDoc = (): Doc => {
 
     const postGetComment = usePostGetByTask();
 
+
+    const [newAddedRow, setNewAddedRow] = useState<any>();
+
     const handleRowCreate=async(newRow: Doc)=>{
       const body={
         name: newRow.name,
         createdBy: loggedInUserId,
-        assignedTo: userid,
+        assignedTo: Number(userid),
         status:"notStarted",
         project:"ongoing",
 
       };
-      const response = await newTaskMutate.mutateAsync([body, userid]);
 
-  refetchTasksData(); // ADD THIS LINE
+
+
+      const response = await newTaskMutate.mutateAsync([body, userid]);
+      setNewAddedRow(response.id);
+      setTableData(prev => [ { ...response, id: response.id }, ...prev]);
+
 
 
 
@@ -971,6 +1017,8 @@ const createEmptyDoc = (): Doc => {
     const updateTaskMutate = useUpdateTask()
     
 
+
+    const getTaskMutate = usePostGetTaskByTaskId();
     const handleRowEdit=async(updatedRow: Doc, rowIndex: number)=>{
       console.log("Updated Row:", updatedRow);
       const body={
@@ -985,7 +1033,14 @@ const createEmptyDoc = (): Doc => {
 
 
       const response = await updateTaskMutate.mutateAsync([body, updatedRow.id, userid]);
-      refetchTasksData();
+      const taskData = await getTaskMutate.mutateAsync([updatedRow.id]);
+      setTableData(prev => {
+        if( taskData) {
+          return prev.map((row, index) => index === rowIndex ? { ...row, ...taskData } : row);
+        }
+        return prev;
+      });
+      
 
     };
 
@@ -1008,8 +1063,12 @@ const createEmptyDoc = (): Doc => {
       };
       try {
         await updateLeadMutate.mutateAsync([body, leadID, userid]);
+        setTableData(prev =>
+          prev.map(row =>
+            row.id === leadID ? { ...row, followup: date, followupTime: time } : row
+          )
+        );
 
-        refetchTasksData();
       } catch (error) {
         console.error("Error updating followup:", error);
       }
@@ -1224,11 +1283,9 @@ const filteredData = React.useMemo(() => {
 
   const hasActiveFilters = Object.entries(filters).some(([key, val]) => {
     const isEnabled = enabledFilters[key] !== false; // Default to true if not set
-    console.log("Checking filter", key, "isEnabled:", isEnabled, "value:", val);
     return isEnabled && val !== undefined && val !== null && val !== '';
   });
 
-console.log("Filters", hasActiveFilters, filters);
 
   return tableData?.filter((row) => {
 
@@ -1238,7 +1295,6 @@ console.log("Filters", hasActiveFilters, filters);
   return Object.entries(filters).every(([key, val]) => {
 
 
-    // Event Data filter
 
 
    const isEnabled = enabledFilters[key] !== false; // Default to true if not set
@@ -1356,7 +1412,6 @@ console.log("Filters", hasActiveFilters, filters);
         : false;
     }
 
-    console.log("keysuman", key, "val", val, "row[key]", row[key as keyof Doc]);
     return val
       ? String(row[key as keyof Doc] || '').toLowerCase().includes(String(val).toLowerCase())
       : true;
@@ -1822,8 +1877,7 @@ onClick={() => {
         
         <TaskCustomTable
          data={filteredData || []}
-          onDataChange={setTableData}
-          // columns={columns}
+          
           columns={columnsWithWidth}
           createEmptyRow={createEmptyDoc}
           onRowCreate={handleRowCreate} // ✅ hook for API
@@ -1843,12 +1897,27 @@ onClick={() => {
   handleColumnVisibilityChange={handleColumnVisibilityChange}
   onSelectionChange={handleDeleteTask}
   highlightRowId={highlightRowId}
-  onPageChange={(newPage) => {
-    console.log("Page changed to:", newPage);
-    setOffset(10 * (newPage-1));
-    setCurrentPage(newPage);
+  currentOffset={offset}
+  totalDataCount={totalTasks || 0}
+  
+  // onPageChange={(newPage) => {
+  //   console.log("Page changed to:", newPage);
+  //   setOffset(10 * (newPage-1));
+  //   setCurrentPage(newPage);
+  // }}
+   onIncrementNearEnd={() => {
+    console.log("Incrementing offset near end task");
+  if (isOffsetLoadingRef.current) return; // Use ref for immediate check
+
+    if( offset >= totalTasks ) return;
+      setIsOffsetLoading(true);
+        isOffsetLoadingRef.current = true; // Set ref immediately
+
+
+    setOffset((prevOffset) => prevOffset + 40);
+    // Increment your value or fetch more data here
   }}
-  totalDataCount={TaskData?.totalCount}
+  withPagination={false}
   // onOffsetChange={(newOffset) => {
   //   setOffset(newOffset);
   //   console.log("Offset changed:", newOffset);

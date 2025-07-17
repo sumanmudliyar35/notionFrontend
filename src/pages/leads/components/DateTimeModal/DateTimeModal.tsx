@@ -35,6 +35,9 @@ const DateTimeModal = ({ open, onClose, title, onSave, leadID, data }: DateTimeM
     onClose(); // Close the modal after saving
   };
 
+
+  console.log('Selected Date:', selectedDate);
+
   return (
     <CustomModal
       title={title || 'Select Date and Time'}
@@ -48,8 +51,11 @@ const DateTimeModal = ({ open, onClose, title, onSave, leadID, data }: DateTimeM
           </label>
           <DatePicker
             onChange={handleDateChange}
-            value={selectedDate ? dayjs(selectedDate) : null  }
-            format="DD-MM-YYYY"
+value={
+    !selectedDate || selectedDate === "0000-00-00"
+      ? null
+      : dayjs(selectedDate)
+  }            format="DD-MM-YYYY"
             style={{
               width: '100%',
               borderRadius: 4,
@@ -57,7 +63,7 @@ const DateTimeModal = ({ open, onClose, title, onSave, leadID, data }: DateTimeM
               color: 'white',
             }}
            
-            placeholder="Select Date"
+  placeholder="DD-MM-YYYY" // <-- Show this as the placeholder
           />
         </div>
         <div>

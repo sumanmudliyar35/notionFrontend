@@ -1,12 +1,14 @@
 import { PlusOutlined, DeleteOutlined } from "@ant-design/icons"
 import { Button, Popconfirm, message } from "antd"
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import AddMemberModal from "./components/AddMemberModal/AddMemberModal";
 import { useGetAllUsers } from "../../api/get/getAllMember";
 import type { ColumnDef } from '@tanstack/react-table'; // assuming you use react-table v8 or similar
 import { CustomTable } from "../../components/customTable/CustomTable";
 import * as styled from './style';
 import { useDeleteUser } from "../../api/delete/deleteUser";
+import CustomSwitch from "../../components/customSwitch/CustomSwitch";
+import { useUpdateUser } from "../../api/put/updateUser";
 
 interface User {
   userId: number;
@@ -25,6 +27,16 @@ const Admin = () => {
   const [isAddMemberModalOpen, setIsAddMemberModalOpen] = useState(false);
 
   const {data: allMembers, refetch: refetchAllMember} = useGetAllUsers();
+
+
+  const [tableData, setTableData] = useState<any[]>(allMembers || []);
+
+
+  useEffect(() => {
+    if (allMembers) {
+      setTableData(allMembers);
+    }
+  }, [allMembers]);
   const deleteUserMutation = useDeleteUser();
 
   const handleDelete = (userId: number) => {
@@ -44,6 +56,29 @@ const Admin = () => {
       }
     );
   };
+
+
+  const updateUserMutate = useUpdateUser();
+  const handleToggleShowLead = async(userId: number, checked: boolean) => {
+  // Call your API to update showLead property
+  // Example:
+  // updateUserMutation.mutate([{ showLead: checked }, userId], {
+  //   onSuccess: () => refetchAllMember(),
+  //   onError: () => message.error("Failed to update lead visibility."),
+  // });
+  const response = await updateUserMutate.mutateAsync([{ showLeads: checked }, userId]);
+
+
+
+  setTableData(prevData =>
+    prevData.map(user => 
+      user.userId === userId ? { ...user, showLeads: checked } : user
+    )
+  );
+ 
+
+}
+
 
   const columns = [
   // {
@@ -94,6 +129,21 @@ const Admin = () => {
     ),
     meta: { editable: false },
   },
+
+   {
+    header: 'Show Lead',
+    accessorKey: 'showLead',
+    size: 120,
+    cell: ({ row }: any) => (
+      <CustomSwitch
+        enabled={!!row.original.showLeads}
+        onChange={checked => handleToggleShowLead(row.original.userId, checked)}
+        // checkedChildren="Show"
+        // unCheckedChildren="Hide"
+      />
+    ),
+    meta: { editable: false },
+  },
 ];
 
   
@@ -114,7 +164,7 @@ const Admin = () => {
 
 
             <CustomTable
-                   data={allMembers || []}
+                   data={tableData || []}
                     // onDataChange={setTableData}
                     columns={columns}
                     isWithNewRow={false}
@@ -144,4 +194,4 @@ const Admin = () => {
   )
 }
 
-export default Admin
+export default Admin;

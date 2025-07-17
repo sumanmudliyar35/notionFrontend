@@ -6,6 +6,7 @@ import CustomInput from '../../../../components/customInput/CustomInput';
 import DateInput from '../../../../components/CustomDateInput/CustomDateInput';
 import CustomModal from '../../../../components/customModal/CustomModal';
 import CustomSelect from '../../../../components/customSelect/CustomSelect';
+import TagSelector from '../../../../components/customSelectModal/CustomSelectModal';
 
 interface YourModalProps {
   open: boolean;
@@ -25,11 +26,15 @@ const RecursiveTaskModal: React.FC<YourModalProps> = ({ open, onClose, title, on
 
 
   const intervalOptions = [
-    { label: "1 day", value: 1 },
-    { label: "3 days", value: 3 },
-    { label: "7 days", value: 7 },
-    { label: "15 days", value: 15 },
-    { label: "30 days", value: 30 },
+    { id: 1, label: "Everyday", value: 1 },
+    { id: 3, label: "3 Days", value: 3 },
+    { id: 7, label: "7 Days", value: 7 },
+    { id: 15, label: "15 Days", value: 15 },
+    { id: 30, label: "1 Month", value: 30 },
+    { id: 60, label: "2 Months", value: 60 },
+    { id: 90, label: "3 Months", value: 90 },
+    { id: 180, label: "6 Months", value: 180 },
+    { id: 365, label: "1 Year", value: 365 },
   ]
   const formik = useFormik({
     initialValues: {
@@ -86,6 +91,17 @@ const RecursiveTaskModal: React.FC<YourModalProps> = ({ open, onClose, title, on
   placeholder="Select interval"
   width="180px"
 />
+
+
+{/* <TagSelector
+  options={intervalOptions}
+  value={formik.values.interval}
+  onChange={(val: any) => formik.setFieldValue('interval', val)}
+  placeholder="Select interval"
+  allowCreate={false}
+  horizontalOptions={false}
+  isWithDot={false}
+/> */}
           <DateInput
             label="Start Date"
             value={formik.values.startDate}

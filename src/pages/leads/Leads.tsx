@@ -5,7 +5,7 @@ import { useGetLeadsByUser } from "../../api/get/getLeadsByUser";
 import { useCreateLead } from "../../api/post/newLead";
 import { useUpdateLead } from "../../api/put/updateLead";
 import * as styled from './style';
-import { Button, Input, message, Select } from "antd";
+import { Button, Input, message, Modal, Select } from "antd";
 import EventModal from "./components/EventModal/EventModal";
 import { DeleteOutlined, EyeInvisibleOutlined, EyeOutlined, PlusOutlined } from "@ant-design/icons";
 import CommentModal from "./components/CommentModal/CommentModal";
@@ -61,6 +61,8 @@ import CustomSwitch from "../../components/customSwitch/CustomSwitch";
 import TagSelector from "../../components/customSelectModal/CustomSelectModal";
 import TagMultiSelector from "../../components/CustomMultiSelectModal/CustomMultiSelectModal";
 import { useLocation } from "react-router-dom";
+import { TaskCustomTable } from "../tasks/components/TaskCustomTable/TaskCustomTable";
+import { useCreateMention } from "../../api/post/newMention";
 
 
 
@@ -111,7 +113,16 @@ const Leads = () => {
 
   const userid = Number(localStorage.getItem('userid'));
   const roleid = localStorage.getItem('roleid');
+
+        const [offset, setOffset] = useState(0);
+
+        const [limit, setLimit] = useState(100); 
   
+         const [currentPage, setCurrentPage] = useState(0);
+
+                 const [totalLeads, setTotalLeads] = useState(0);
+
+
 
     const location = useLocation();
 
@@ -127,10 +138,31 @@ const Leads = () => {
   }, [location.state]);
 
 
-  console.log("Highlight Row ID:", highlightRowId);
+    const [filtersEnabled, setFiltersEnabled] = useState<boolean>(true);
+
+  const savedFiltersValue = useMemo(() => {
+  const filters = localStorage.getItem('leadsFilters');
+  return filters ? JSON.parse(filters) : {};
+}, []);
+
+const savedActiveFiltersValue = useMemo(() => {
+  const activeFilters = localStorage.getItem('leadsActiveFilters');
+  return activeFilters ? JSON.parse(activeFilters) : [];
+}, []);
+
+const [filters, setFilters] = useState<Record<string, string | string[]>>(savedFiltersValue);
+const [activeFilters, setActiveFilters] = useState<string[]>(savedActiveFiltersValue);
+
+ const savedEnabledFiltersValue = useMemo(() => {
+  const enabledFilters = localStorage.getItem('leadsEnabledFilters');
+  return enabledFilters ? JSON.parse(enabledFilters) : {};
+}, []);
+
+const [enabledFilters, setEnabledFilters] = useState<Record<string, boolean>>(savedEnabledFiltersValue);
 
 
-    const {data: LeadsData, refetch: refetchLeadsData} = useGetLeadsByUser(Number(userid));
+  const {data: LeadsData, refetch: refetchLeadsData, isFetching: isLeadsDataFetching, isFetched: isLeadsDataFetched} = useGetLeadsByUser(Number(userid), offset, filters, limit);
+
 
     const {data: leadsTablePreference, refetch: refetchLeadsTablePreference} = useGetLeadsTablePreference(userid);
 
@@ -155,17 +187,18 @@ const Leads = () => {
   const [assigneeOptions, setAssigneeOptions] = useState<{ id: string | number; label: string; value: any }[]>([]);
   const [referenceOptions, setReferenceOptions] = useState<{ id: string | number; label: string; value: string }[]>([]);
 
-  const [filtersEnabled, setFiltersEnabled] = useState<boolean>(true);
   const [hiddenCommentRows, setHiddenCommentRows] = useState<Record<string, boolean>>({});
 
 
-  const savedEnabledFiltersValue = useMemo(() => {
-  const enabledFilters = localStorage.getItem('leadsEnabledFilters');
-  return enabledFilters ? JSON.parse(enabledFilters) : {};
-}, []);
+  const [isOffsetLoading, setIsOffsetLoading] = useState(false);
+  
+          const isOffsetLoadingRef = useRef(false);
+  
+  useEffect(() => {
+    isOffsetLoadingRef.current = isOffsetLoading;
+  }, [isOffsetLoading]);
 
-const [enabledFilters, setEnabledFilters] = useState<Record<string, boolean>>(savedEnabledFiltersValue);
-
+ 
   const leadsOption =[
     {id: 'excited', label: 'Excited', value: 'excited'},
      { id: 'warm', label: 'Warm', value: 'warm' },
@@ -253,7 +286,7 @@ const [enabledFilters, setEnabledFilters] = useState<Record<string, boolean>>(sa
 
             const [isMentionModalOpen, setIsMentionModalOpen] = useState(false);
 
-        const [tableData, setTableData] = useState<any[]>(LeadsData?.data);
+        const [tableData, setTableData] = useState<any[]>([]);
 
         const [selectedLeadId, setSelectedLeadId] = useState<number>();
 
@@ -279,6 +312,10 @@ const [editingCommentValue, setEditingCommentValue] = useState<string>('');
 const [eventOptions, setEventOptions] = useState<{ label: string; value: string }[]>([]);
 
 useEffect(() => {
+  setOffset(0);
+}, []);
+
+useEffect(() => {
   if (eventList && Array.isArray(eventList)) {
     setEventOptions(
       eventList?.map((event: any) => ({
@@ -289,10 +326,30 @@ useEffect(() => {
   }
 }, [eventList]);
 
-        useEffect(()=>{
-          setTableData(LeadsData?.data)
+       useEffect(() => {
+  if (LeadsData?.data) {
 
-        },[LeadsData]);
+    setTableData((prevData = []) => {
+      // If offset is 0, replace all data
+      if (offset === 0){ 
+        setTotalLeads(LeadsData?.totalCount || 0);
+        
+        return LeadsData.data;
+
+
+      }
+      // Otherwise, merge new data with previous, avoiding duplicates
+      const existingIds = new Set(prevData.map((i: any) => i?.id));
+      const merged = [
+        ...prevData,
+        ...LeadsData.data.filter((item: any) => !existingIds.has(item.id)),
+      ];
+      return merged;
+    });
+    setIsOffsetLoading(false);
+    isOffsetLoadingRef.current = false;
+  }
+}, [LeadsData]);
 
 
 //         useEffect(() => {
@@ -406,7 +463,6 @@ const [editingRowValue, setEditingRowValue] = useState<any>({});
 
 
 const handleOpenDateTimeModal = (row: any, date: any, time: any) => {
-  console.log('Opening DateTimeModal for row:', row, 'with date:', date, 'and time:', time);
   setEditingRow(row);
   setEditingRowValue({ date, time });
   setIsTimeDateModalOpen(true)
@@ -455,7 +511,13 @@ const handleUpdateEvent = async (rowId: any, eventId: any, eventData: any) => {
   eventIds: eventData.allEvents?.map((event: any) => event).join(',') || '', // returns "3,1" or ""  ...(eventData.eventListId == 4 && { others: eventData.eventName }),
 };
   await updateEventMutate.mutateAsync([body, eventId]);
-  refetchLeadsData();
+
+   const eventsResponse = await getEventByLeadId.mutateAsync([rowId]);
+  setTableData(prev =>
+    prev.map(row =>
+      row.id === rowId ? { ...row, eventData: eventsResponse } : row
+    )
+  );
 };
 
 const deleteEventMutate = useDeleteEvent();
@@ -490,10 +552,6 @@ const handleDeleteEvent = async (rowId: any, eventId: any) => {
 
 const handleAddEvent = async (eventData: any, rowId: any) => {
 
-
-
-
- 
   await createEventMutate.mutateAsync([eventData, rowId]);
   const eventsResponse = await getEventByLeadId.mutateAsync([rowId]);
   setTableData(prev =>
@@ -541,19 +599,22 @@ const handleComment= async(data: any)=>{
 
 const handleDeleteLead = async (allLeads: any) => {
   const now = new Date();
-
-
-
   // Add deletedAt to each lead
   const leadsWithDeletedAt = allLeads.map((lead: any) => ({
     id: lead?.original?.id,
     data: { deletedAt: new Date() },
   }));
 
-
+  // Update the leads with deletedAt
   await updateBulkLeadMutate.mutateAsync([leadsWithDeletedAt, userid]);
-  refetchLeadsData();
+  setTableData(prev => prev.filter(item => !allLeads.some((lead: any) => lead.original.id === item.id)));
+
+
 };
+
+
+
+
 
 
 
@@ -649,233 +710,13 @@ const columns = useMemo<ColumnDef<Doc>[]>(() => [
       handleDeleteEvent={handleDeleteEvent}
     />
   )
-// cell: ({ row }) => {
-//   const events = row.original.eventData || [];
-//   const rowId = row.original.id;
-
-//   // State for editing event (move this to your parent component if you want to edit only one event at a time for the whole table)
-//   const [editingIdx, setEditingIdx] = useState<number | null>(null);
-//   const [localEditValue, setLocalEditValue] = useState<any>(null);
-
-//   // When entering edit mode, set the local edit value
-//   const startEdit = (event: any, idx: number) => {
-//     setEditingIdx(idx);
-
-
-//     setLocalEditValue({
-//       eventDate: event?.eventDate,
-//       // eventName: event?.eventName || '',
-//             others: event?.eventName || '',
-
-//       allEvents: event?.allEvents || [], // Use allEvents to store multiple selected events
-//       eventId: event?.eventId || null,
-//       noOfGuests: event?.noOfGuests,
-//       note: event?.note || '',
-//       crew: event?.crew || '',
-//       eventListId: event?.eventListId || null, // Add this line to handle eventListId
-//     });
-//   };
-
-//   // When saving, call your handler and reset editing state
-//   const saveEdit = async (eventId: any) => {
-
-
-//     await handleUpdateEvent(rowId, eventId, localEditValue);
-//     setEditingIdx(null);
-//     setLocalEditValue(null);
-//   };
-
-//   // When canceling, reset editing state
-//   const cancelEdit = () => {
-//     setEditingIdx(null);
-//     setLocalEditValue(null);
-//   };
-
-//   return (
-//     <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-//       {events.length === 0 && (
-//         <span style={{ color: '#aaa' }}>No Events</span>
-//       )}
-//       {events.map((event: any, idx: number) => {
-//         const isEditing = editingIdx === idx;
-
-//         return (
-//           <div
-//             key={event.eventId || idx}
-//             style={{
-//               borderBottom: '1px solid #eee',
-//               paddingBottom: 2,
-//               display: 'flex',
-//               alignItems: 'center',
-//               justifyContent: 'space-between',
-//             }}
-//           >
-//             {isEditing ? (
-//               <div style={{ display: 'flex', flexDirection: 'column', gap: 8, width: '100%' }}>
-//                 {/* <Mui2InputWithDate
-//                   name="eventDate"
-//                   value={localEditValue.eventDate}
-//                   onChange={e =>
-//                     setLocalEditValue((prev: any) => ({
-//                       ...prev,
-//                       eventDate: e.target.value,
-//                     }))
-//                   }
-//                   placeholder="Select date"
-//                   required={false}
-//                   error={undefined}
-//                 /> */}
-//                 <DateInput
-//   value={localEditValue.eventDate || ''}
-//   onChange={date =>
-//     setLocalEditValue((prev: any) => ({
-//       ...prev,
-//       eventDate: date && dayjs(date).isValid() ? date.format('YYYY-MM-DD') : ''
-//     }))
-//   }
-//   placeholder="Select date"
-// />
 
 
 
-//   <CustomSelectWithAllOption
-//   name="eventId"
-//   placeholder="Select an event"
-//   options={eventOptions}
-//   isMulti={true}
-//   value={
-//     Array.isArray(localEditValue.allEvents)
-//       ? eventOptions.filter(option => localEditValue.allEvents.includes(String(option.value)))
-//       : []
-//   }
-//   onChange={(inputValue: any) => {
-//     // inputValue will be an array of selected option objects
-//     setLocalEditValue((prev: any) => ({
-//       ...prev,
-//       allEvents: inputValue ? inputValue.map((opt: any) => String(opt.value)) : [],
-//     }));
-//   }}
-// />
 
 
-// {Array.isArray(localEditValue.allEvents) && localEditValue.allEvents.includes("4") && (
-//   <CustomInput
-//     placeholder="Event Name"
-//     value={localEditValue.others}
-//     onChange={e =>
-//       setLocalEditValue((prev: any) => ({
-//         ...prev,
-//         others: e.target.value,
-//       }))
-//     }
-//   />
-// )}
-//                 <CustomInput
-//                   type="number"
-//                   placeholder="No. of Guests"
-//                   value={localEditValue.noOfGuests}
-//                   onChange={e =>
-//                     setLocalEditValue((prev: any) => ({
-//                       ...prev,
-//                       noOfGuests: e.target.value,
-//                     }))
-//                   }
-//                 />
-//                 <CustomInput
-//                   type="text"
-//                   placeholder="No. of Crew"
-//                   value={localEditValue.crew}
-//                   onChange={e =>
-//                     setLocalEditValue((prev: any) => ({
-//                       ...prev,
-//                       crew: e.target.value,
-//                     }))
-//                   }
-//                 />
-//                 <CustomTextArea
-//                   value={localEditValue.note}
-//                   onChange={val =>
-//                     setLocalEditValue((prev: any) => ({
-//                       ...prev,
-//                       note: val,
-//                     }))
-//                   }
-//                 />
-//                 <div>
-//                   <Button
-//                     size="small"
-//                     type="primary"
-//                     onClick={() => saveEdit(event.eventId)}
-//                     style={{ marginRight: 8 }}
-//                   >
-//                     Save
-//                   </Button>
-//                   <Button size="small" onClick={cancelEdit}>
-//                     Cancel
-//                   </Button>
-//                 </div>
-//               </div>
-//             ) : (
-//               <>
-//                 <div
-//                   style={{ cursor: 'pointer', flex: 1 }}
-//                   onClick={() => startEdit(event, idx)}
-//                 >
-//                   <div>
-//                     <b>{ event?.allEventData  || event?.eventName} on</b>{' '}
-//                     {formatDisplayDate(event?.eventDate)}
-                  
-//                   </div>
-//              {event.noOfGuests !== undefined && event.noOfGuests !== null && event.noOfGuests !== 0 && (
-//   <div>
-//     <b>Guests:</b> {event.noOfGuests}
-//   </div>
-// )}
-                
-//                   {event.crew && (
-//                     <div>
-//                       <b>Crew:</b> {event.crew || 0}
-//                     </div>
-//                   )}
-//                   {event.note && (
-//                     <div>
-//                       <b>Note:</b> {event.note}
-//                     </div>
-//                   )}
-//                 </div>
-//                 <Button
-//                   size="small"
-//                   danger
-//                   icon={
-//                     <DeleteOutlined
-//                       style={{
-//                         filter: 'brightness(0.7) grayscale(0.7)',
-//                       }}
-//                     />
-//                   }
-//                   onClick={e => {
-//                     e.stopPropagation();
-//                     handleDeleteEvent(rowId, event.eventId);
-//                   }}
-//                   style={{
-//                     marginLeft: 8,
-//                     background: 'lightgray',
-//                     borderColor: 'lightgray',
-//                   }}
-//                 />
-//               </>
-//             )}
-//           </div>
-//         );
-//       })}
-//       <Button
-//         size="small"
-//         icon={<PlusOutlined />}
-//         onClick={() => openEventModal(row.original.id)}
-//       />
-//     </div>
-//   );
-// }
+
+
 },
   {
     header: 'Budget',
@@ -1130,23 +971,81 @@ cell: ({ row }) => {
     orderId: 14,
     
     
+
     
   },
-  cell: ({ row }) => {
-    let mentions = row.original.mentions;
+ cell: ({ row }) => {
+  let mentions = row.original.mentions;
+  const [isSelectorOpen, setIsSelectorOpen] = React.useState(false);
+  const [pendingTags, setPendingTags] = React.useState(
+    Array.isArray(mentions) ? mentions.map((m: any) => m.userId) : []
+  );
+  const cellRef = React.useRef<HTMLDivElement>(null);
 
   // Ensure mentions is always an array
   if (!Array.isArray(mentions)) {
     try {
-      // Try to parse if it's a JSON string
       mentions = mentions && typeof mentions === 'string' ? JSON.parse(mentions) : [];
     } catch {
       mentions = "";
     }
   }
 
+  React.useEffect(() => {
+    if (!isSelectorOpen) return;
+    const handleClickOutside = (event: MouseEvent) => {
+      if (cellRef.current && !cellRef.current.contains(event.target as Node)) {
+        setIsSelectorOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, [isSelectorOpen]);
+
+  // When selector closes, update tags if changed
+  React.useEffect(() => {
+    if (!isSelectorOpen) {
+      // Only update if pendingTags differ from current mentions
+      const currentIds = Array.isArray(mentions) ? mentions.map((m: any) => m.userId) : [];
+      const isChanged =
+        pendingTags.length !== currentIds.length ||
+        pendingTags.some((id, idx) => id !== currentIds[idx]);
+      if (isChanged) {
+        handletags(pendingTags);
+      }
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isSelectorOpen]);
+
+  const handletags = async (selectedValues: string[] | number[]) => {
+    const valuesArray: (string | number)[] = Array.isArray(selectedValues) ? selectedValues : [];
+    const selectedTags = assigneeOptions.filter(opt => valuesArray.includes(opt.value))
+      .map(opt => ({ userId: opt.value, userName: opt.label }));
+
+    await Promise.all(
+      selectedTags.map((tag: any) =>
+        createMention.mutateAsync([
+          {
+            leadId: row.original.id,
+            userId: tag.userId,
+            type: "tag",
+            createdBy: userid,
+          },
+          userid
+        ])
+      )
+    );
+
+    setTableData(prev =>
+      prev.map(r =>
+        r.id === row.original.id ? { ...r, mentions: selectedTags } : r
+      )
+    );
+  };
+
   return (
     <div
+      ref={cellRef}
       style={{
         cursor: 'pointer',
         color: '#52c41a',
@@ -1156,11 +1055,29 @@ cell: ({ row }) => {
         gap: 4,
         flexWrap: 'wrap',
       }}
-      onClick={() => openMentionModal(row.original)}
+      onClick={() => setIsSelectorOpen(true)}
     >
-      {Array.isArray(mentions) && mentions.length > 0 ? (
+      {isSelectorOpen ? (
+        <TagMultiSelector
+          options={assigneeOptions}
+          value={pendingTags}
+          onChange={val => setPendingTags(Array.isArray(val) ? val : val == null ? [] : [val])}
+          allowCreate={false}
+          horizontalOptions={false}
+          isMulti={true}
+          isWithDot={false}
+          placeholder="Add tag"
+          // onBlur={() => setIsSelectorOpen(false)}
+        />
+      ) : Array.isArray(mentions) && mentions.length > 0 ? (
         mentions.map((m: any) => (
-          <CustomTag key={m.userId} name={m.userName} onClose={() => handleRemoveTags(m.userId, row.original.id)} />
+          <CustomTag
+            key={m.userId}
+            name={m.userName}
+            onClose={() => {
+              handleRemoveTags(m.userId, row.original.id);
+            }}
+          />
         ))
       ) : (
         <span style={{ color: '#aaa' }}>Tag</span>
@@ -1381,6 +1298,8 @@ cell: ({ row }) => {
 // }));
 
 
+  const createMention = useCreateMention();
+
 const columnsWithWidth = useMemo(() => 
   columns
     .map((col: any) => ({
@@ -1436,7 +1355,7 @@ const createEmptyDoc = (): Doc => {
     assignedTo: newRow.assignedTo,
   };
   const response = await newLeadsMutate.mutateAsync([body, userid]);
-  setTableData(prev => [...prev, { ...newRow, id: response.id }]);
+  setTableData(prev => [ { ...newRow, id: response.id }, ...prev]);
 
 }, [userid, newLeadsMutate]);
 
@@ -1486,8 +1405,8 @@ setTableData(prev =>
   const leadId = tableData[rowIndex].id;
   if (!leadId) return;
   await updateLeadMutate.mutateAsync([{deletedAt: new Date(), mentionedMembers: []}, leadId, userid]);
-  refetchLeadsData();
-}, [tableData, updateLeadMutate, userid, refetchLeadsData]);
+  setTableData(prev => prev.filter((_, index) => index !== rowIndex));
+}, [tableData, updateLeadMutate, userid]);
 
 
 
@@ -1501,8 +1420,12 @@ setTableData(prev =>
       };
       try {
         await updateLeadMutate.mutateAsync([body, leadID, userid]);
+        setTableData(prev =>
+          prev.map(row =>
+            row.id === leadID ? { ...row, followup: date, followupTime: time } : row
+          )
+        );
 
-        refetchLeadsData();
       } catch (error) {
         console.error("Error updating followup:", error);
       }
@@ -1567,21 +1490,7 @@ const reminderMutate = useCreateReminder();
       }
     };
 
-    const savedFiltersValue = useMemo(() => {
-  const filters = localStorage.getItem('leadsFilters');
-  return filters ? JSON.parse(filters) : {};
-}, []);
-
-const savedActiveFiltersValue = useMemo(() => {
-  const activeFilters = localStorage.getItem('leadsActiveFilters');
-  return activeFilters ? JSON.parse(activeFilters) : [];
-}, []);
-
-const [filters, setFilters] = useState<Record<string, string | string[]>>(savedFiltersValue);
-const [activeFilters, setActiveFilters] = useState<string[]>(savedActiveFiltersValue);
-
-
-console.log("Active Filters:", activeFilters);
+  
 
     
 
@@ -1787,6 +1696,9 @@ const filteredData = React.useMemo(() => {
       if (!isEnabled) return true;
 
 
+
+
+
     if (key === 'eventData' || key ==="eventDataStart" || key === "eventDataEnd") {
 
 
@@ -1969,13 +1881,47 @@ return result;
 }, [tableData, filters, filtersEnabled, enabledFilters, handleRowCreate, handleRowEdit]);
 
 
+
+
+// const filteredData = React.useMemo(() => {
+//   if (!filtersEnabled) return tableData;
+
+//   // Get only enabled filters with a value
+//   const activeEnabledFilters = Object.entries(filters).filter(([key, val]) => {
+//     const isEnabled = enabledFilters[key] !== false;
+//     return isEnabled && val !== undefined && val !== null && val !== '';
+//   });
+
+//   // If no enabled filters, return all data
+//   if (activeEnabledFilters.length === 0) return tableData;
+
+//   return tableData?.filter(row =>
+//     activeEnabledFilters.every(([key, val]) => {
+//       // Special handling for followupType + followup
+//       if (key === "followupType" && filters.followup) {
+//         const followupDate = row.followup?.slice(0, 10);
+//         if (!followupDate) return false;
+//         if (val === "before") return followupDate <= filters.followup;
+//         if (val === "after") return followupDate >= filters.followup;
+//         if (val === "on") return followupDate === filters.followup;
+//         // Add more cases if needed
+//         return true;
+//       }
+//       // Default: string includes
+//       return String(row[key])?.toLowerCase().includes(String(val).toLowerCase());
+//     })
+//   );
+// }, [tableData, filters, filtersEnabled, enabledFilters]);
+
+
+
   const updateTablePreferences = useUpdateUsersTablePreference();
 
   const handleColumnResize = (columnId: string, newSize: number) => {
     const body={
       width: newSize,
-
-    }
+    };
+    
     
 const response = updateTablePreferences.mutateAsync([body, columnId,"lead", userid]);
 
@@ -2582,10 +2528,9 @@ onClick={() => {
 
 
         
-        <CustomTable
+        <TaskCustomTable
          data={filteredData || []}
-          // onDataChange={setTableData}
-          // columns={columns}
+        
           columns={columnsWithWidth}
 
           
@@ -2606,6 +2551,30 @@ onClick={() => {
   handleColumnVisibilityChange={handleColumnVisibilityChange}
    onSelectionChange={handleDeleteLead}
    highlightRowId={highlightRowId}
+   totalDataCount={totalLeads || 0}
+   currentOffset={offset}
+  
+  pageSize={Object.keys(filters).length > 0 ? LeadsData?.filteredCount :  limit}
+  withPagination={false}
+   onIncrementNearEnd={() => {
+    console.log("Incrementing offset near end");
+  if (isOffsetLoadingRef.current) return; // Use ref for immediate check
+
+
+
+if (offset + 40 >= totalLeads) return;
+    console.log("Incrementing offset end", offset, "totalLeads", totalLeads);
+
+
+    setIsOffsetLoading(true);
+    isOffsetLoadingRef.current = true; // Set ref immediately
+
+if(offset + 40 <= totalLeads){
+    setOffset((prevOffset) => prevOffset + 40);
+
+};
+    // Increment your value or fetch more data here
+  }}
 
         />
 

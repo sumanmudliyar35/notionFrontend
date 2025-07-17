@@ -11,6 +11,8 @@ interface CustomInputProps {
   error?: string;
   placeholder?: string;
   type?: string;
+    onKeyDown?: (e: React.KeyboardEvent<HTMLInputElement>) => void; // <-- Add this line
+
   inputProps?: React.InputHTMLAttributes<HTMLInputElement>;
 }
 
@@ -20,6 +22,7 @@ const CustomInput: React.FC<CustomInputProps> = ({
   value,
   onChange,
   onBlur,
+  onKeyDown, // <-- Add this line
   error,
   placeholder,
   type = 'text',
@@ -39,6 +42,8 @@ const CustomInput: React.FC<CustomInputProps> = ({
         value={value}
         onChange={onChange}
         onBlur={onBlur}
+        onKeyDown={onKeyDown} // <-- Add this line
+
         placeholder={placeholder}
         type={type}
         {...inputPropsToPass} // <-- This line is required!
