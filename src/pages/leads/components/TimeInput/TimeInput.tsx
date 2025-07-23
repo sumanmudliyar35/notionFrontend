@@ -73,6 +73,8 @@ const TimeInput: React.FC<TimeInputProps> = ({
               sx: {
                 color: 'white',
                 height: '30px',
+                fontFamily: 'sans-serif',
+                fontSize: '14px',
                 minHeight: '30px',
               },
               onFocus: () => setOpen(true), // Open popup on focus

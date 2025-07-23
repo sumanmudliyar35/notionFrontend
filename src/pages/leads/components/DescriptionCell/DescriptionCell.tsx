@@ -22,6 +22,11 @@ const DescriptionCell = ({ value = '', onChange, leadid, assigneeOptions = [], c
   }, [customIsEdited]);
 
   const [inputValue, setInputValue] = useState(value);
+
+
+  useEffect(() => {
+  setInputValue(value);
+}, [value]);
   const [showDropdown, setShowDropdown] = useState(false);
   const [searchText, setSearchText] = useState('');
   const [highlightedIndex, setHighlightedIndex] = useState(0);
@@ -221,6 +226,12 @@ const DescriptionCell = ({ value = '', onChange, leadid, assigneeOptions = [], c
               background: '#202020',
               color: 'white',
               minHeight: 40,
+              borderRadius: 4,
+               borderColor: "#1890ff",
+               outline: "1px solid #1890ff", // blue outline
+              fontSize: 14,
+              lineHeight: 1.4,
+
               resize: 'none', // Prevent manual resize
               fontFamily: 'sans-serif',
               overflow: 'hidden'

@@ -62,11 +62,11 @@ interface MentionModalProps {
   onClose: () => void;
   title: string;
   leadId: number;
-  refetch: () => void;
   mentions: any[]; // Add this line
+  onSave: (leadId : any, mentions: any[], selectedMentions: any[]) => void;
 }
 
-const MentionModal: React.FC<MentionModalProps> = ({ open, onClose, title, leadId, refetch, mentions }) => {
+const MentionModal: React.FC<MentionModalProps> = ({ open, onClose, title, leadId, mentions, onSave }) => {
     const userid = localStorage.getItem("userid");
   const { data: allMembersData } = useGetAllUsers();
   const createMention = useCreateMention();
@@ -91,37 +91,44 @@ const MentionModal: React.FC<MentionModalProps> = ({ open, onClose, title, leadI
     }
   }, [allMembersData]);
 
-  const handleMention = async () => {
-    if (!selectedAssignees.length) {
-      message.warning("Please select at least one person to mention.");
-      return;
-    }
-    setLoading(true);
-    try {
-      // You can loop or send all at once depending on your API
-      await Promise.all(
-        selectedAssignees.map((assignee) =>
-          createMention.mutateAsync([
-            {
-              leadId,
-              userId: assignee.value,
-              type: "tag",
-              createdBy: userid, // Assuming 1 is the ID of the user creating the mention
-              // Add other fields as needed, e.g. message, mentionedBy, etc.
-            },
-            userid// userId or any other param if needed
-          ])
-        )
-      );
-      message.success("Mention(s) created!");
-      setSelectedAssignees([]);
-      refetch();
-      onClose();
-    } catch (err) {
-      message.error("Failed to create mention.");
-    } finally {
-      setLoading(false);
-    }
+  // const handleMention = async () => {
+  //   if (!selectedAssignees.length) {
+  //     message.warning("Please select at least one person to mention.");
+  //     return;
+  //   }
+  //   setLoading(true);
+  //   try {
+  //     // You can loop or send all at once depending on your API
+  //     await Promise.all(
+  //       selectedAssignees.map((assignee) =>
+  //         createMention.mutateAsync([
+  //           {
+  //             leadId,
+  //             userId: assignee.value,
+  //             type: "tag",
+  //             createdBy: userid, // Assuming 1 is the ID of the user creating the mention
+  //             // Add other fields as needed, e.g. message, mentionedBy, etc.
+  //           },
+  //           userid// userId or any other param if needed
+  //         ])
+  //       )
+  //     );
+  //     message.success("Mention(s) created!");
+  //     setSelectedAssignees([]);
+  //     refetch();
+  //     onClose();
+  //   } catch (err) {
+  //     message.error("Failed to create mention.");
+  //   } finally {
+  //     setLoading(false);
+  //   }
+  // };
+
+
+  const handleSave = () => {
+    onSave(leadId,selectedAssignees, mentions);
+    setSelectedAssignees([]);
+    onClose();
   };
 
   // Filter and highlight
@@ -212,7 +219,7 @@ const MentionModal: React.FC<MentionModalProps> = ({ open, onClose, title, leadI
         type="primary"
         style={{ marginTop: 16, width: "100%" }}
         loading={loading}
-        onClick={handleMention}
+        onClick={handleSave}
       >
         Mention
       </Button>

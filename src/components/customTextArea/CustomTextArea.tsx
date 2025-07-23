@@ -36,7 +36,8 @@ const CustomTextArea: React.FC<EditableTextAreaProps> = ({
         // position: 'absolute',
         background: '#202020',
         color: 'white',
-       
+        borderColor: "#1890ff",
+        outline: "1px solid #1890ff",
         transition: 'opacity 0.2s',
         zIndex: 2,
       }}

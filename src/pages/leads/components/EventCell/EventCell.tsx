@@ -61,6 +61,9 @@ const EventCell = React.memo(({
       )}
       {events.map((event: any, idx: number) => {
         const isEditing = editingIdx === idx;
+
+
+        
         
         return (
           <div

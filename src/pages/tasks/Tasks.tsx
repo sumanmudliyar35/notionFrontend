@@ -61,6 +61,7 @@ import { useCreateMultipleAttachments } from "../../api/post/newMultipleAttachme
 import { TaskCustomTable } from "./components/TaskCustomTable/TaskCustomTable";
 import { usePostGetTaskByTaskId } from "../../api/get/postGetTaskByTask";
 import CustomEditableCell from "../../components/CustomEditableCell/CustomEditableCell";
+import { usePostGetVoiceRecordByTask } from "../../api/get/postGetVoiceRecordByTask";
 
 
 
@@ -119,7 +120,6 @@ const Tasks = () => {
 
        const [offset, setOffset] = useState(0);
 
-       console.log("User ID:", offset);
 
        const [limit, setLimit] = useState(30);
 
@@ -139,6 +139,7 @@ useEffect(() => {
 
 useEffect(() => {
   setOffset(0);
+  setTableData([]);
 }, [userid]);
 
          const location = useLocation();
@@ -349,7 +350,7 @@ const handleDeleteComment = async (rowId: any, commentId: any) => {
   const body={
     deletedAt: new Date()
   }
-  const reponse = await useDeleteCommentMutate.mutateAsync([body,commentId]);
+  const reponse = await useDeleteCommentMutate.mutateAsync([body,commentId, loggedInUserId]);
     const commentsResponse = await postGetComment.mutateAsync([rowId]);
     setTableData(prev =>
       prev.map(row =>
@@ -425,9 +426,10 @@ const columns :ColumnDef<Doc>[] = [
         
 
       const handleUpdate = async (newValue: string) => {
-        const response = await updateTaskMutate.mutateAsync([{name: newValue}, row.original.id, userid]);
-        setNewAddedRow(null); // Reset newAddedRow after saving
+        const response = await updateTaskMutate.mutateAsync([{name: newValue}, row.original.id, loggedInUserId]);
         setTableData(prev => prev.map(item => item.id === row.original.id ? { ...item, name: newValue } : item));
+        setNewAddedRow(null); // Reset newAddedRow after saving
+
 
       }
         
@@ -440,13 +442,14 @@ const columns :ColumnDef<Doc>[] = [
            
         // </div>
         
+
         <CustomEditableCell
   value={row.original.name} // or any string value you want to edit
   onSave={newValue => {
     
     handleUpdate(newValue);
   }}
-  isCellActive={newAddedRow === row.original.id} 
+  isCellActive={newAddedRow === row.original.id } 
 />
       )},
   },
@@ -593,16 +596,38 @@ const columns :ColumnDef<Doc>[] = [
       header: 'Assignee',
       accessorKey: 'assignedTo', // or 'assignedTo' if that's your field
       meta: {
-        editable: roleid === 1 ? true : false, // Only allow editing for admin
-        editorType: 'select',
+        // editable: roleid === 1 ? true : false, // Only allow editing for admin
+        // editorType: 'select',
         selectOptions: assigneeOptions,
       },
-      cell: ({ getValue }) => {
-        const value = getValue();
-    
-        const option = assigneeOptions.find(opt => opt.value == value);
-        return option ? option.label : '';
-      },
+     cell: ({ row, getValue }) => {
+  const value = getValue();
+  const [selected, setSelected] = React.useState<string | number | null>(value as string | number | null);
+
+  const handleChange = async (newValue: string | number | null) => {
+
+    console.log('Selected value:', newValue);
+    setSelected(newValue);
+    // Update the backend and local table data
+    await updateTaskMutate.mutateAsync([{ assignedTo: newValue }, row.original.id, loggedInUserId]);
+    setTableData(prev => prev.map(item => item.id === row.original.id ? { ...item, assignedTo: newValue } : item));
+  };
+
+
+  if( roleid === 3) {
+    return <span style={{ color: '#aaa' }}>{assigneeOptions.find(opt => opt.value === value)?.label}</span>;
+  }
+  return (
+    <TagSelector
+      options={assigneeOptions}
+      value={selected}
+      onChange={handleChange}
+      placeholder="Select assignee..."
+      allowCreate={false}
+      isWithDot={false}
+    />
+  );
+},
     },
 
  
@@ -646,7 +671,7 @@ const columns :ColumnDef<Doc>[] = [
       const body={
         status: newValue,
       }
-            const response = await updateTaskMutate.mutateAsync([body, row.original.id, userid]);
+            const response = await updateTaskMutate.mutateAsync([body, row.original.id, loggedInUserId]);
             setTableData(prev => prev.map(item => item.id === row.original.id ? { ...item, status: newValue } : item));
 
       // Call your update logic here, e.g. API call or table update
@@ -758,13 +783,42 @@ cell: ({ row }) => {
 
             { header: 'Project', accessorKey: 'project',
                meta: {
-      editable: true,
-      editorType: 'select',
+    //   editable: true,
+    //   editorType: 'select',
       selectOptions: [
         { id: 'toStart', label: 'To Start', value: 'toStart' },
         { id: 'ongoing', label: 'Current Working', value: 'ongoing' },
       ],
-    }
+    },
+
+              cell: ({ row, getValue }) => {
+                const value = getValue();
+                const options = [
+                  { id: 'toStart', label: 'To Start', value: 'toStart' },
+                  { id: 'ongoing', label: 'Current Working', value: 'ongoing' },
+                ];
+                const [selected, setSelected] = React.useState<string | number | null>(value as string | number | null);
+
+                const handleChange = async (newValue: string | number | null) => {
+                  setSelected(newValue);
+                  const body = {
+                    project: newValue,
+                  };
+                  const response = await updateTaskMutate.mutateAsync([body, row.original.id, loggedInUserId]);
+                  setTableData(prev => prev.map(item => item.id === row.original.id ? { ...item, project: newValue } : item));
+                };
+
+                return (
+                  <TagSelector
+                    options={options}
+                    value={selected}
+                    onChange={handleChange}
+                    placeholder="Select project..."
+                    allowCreate={false}
+                    isWithDot={false}
+                  />
+                );
+              }
 
              },
              {header: 'Files', accessorKey: "files",
@@ -990,20 +1044,25 @@ const createEmptyDoc = (): Doc => {
     const [newAddedRow, setNewAddedRow] = useState<any>();
 
     const handleRowCreate=async(newRow: Doc)=>{
+
+
+      console.log("newRoew:", newRow);
       const body={
         name: newRow.name,
         createdBy: loggedInUserId,
         assignedTo: Number(userid),
         status:"notStarted",
         project:"ongoing",
+        dueDate: new Date() || null, // Ensure dueDate is set to null if not provided
 
       };
 
 
 
       const response = await newTaskMutate.mutateAsync([body, userid]);
-      setNewAddedRow(response.id);
       setTableData(prev => [ { ...response, id: response.id }, ...prev]);
+      setNewAddedRow(response.id);
+
 
 
 
@@ -1032,7 +1091,7 @@ const createEmptyDoc = (): Doc => {
 
 
 
-      const response = await updateTaskMutate.mutateAsync([body, updatedRow.id, userid]);
+      const response = await updateTaskMutate.mutateAsync([body, updatedRow.id, loggedInUserId]);
       const taskData = await getTaskMutate.mutateAsync([updatedRow.id]);
       setTableData(prev => {
         if( taskData) {
@@ -1048,7 +1107,7 @@ const createEmptyDoc = (): Doc => {
     const handleRowDelete = async (rowIndex: number) => {
 
       const taskid = tableData[rowIndex].id;
-      await updateTaskMutate.mutateAsync([{deletedAt: new Date()}, taskid, userid]);
+      await updateTaskMutate.mutateAsync([{deletedAt: new Date()}, taskid, loggedInUserId]);
       refetchTasksData();
 
     }
@@ -1198,30 +1257,34 @@ const handleComment= async(data: any) => {
 
 
 const createVoiceRecordMutation  = useCreateTaskVoiceRecord();
+
+const getVoiceRecordByTaskId = usePostGetVoiceRecordByTask();
 const handleSaveVoice = async(audioBlob: Blob) => {
   if (selectedVoiceRow) {
     const url = URL.createObjectURL(audioBlob);
 
 
-    setTableData(prev =>
-      prev.map(row =>
-        row.id === selectedVoiceRow.id ? { ...row, voice: url } : row
-      )
-    );
+    // setTableData(prev =>
+    //   prev.map(row =>
+    //     row.id === selectedVoiceRow.id ? { ...row, voice: url } : row
+    //   )
+    // );
 
-     createVoiceRecordMutation.mutate({
+   const result = await  createVoiceRecordMutation.mutateAsync({
       blob: audioBlob,
       taskId: selectedVoiceRow?.id, // assuming you have this
       createdBy: Number(userid), // or get it from auth/user state
-    }, {
-      onSuccess: () => {
-        refetchTasksData();
-        console.log("Voice record created successfully.");
-      },
-      onError: (error) => {
-        console.error("Error uploading voice record:", error);
-      },
-    });
+    })
+
+    const response = await getVoiceRecordByTaskId.mutateAsync([selectedVoiceRow.id]);
+
+    setTableData(prev =>
+      prev.map(row =>
+        row.id === selectedVoiceRow.id ? { ...row, voiceRecords: response } : row
+      )
+    );
+
+
     setIsVoiceModalOpen(false);
     setSelectedVoiceRow(null);
   }
@@ -1238,6 +1301,8 @@ const handleRemoveFilter = (key: string) => {
     const relatedKeys = {
    
       'createdAt': ['createdAt', 'createdAtType', 'createdAtStart', 'createdAtEnd'],
+      'followupType': ['followupType', 'followupStart', 'followupEnd', 'dueDate'],
+      'dueDate': ['dueDate', 'followupType', 'followupStart', 'followupEnd'],
 
 
   };
@@ -1295,10 +1360,12 @@ const filteredData = React.useMemo(() => {
   return Object.entries(filters).every(([key, val]) => {
 
 
-
+console.log("keyfilters", enabledFilters[key], key);
 
    const isEnabled = enabledFilters[key] !== false; // Default to true if not set
       if (!isEnabled) return true;
+
+      console.log("key", isEnabled);
    
 
 
@@ -1341,13 +1408,13 @@ const filteredData = React.useMemo(() => {
         console.log("inside before");
         console.log("followupDate", followupDate, "filters.dueDate", filters.dueDate, followupDate < filters.dueDate);
 
-        return followupDate < filters.dueDate;
+        return followupDate <= filters.dueDate;
       }
       if (followupType === 'after' && filters.dueDate) {
 
         console.log("inside after");
         console.log("followupDate", followupDate, "filters.dueDate", filters.dueDate, followupDate > filters.dueDate);
-        return followupDate > filters.dueDate;
+        return followupDate >= filters.dueDate;
       }
       if (followupType === 'on' && filters.dueDate) {
         console.log("followupDate", followupDate, "filters.dueDate", filters.dueDate, followupDate === filters.dueDate);
@@ -1410,6 +1477,24 @@ const filteredData = React.useMemo(() => {
             m.userName && m.userName.toLowerCase().includes(String(val).toLowerCase())
           )
         : false;
+    }
+
+
+    if(key ==="project"){
+     if (Array.isArray(val) && val.length > 0) {
+    return val.includes(row.project);
+  }
+  
+
+
+    }
+
+
+    if(key === 'status') {
+      if (Array.isArray(val) && val.length > 0) {
+        return val.includes(row.status);
+      }
+
     }
 
     return val
@@ -1509,8 +1594,9 @@ const handleDeleteTask = async (tasks: any) => {
   }));
 
   try {
-    await updateBulkTask.mutateAsync([taskWithDeletedAt, userid]);
-    refetchTasksData();
+    await updateBulkTask.mutateAsync([taskWithDeletedAt, loggedInUserId]);
+
+    setTableData(prev => prev.filter(item => !tasks.some((task: any) => task.original.id === item.id)));
   } catch (error) {
     console.error("Error deleting tasks:", error);
   }
@@ -1544,6 +1630,7 @@ const handleDeleteTask = async (tasks: any) => {
         'eventData': ['eventData', 'eventType', 'eventDataStart', 'eventDataEnd'],
         'eventType': ['eventData', 'eventType', 'eventDataStart', 'eventDataEnd'],
         'createdAt': ['createdAt', 'createdAtType', 'createdAtStart', 'createdAtEnd'],
+        'dueDate': ['dueDate', 'followupType', 'followupStart', 'followupEnd'],
 
         
       };
@@ -1570,9 +1657,18 @@ const handleDeleteTask = async (tasks: any) => {
   const followupType = filters.followupType;
   return (
     <styled.FilterTag key={key} active={!!filters[key]} style={{ background: 'rgb(25, 25, 25)' }}>
-       <span style={{ color: '#bbb', marginRight: 6, fontWeight: 500, minWidth: "fit-content" }}>
+       {/* <span style={{ color: '#bbb', marginRight: 6, fontWeight: 500, minWidth: "fit-content" }}>
     {col.header?.toString()}:
-  </span>
+  </span> */}
+
+  <styled.FilterHeader>
+            <span style={{ color: '#bbb', marginRight: 6, fontWeight: 500 }}>
+              {col.header?.toString()}:
+            </span>
+            {filterSwitch}
+          </styled.FilterHeader>
+
+
       <CustomSelect
         size="small"
         style={{ width: 100, marginRight: 8 }}
@@ -1605,7 +1701,7 @@ onChange={val => {
           <styled.singleDateDiv>
           
           <DateInput
-  value={filters.followupEnd || ''}
+  value={filters.followupEnd || filters.followupStart || ''}
   onChange={date =>
     setFilters(prev => ({
       ...prev,
@@ -1669,9 +1765,16 @@ if (key === 'createdAt') {
   const createdAtType = filters.createdAtType;
   return (
     <styled.FilterTag key={key} active={!!filters[key]} style={{ background: 'rgb(25, 25, 25)' }}>
-        <span style={{ color: '#bbb', marginRight: 6, fontWeight: 500, minWidth: "fit-content" }}>
+        {/* <span style={{ color: '#bbb', marginRight: 6, fontWeight: 500, minWidth: "fit-content" }}>
           {col.header?.toString()}:
-        </span>
+        </span> */}
+
+          <styled.FilterHeader>
+            <span style={{ color: '#bbb', marginRight: 6, fontWeight: 500 }}>
+              {col.header?.toString()}:
+            </span>
+            {filterSwitch}
+          </styled.FilterHeader>
        
       <CustomSelect
         size="small"
@@ -1699,7 +1802,7 @@ if (key === 'createdAt') {
           </styled.singleDateDiv>
           <styled.singleDateDiv>
             <DateInput
-              value={filters.createdAtEnd || ''}
+              value={filters.createdAtEnd || filters.createdAtStart || ''}
               onChange={date =>
                 setFilters(prev => ({
                   ...prev,
@@ -1755,19 +1858,20 @@ if (key === 'createdAt') {
           </styled.FilterHeader>
 
 
-{key === 'status' || key === 'createdBy' ? (
-  // <CustomSelect
-  //   placeholder={col.header?.toString()}
-  //   isMulti={true}
-  //   value={meta?.selectOptions?.filter((opt: any) =>
-  //     Array.isArray(filters[key]) ? filters[key].includes(opt.value) : false
-  //   )}
-  //   onChange={(options: any[]) =>
-  //     handleFilterChange(key, options ? options.map(opt => opt.value) : [])
-  //   }
-  //   options={meta?.selectOptions || []}
-  // />
+          { key =="project" || key ==="status" ? (
+             <TagMultiSelector
+  options={meta?.selectOptions || []}
+  value={filters[key] || []}
+  onChange={(newVals: any) => handleFilterChange(key, newVals)}
+  placeholder={col.header?.toString()}
+  allowCreate={false}
+  horizontalOptions={false} // or true if you want horizontal display
+  isMulti={true}
+/>
+            
 
+          ) :  key === 'createdBy' ? (
+ 
   <TagSelector
   options={meta?.selectOptions || []}
 value={
@@ -1899,6 +2003,7 @@ onClick={() => {
   highlightRowId={highlightRowId}
   currentOffset={offset}
   totalDataCount={totalTasks || 0}
+  isTablesLogs={false}
   
   // onPageChange={(newPage) => {
   //   console.log("Page changed to:", newPage);
@@ -1906,7 +2011,6 @@ onClick={() => {
   //   setCurrentPage(newPage);
   // }}
    onIncrementNearEnd={() => {
-    console.log("Incrementing offset near end task");
   if (isOffsetLoadingRef.current) return; // Use ref for immediate check
 
     if( offset >= totalTasks ) return;

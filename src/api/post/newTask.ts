@@ -9,7 +9,7 @@ const createTask: MutationFunction<any, [any, any]> = async (
   const [body, userId] = params;
 
   const response = await axiosInstance.post(
-    `/task/createTask`,
+    `/task/createTask?userId=${userId}`,
     body
   );
 

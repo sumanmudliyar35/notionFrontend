@@ -3,13 +3,13 @@ import axiosInstance from "../../connection/axiosInstance";
 import type { MutationFunction } from "react-query";
 
 // Mutation function to update an event
-const updateEvent: MutationFunction<any, [any, any]> = async (
-  params: [any, any]
+const updateEvent: MutationFunction<any, [any, any, any]> = async (
+  params: [any, any, any]
 ) => {
-  const [body, eventId] = params;
+  const [body, eventId, userId] = params;
 
   const response = await axiosInstance.put(
-    `/event/updateEvent?eventId=${eventId}`,
+    `/event/updateEvent?eventId=${eventId}&userId=${userId}`,
     body
   );
 

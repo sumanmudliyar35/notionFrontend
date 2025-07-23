@@ -6,6 +6,10 @@ import { formatDisplayDate } from '../../utils/commonFunction';
 import DescriptionCell from '../../pages/leads/components/DescriptionCell/DescriptionCell';
 import { useGetAllUsers } from '../../api/get/getAllMember';
 import { useCreateComment } from '../../api/post/newComment';
+import { useUpdateTask } from '../../api/put/updateTask';
+import TagSelector from '../customSelectModal/CustomSelectModal';
+import { DatePicker } from 'antd';
+import dayjs from 'dayjs';
 
 interface TaskPreviewProps {
   open: boolean;
@@ -17,6 +21,9 @@ interface TaskPreviewProps {
 const TaskPreview: React.FC<TaskPreviewProps> = ({ open, onClose, title = 'Task Preview', taskId }) => {
   const { data: taskDetail, isLoading, refetch } = useGetTaskDetail(taskId);
   const userId = Number(localStorage.getItem('userid'));
+
+      const updateTaskMutate = useUpdateTask()
+  
 
   const [newComment, setNewComment] = useState('');
 const [isAddingComment, setIsAddingComment] = useState(false);
@@ -66,8 +73,46 @@ const handleAddComment =  async(value: string, rowId: any, mentionedMembers: any
 };
 
 
+  const [isEditingStatus, setIsEditingStatus] = useState(false);
+  const [statusValue, setStatusValue] = useState(taskDetail?.status || 'notStarted');
+
+  useEffect(() => {
+    if (taskDetail?.status) {
+      setStatusValue(taskDetail.status);
+    }
+  }, [taskDetail?.status]);
+
+  const handleSaveStatus = async (newStatus: string) => {
+    setStatusValue(newStatus);
+    setIsEditingStatus(false);
+    await updateTaskMutate.mutateAsync([{ status: newStatus }, taskId, userId]);
+    refetch();
+  };
+
+  const [isEditingProject, setIsEditingProject] = useState(false);
+
+  const [projectValue, setProjectValue] = useState<string | number>(
+    taskDetail?.project || taskDetail?.projectName || ''
+  );
+
+  // TODO: Replace this with your actual project options source
+  const projectOptions = [
+    { id: 'toStart', label: 'To Start', value: 'toStart' },
+        { id: 'ongoing', label: 'Current Working', value: 'ongoing' },
+    
+  ];
+
+  useEffect(() => {
+    if (taskDetail?.project || taskDetail?.projectName) {
+      setProjectValue(taskDetail.project || taskDetail.projectName);
+    }
+  }, [taskDetail?.project, taskDetail?.projectName]);
+
+  const [isEditingDueDate, setIsEditingDueDate] = useState(false);
+
   return (
     <CustomModal open={open} onClose={onClose} title="" width={800}>
+
       <S.Container>
         {isLoading ? (
           <div style={{ textAlign: 'center', color: '#888', fontSize: 18 }}>Loading...</div>
@@ -78,33 +123,132 @@ const handleAddComment =  async(value: string, rowId: any, mentionedMembers: any
               <S.TaskTitle>Task: {taskDetail.name}</S.TaskTitle>
             </S.TitleRow>
             <S.MetaRow>
-              <S.MetaItem>
-                <span style={{ fontSize: 16 }}> Status</span>
-                <S.Status status={taskDetail.status}>
-                  {taskDetail.status === 'notStarted' ? 'Not started' : taskDetail.status}
-                </S.Status>
-              </S.MetaItem>
-              {/* <S.MetaItem>
-                <span style={{ fontSize: 18 }}>👤 Assignee</span>
-                <span>Empty</span>
-              </S.MetaItem> */}
-              <S.MetaItem>
-                <span style={{ fontSize: 16 }}>📅 End date</span>
-                <span>
-                  {taskDetail.dueDate
-                    ? formatDisplayDate(taskDetail.dueDate)
-                    : '-'}
-                </span>
-              </S.MetaItem>
+               <S.MetaItem>
+              <span style={{ fontSize: 16 }}>Status</span>
+              <span
+                style={{ color: '#faad14', cursor: 'pointer', minWidth: 80, marginLeft: 8 }}
+                onClick={() => setIsEditingStatus(true)}
+              >
+                {isEditingStatus ? (
+                  <TagSelector
+                    value={statusValue}
+                    onChange={async (id) => {
+                      if (typeof id === 'string') {
+                        await handleSaveStatus(id);
+                        setIsEditingStatus(false);
+                      }
+                    }}
+                    options={[
+                      { id: 'notStarted', label: 'Not started' },
+                      { id: 'inProgress', label: 'In Progress' },
+                      { id: 'completed', label: 'Completed' },
+                      // Add more status options if needed
+                    ]}
+                  />
+                ) : (
+                  // Show label for current status
+                  [
+                    { id: 'notStarted', label: 'Not started' },
+                    { id: 'inProgress', label: 'In Progress' },
+                    { id: 'completed', label: 'Completed' },
+                  ].find(opt => opt.id === statusValue)?.label || '-'
+                )}
+              </span>
+            </S.MetaItem>
+
+          <S.MetaItem>
+  <span style={{ fontSize: 16 }}>Project</span>
+  <span style={{ minWidth: 120, marginLeft: 8, cursor: 'pointer' }} onClick={() => setIsEditingProject(true)}>
+    {isEditingProject ? (
+      <TagSelector
+        value={projectValue}
+        onChange={async (id) => {
+          if (id) {
+            setProjectValue(id);
+            await updateTaskMutate.mutateAsync([{ project: id }, taskId, userId]);
+                        setIsEditingProject(false);
+
+
+            refetch();
+          }
+        }}
+        options={
+          // You can use your project options here, for example:
+          (projectOptions || []).map(opt => ({
+            id: opt.value,
+            label: opt.label,
+            value: opt.value,
+          }))
+        }
+      />
+    ) : (
+      // Show label for current project
+      (projectOptions || [])
+        .find(opt => opt.value === (taskDetail.projectName || taskDetail.project))
+        ?.label ||
+      taskDetail.projectName ||
+      taskDetail.project ||
+      '-'
+    )}
+  </span>
+</S.MetaItem>
+            
+                
+           
+             <S.MetaItem>
+  <div style={{ fontSize: 16 }}>📅 End date</div>
+  <div style={{ minWidth: 120, marginLeft: 8, cursor: 'pointer' }} onClick={() => setIsEditingDueDate(true)}>
+    {isEditingDueDate ? (
+      <DatePicker
+        onChange={async (date) => {
+          if (date) {
+            const formatted = date.format('YYYY-MM-DD');
+            await updateTaskMutate.mutateAsync([{ dueDate: formatted }, taskId, userId]);
+            refetch();
+            setIsEditingDueDate(false); // <-- Move here!
+          }
+        }}
+        value={
+          !taskDetail.dueDate || taskDetail.dueDate === "0000-00-00"
+            ? null
+            : dayjs(taskDetail.dueDate)
+        }
+        format="DD-MM-YYYY"
+        style={{
+          width: '100%',
+          borderRadius: 4,
+          backgroundColor: 'rgb(25, 25, 25)',
+          color: 'white',
+        }}
+        placeholder="DD-MM-YYYY"
+        autoFocus
+      />
+    ) : (
+      taskDetail.dueDate
+        ? formatDisplayDate(taskDetail.dueDate)
+        : '-'
+    )}
+  </div>
+</S.MetaItem>
+
+
             </S.MetaRow>
 
-            <S.CommentsSection>
+            {/* <S.CommentsSection>
               <S.CommentsTitle>Description</S.CommentsTitle>
               <S.CommentsContent>
-                {taskDetail.description || 'No description provided.'}
-              </S.CommentsContent>
+    <DescriptionCell
+      value={taskDetail.description || ''}
+      onSave={async (newValue: string) => {
+        await updateTaskMutate.mutateAsync([{ description: newValue }, taskId, userId]);
+        refetch();
+      }}
+      placeholder="No description provided."
+      isCellActive={false}
+    />
+  </S.CommentsContent>
 
-            </S.CommentsSection>
+            </S.CommentsSection> */}
 
             <S.CommentsSection>
               <S.CommentsTitle>Comments</S.CommentsTitle>
@@ -158,7 +302,7 @@ const handleAddComment =  async(value: string, rowId: any, mentionedMembers: any
 
             <S.SectionDivider />
 
-         
+          
           </>
         ) : (
           <div style={{ textAlign: 'center', color: '#888', fontSize: 18 }}>No task details found.</div>

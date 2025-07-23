@@ -63,6 +63,13 @@ import TagMultiSelector from "../../components/CustomMultiSelectModal/CustomMult
 import { useLocation } from "react-router-dom";
 import { TaskCustomTable } from "../tasks/components/TaskCustomTable/TaskCustomTable";
 import { useCreateMention } from "../../api/post/newMention";
+import TagCell from "./components/TagCell/TagCell";
+import CustomEditableCell from "../../components/CustomEditableCell/CustomEditableCell";
+import LogsModal from "../../components/LogsModal/LogsModal";
+import { usePostGetVoiceRecordByLead } from "../../api/get/postVoiceRecordByLead";
+import { useGetLeadByFollowup } from "../../api/get/getLeadByFollowup";
+import FollowupModal from "./components/FollowupModal/FollowupModal";
+import UsersTableLogs from "../../components/UsersTableLogs/UsersTableLogs";
 
 
 
@@ -117,10 +124,18 @@ const Leads = () => {
         const [offset, setOffset] = useState(0);
 
         const [limit, setLimit] = useState(100); 
+            const [newAddedRow, setNewAddedRow] = useState<any>();
+        
   
          const [currentPage, setCurrentPage] = useState(0);
 
                  const [totalLeads, setTotalLeads] = useState(0);
+
+                 const [openLogsModal, setOpenLogsModal] = useState(false);
+
+                 const [openFollowupModal, setOpenFollowupModal] = useState(false);
+
+                 const [openTablesModal, setOpenTablesModal] = useState(false);
 
 
 
@@ -153,6 +168,7 @@ const savedActiveFiltersValue = useMemo(() => {
 const [filters, setFilters] = useState<Record<string, string | string[]>>(savedFiltersValue);
 const [activeFilters, setActiveFilters] = useState<string[]>(savedActiveFiltersValue);
 
+
  const savedEnabledFiltersValue = useMemo(() => {
   const enabledFilters = localStorage.getItem('leadsEnabledFilters');
   return enabledFilters ? JSON.parse(enabledFilters) : {};
@@ -160,6 +176,7 @@ const [activeFilters, setActiveFilters] = useState<string[]>(savedActiveFiltersV
 
 const [enabledFilters, setEnabledFilters] = useState<Record<string, boolean>>(savedEnabledFiltersValue);
 
+const {data: followupData} = useGetLeadByFollowup();
 
   const {data: LeadsData, refetch: refetchLeadsData, isFetching: isLeadsDataFetching, isFetched: isLeadsDataFetched} = useGetLeadsByUser(Number(userid), offset, filters, limit);
 
@@ -369,7 +386,7 @@ const openCommentModal = useCallback((data: any) => {
   setIsCommentModalOpen(true);
 }, []);
 
-  const openMentionModal = (rowData: Doc) => {
+  const openMentionModal =useCallback((rowData: Doc) => {
           let mentions = rowData.mentions;
   if (!Array.isArray(mentions)) {
     try {
@@ -381,7 +398,7 @@ const openCommentModal = useCallback((data: any) => {
   setSelectedMentionLeadId(rowData?.id);
   setSelectedMentions(Array.isArray(mentions) ? mentions : []); // Store the current mentions as array
   setIsMentionModalOpen(true);
-  };
+  },[]);
 
   const openVoiceModal = (rowData: Doc) => {
           setSelectedVoiceRow(rowData);
@@ -395,6 +412,24 @@ const openCommentModal = useCallback((data: any) => {
     [rowId]: !prev[rowId]
   }));
 }, []);
+
+  const newLeadsMutate = useCreateLead();
+    const handleRowCreate = useCallback(async (newRow: Doc) => {
+  const body = {
+    name: newRow.name,
+    createdBy: userid,
+    assignedTo: newRow.assignedTo,
+  };
+  const response = await newLeadsMutate.mutateAsync([body, userid]);
+  setTableData(prev => [ { ...newRow, id: response.id }, ...prev]);
+  console.log("New row added after:", response.id);
+  setNewAddedRow(response.id); // Store the new row ID for potential future use
+
+}, [userid]);
+
+
+
+
 
 
   const handleOpenReminderModal = (rowId: any, reminder: any) => {
@@ -414,7 +449,6 @@ const openCommentModal = useCallback((data: any) => {
       mentionedMember: mentionedMember,
     }
     const response = await useUpdateCommentMutate.mutateAsync([body, commentId, userid]);
-    // refetchLeadsData();
     const commentsResponse = await usePostGetComment.mutateAsync([rowId]);
     setTableData(prev =>
       prev.map(row =>
@@ -434,13 +468,25 @@ const handleDeleteComment = async (rowId: any, commentId: any) => {
   const body={
     deletedAt: new Date()
   }
-  const reponse = await useDeleteCommentMutate.mutateAsync([body,commentId]);
+  const reponse = await useDeleteCommentMutate.mutateAsync([body,commentId, userid]);
  const commentsResponse = await usePostGetComment.mutateAsync([rowId]);
       setTableData(prev =>
         prev.map(row =>
           row.id === rowId ? { ...row, comments: commentsResponse } : row
         )
       );
+
+
+
+}
+
+
+
+
+
+const handleAddTags = async (selectedTags: any, rowId: any) => {
+
+  console.log("Selected tags:", selectedTags);    
 
 
 
@@ -454,7 +500,11 @@ const handleRemoveTags=async ( userid: any, leadId: any) => {
    
   };
   await updateMentionMutate.mutateAsync([body, userid, leadId, "tag"]);
-  refetchLeadsData();
+  setTableData(prev =>
+    prev.map(row =>
+      row.id === leadId ? { ...row, mentions: row.mentions.filter((m: any) => m.userId !== userid) } : row
+    )
+  );
 }
 
 
@@ -510,7 +560,7 @@ const handleUpdateEvent = async (rowId: any, eventId: any, eventData: any) => {
   eventListId: eventData.eventListId,
   eventIds: eventData.allEvents?.map((event: any) => event).join(',') || '', // returns "3,1" or ""  ...(eventData.eventListId == 4 && { others: eventData.eventName }),
 };
-  await updateEventMutate.mutateAsync([body, eventId]);
+  await updateEventMutate.mutateAsync([body, eventId, userid]);
 
    const eventsResponse = await getEventByLeadId.mutateAsync([rowId]);
   setTableData(prev =>
@@ -527,7 +577,7 @@ const handleDeleteEvent = async (rowId: any, eventId: any) => {
     const body = {
       deletedAt: new Date(),
     };
-    await deleteEventMutate.mutateAsync([body, eventId]);
+    await deleteEventMutate.mutateAsync([body, eventId, userid]);
     const eventsResponse = await getEventByLeadId.mutateAsync([rowId]);
     setTableData(prev =>
       prev.map(row =>
@@ -671,23 +721,47 @@ const toggleAllCommentsVisibility = useCallback(() => {
 
 
 
-const columns = useMemo<ColumnDef<Doc>[]>(() => [
+const columns :ColumnDef<Doc>[]= [
   {
     header: 'Name',
     accessorKey: 'name',
 
     size: 500,
 
-    meta: { editable: true },
+    meta: { 
+      // editable: true 
+
+    },
       enableSorting: true,
       cell: ({ row }) => (
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-          <span  style={{ whiteSpace: 'pre-line' }}>{row.original.name}</span>
+        // <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+        //   <span  style={{ whiteSpace: 'pre-line' }}>{row.original.name}</span>
 
         
          
            
-        </div>
+        // </div>
+
+
+
+        <CustomEditableCell
+
+      value={row.original.name}
+      onSave={async (newValue: string) => {
+        // Update the backend and local table data
+        const body = { name: newValue };
+                setNewAddedRow(null); // Set the newAddedRow to the current row id
+
+        await updateLeadMutate.mutateAsync([body, row.original.id, userid]);
+        setTableData(prev =>
+          prev.map(item =>
+            item.id === row.original.id ? { ...item, name: newValue } : item
+          )
+        );
+      }}
+      placeholder="Click to edit"
+      isCellActive={newAddedRow === row.original.id} // or true if you want it editable by default
+    />
       ),
   },
  {
@@ -974,78 +1048,22 @@ cell: ({ row }) => {
 
     
   },
- cell: ({ row }) => {
-  let mentions = row.original.mentions;
-  const [isSelectorOpen, setIsSelectorOpen] = React.useState(false);
-  const [pendingTags, setPendingTags] = React.useState(
-    Array.isArray(mentions) ? mentions.map((m: any) => m.userId) : []
-  );
-  const cellRef = React.useRef<HTMLDivElement>(null);
+
+  cell: ({ row }) => {
+    let mentions = row.original.mentions;
 
   // Ensure mentions is always an array
   if (!Array.isArray(mentions)) {
     try {
+      // Try to parse if it's a JSON string
       mentions = mentions && typeof mentions === 'string' ? JSON.parse(mentions) : [];
     } catch {
       mentions = "";
     }
   }
 
-  React.useEffect(() => {
-    if (!isSelectorOpen) return;
-    const handleClickOutside = (event: MouseEvent) => {
-      if (cellRef.current && !cellRef.current.contains(event.target as Node)) {
-        setIsSelectorOpen(false);
-      }
-    };
-    document.addEventListener('mousedown', handleClickOutside);
-    return () => document.removeEventListener('mousedown', handleClickOutside);
-  }, [isSelectorOpen]);
-
-  // When selector closes, update tags if changed
-  React.useEffect(() => {
-    if (!isSelectorOpen) {
-      // Only update if pendingTags differ from current mentions
-      const currentIds = Array.isArray(mentions) ? mentions.map((m: any) => m.userId) : [];
-      const isChanged =
-        pendingTags.length !== currentIds.length ||
-        pendingTags.some((id, idx) => id !== currentIds[idx]);
-      if (isChanged) {
-        handletags(pendingTags);
-      }
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isSelectorOpen]);
-
-  const handletags = async (selectedValues: string[] | number[]) => {
-    const valuesArray: (string | number)[] = Array.isArray(selectedValues) ? selectedValues : [];
-    const selectedTags = assigneeOptions.filter(opt => valuesArray.includes(opt.value))
-      .map(opt => ({ userId: opt.value, userName: opt.label }));
-
-    await Promise.all(
-      selectedTags.map((tag: any) =>
-        createMention.mutateAsync([
-          {
-            leadId: row.original.id,
-            userId: tag.userId,
-            type: "tag",
-            createdBy: userid,
-          },
-          userid
-        ])
-      )
-    );
-
-    setTableData(prev =>
-      prev.map(r =>
-        r.id === row.original.id ? { ...r, mentions: selectedTags } : r
-      )
-    );
-  };
-
-  return (
+   return (
     <div
-      ref={cellRef}
       style={{
         cursor: 'pointer',
         color: '#52c41a',
@@ -1055,36 +1073,34 @@ cell: ({ row }) => {
         gap: 4,
         flexWrap: 'wrap',
       }}
-      onClick={() => setIsSelectorOpen(true)}
+      onClick={() => openMentionModal(row.original)}
     >
-      {isSelectorOpen ? (
-        <TagMultiSelector
-          options={assigneeOptions}
-          value={pendingTags}
-          onChange={val => setPendingTags(Array.isArray(val) ? val : val == null ? [] : [val])}
-          allowCreate={false}
-          horizontalOptions={false}
-          isMulti={true}
-          isWithDot={false}
-          placeholder="Add tag"
-          // onBlur={() => setIsSelectorOpen(false)}
-        />
-      ) : Array.isArray(mentions) && mentions.length > 0 ? (
-        mentions.map((m: any) => (
-          <CustomTag
-            key={m.userId}
-            name={m.userName}
-            onClose={() => {
-              handleRemoveTags(m.userId, row.original.id);
-            }}
-          />
+      {Array.isArray(mentions) && mentions.length > 0 ? (
+        mentions.map((m: any, index: number) => (
+          <CustomTag key={index} name={m.userName} onClose={() => handleRemoveTags(m.userId, row.original.id)} />
         ))
       ) : (
         <span style={{ color: '#aaa' }}>Tag</span>
       )}
     </div>
   );
-},
+
+
+    
+    // <TagCell
+    //   mentions={row.original.mentions}
+    //   assigneeOptions={assigneeOptions}
+    //   rowId={row.original.id}
+    //   userid={userid}
+    //   createMention={createMention}
+    //   handleAddTags={handleAddTags}
+    //   setTableData={[]}
+    //   handleRemoveTags={handleRemoveTags}
+    // />
+  },
+
+
+
           },
             { header: 'Converted', accessorKey: 'converted',
                meta: {
@@ -1288,7 +1304,9 @@ cell: ({ row }) => {
               
 
         
-], [assigneeOptions, referenceOptions, shootOptions, eventOptions, hiddenCommentRows, toggleCommentsVisibility,commentsVisible]);
+];
+
+// [assigneeOptions, referenceOptions, shootOptions, eventOptions, hiddenCommentRows,handleRowCreate toggleCommentsVisibility,commentsVisible]);
 
 // const columnsWithWidth = columns.map((col: any) => ({
 //   ...col,
@@ -1298,7 +1316,6 @@ cell: ({ row }) => {
 // }));
 
 
-  const createMention = useCreateMention();
 
 const columnsWithWidth = useMemo(() => 
   columns
@@ -1347,17 +1364,7 @@ const createEmptyDoc = (): Doc => {
 };
 
 
-    const newLeadsMutate = useCreateLead();
-    const handleRowCreate = useCallback(async (newRow: Doc) => {
-  const body = {
-    name: newRow.name,
-    createdBy: userid,
-    assignedTo: newRow.assignedTo,
-  };
-  const response = await newLeadsMutate.mutateAsync([body, userid]);
-  setTableData(prev => [ { ...newRow, id: response.id }, ...prev]);
-
-}, [userid, newLeadsMutate]);
+  
 
 
 
@@ -1396,7 +1403,6 @@ setTableData(prev =>
       row.id === response.id ? { ...row, ...response } : row
     )
   );
-      // refetchLeadsData();
 
     }, [userid, updateLeadMutate]);
 
@@ -1410,16 +1416,66 @@ setTableData(prev =>
 
 
 
-    const handleFollowupChange = async (date: any,time: any, leadID: any) => {
+const reminderMutate = useCreateReminder();
 
 
+    const handleFollowupChange = async (date: any,time: any, leadID: any, reminderData: any) => {
+
+
+
+      console.log("Followup date:", date, "Time:", time, "Lead ID:", leadID, "Reminder Data:", reminderData);
       const body = {
         followup: date ,
         followupTime: time,
         mentionedMembers: [],
       };
+
+  let reminderBeforeBody = null;
+
+  let reminderBody=null;
+
+      const followupDateTime = dayjs(`${date}T${time || "00:00"}`);
+
+
+  if (reminderData?.enabled && reminderData.before) {
+    // Combine date and time into a single dayjs object
+    // Subtract the reminder offset (in minutes)
+    
+
+    const customReminderTime = reminderData.reminderTime || "00:00";
+      const reminderTimeObj = dayjs(`${date}T${customReminderTime}`);
+  const reminderDateTime = reminderTimeObj.subtract(reminderData.before, "minute");
+
+    reminderBeforeBody = {
+      reminderDate: followupDateTime.format("YYYY-MM-DD"),
+    reminderTime: reminderDateTime.format("HH:mm"),
+      leadId: leadID,
+      userId: userid,
+    };
+   await reminderMutate.mutateAsync([reminderBeforeBody, selectedLeadId]);
+  }
+
+   if (reminderData?.enabled && reminderData.reminderTime) {
+    // Combine date and time into a single dayjs object
+    const followupDateTime = dayjs(`${date}T${time || "00:00"}`);
+    // Subtract the reminder offset (in minutes)
+        const customReminderTime = reminderData.reminderTime || "00:00";
+
+    reminderBody = {
+      reminderDate: followupDateTime.format("YYYY-MM-DD"),
+    reminderTime: dayjs(`${date}T${customReminderTime}`).format("HH:mm"),
+      leadId: leadID,
+      userId: userid,
+    };
+   await reminderMutate.mutateAsync([reminderBody, selectedLeadId]);
+  }
+     
+
       try {
         await updateLeadMutate.mutateAsync([body, leadID, userid]);
+
+
+
         setTableData(prev =>
           prev.map(row =>
             row.id === leadID ? { ...row, followup: date, followupTime: time } : row
@@ -1469,7 +1525,6 @@ setTableData(prev =>
 
 
 
-const reminderMutate = useCreateReminder();
 
     const handleReminderChange = async (date: any, time: any, leadID: any, title: any) => {
 
@@ -1482,7 +1537,6 @@ const reminderMutate = useCreateReminder();
       };
       try {
         await reminderMutate.mutateAsync([body, selectedLeadId]);
-        refetchLeadsData();
         setSelectedLeadId(0);
         setIsReminderModalOpen(false);
       } catch (error) {
@@ -1553,6 +1607,8 @@ useEffect(() => {
 
 
 const createVoiceRecordMutation  = useCreateVoiceRecord();
+
+const postGetVoiceRecordMutate = usePostGetVoiceRecordByLead();
 const handleSaveVoice = async(audioBlob: Blob) => {
   if (selectedVoiceRow) {
     const url = URL.createObjectURL(audioBlob);
@@ -1564,19 +1620,17 @@ const handleSaveVoice = async(audioBlob: Blob) => {
       )
     );
 
-     createVoiceRecordMutation.mutate({
+    const result =await createVoiceRecordMutation.mutateAsync({
       blob: audioBlob,
       leadId: selectedVoiceRow?.id, // assuming you have this
       createdBy: userid, // or get it from auth/user state
-    }, {
-      onSuccess: () => {
-        refetchLeadsData();
-        console.log("Voice record created successfully.");
-      },
-      onError: (error) => {
-        console.error("Error uploading voice record:", error);
-      },
     });
+    const voiceRecords = await postGetVoiceRecordMutate.mutateAsync([selectedVoiceRow.id]);
+    setTableData(prev =>
+      prev.map(row =>
+        row.id === selectedVoiceRow.id ? { ...row, voiceRecords } : row
+      )
+    );
     setIsVoiceModalOpen(false);
     setSelectedVoiceRow(null);
   }
@@ -1605,6 +1659,42 @@ const handleSaveVoice = async(audioBlob: Blob) => {
 // Filter tableData based on filters
 
 
+
+  const createMention = useCreateMention();
+
+const handleMentionSave = useCallback(async(leadId: string, mentions: any[], selectedMentions: any[]) => {
+
+  const formattedMentions = [...mentions, ...selectedMentions].map((assignee: any) => {
+    // If already in correct format, return as is
+    if (assignee.userId && assignee.userName) return assignee;
+    // If coming from TagSelector, map from value/label
+    return {
+      userId: assignee.value ?? assignee.userId,
+      userName: assignee.label ?? assignee.userName,
+    };
+  });
+
+   await Promise.all(
+        mentions.map((assignee) =>
+          createMention.mutateAsync([
+            {
+              leadId,
+              userId: assignee.value,
+              type: "tag",
+              createdBy: userid, // Assuming 1 is the ID of the user creating the mention
+              // Add other fields as needed, e.g. message, mentionedBy, etc.
+            },
+            userid// userId or any other param if needed
+          ])
+        )
+      );
+
+      setTableData(prev =>
+        prev.map(row => row.id === leadId ? { ...row, mentions: formattedMentions } : row)
+      );
+
+
+}, [ updateLeadMutate, userid]);
 
 const handleRemoveFilter = useCallback((key: string) => {
   // Define related filter keys that should be removed together
@@ -1663,6 +1753,7 @@ const dateOption =[
 
 
 
+
 const filteredData = React.useMemo(() => {
 
     if (!filtersEnabled) return tableData;
@@ -1672,8 +1763,6 @@ const filteredData = React.useMemo(() => {
     const isEnabled = enabledFilters[key] !== false; // Default to true if not set
     return isEnabled && val !== undefined && val !== null && val !== '';
   });
-
-  
 
 
   const result = tableData?.filter((row) => {
@@ -1695,7 +1784,7 @@ const filteredData = React.useMemo(() => {
       const isEnabled = enabledFilters[key] !== false; // Default to true if not set
       if (!isEnabled) return true;
 
-
+console.log("Filtering key:", key, "Value:", val, "Enabled:", isEnabled);
 
 
 
@@ -1747,9 +1836,14 @@ const dateVal = Array.isArray(val) ? new Date(val[0]) : new Date(val);  if (isNa
 
   
     if (key === 'followup' || key === 'followupType' || key ==='followupStart' || key ==="followupEnd") {
+
+      console.log("Followup key:", key, "Value:", val, "Type:", followupType, filters.followup);  
             if (!followupType || !val) return true;
 
       const followupDate = row.followup?.slice(0, 10);
+
+
+      console.log("Followup date:", followupDate, filters.followup, "Type:", filters.followup==followupDate, "Value:", val);
 
 
 
@@ -1878,7 +1972,8 @@ if(key === 'leads') {
 
 
 return result;
-}, [tableData, filters, filtersEnabled, enabledFilters, handleRowCreate, handleRowEdit]);
+}, [tableData, filters, activeFilters, filtersEnabled, enabledFilters, handleRemoveTags, handleRowCreate, handleRowEdit]);
+
 
 
 
@@ -2125,8 +2220,8 @@ onChange={val => {
           </styled.singleDateDiv>
           <styled.singleDateDiv>
          
-          <DateInput
-  value={filters.followupEnd || ''}
+          <DateInput 
+  value={filters.followupEnd || filters.followupStart || ''}
   onChange={date =>
     setFilters(prev => ({
       ...prev,
@@ -2243,7 +2338,7 @@ onChange={val => {
             
 
               <DateInput
-  value={filters.eventDataEnd || ''}
+  value={filters.eventDataEnd || filters.eventDataStart || ''}
   onChange={date =>
     setFilters(prev => ({
       ...prev,
@@ -2350,7 +2445,7 @@ onClick={() => {
           </styled.singleDateDiv>
           <styled.singleDateDiv>
             <DateInput
-              value={filters.createdAtEnd || ''}
+              value={filters.createdAtEnd || filters.createdAtStart || ''}
               onChange={date =>
                 setFilters(prev => ({
                   ...prev,
@@ -2407,17 +2502,7 @@ onClick={() => {
         </styled.FilterHeader>
 
 {key === 'referenceId' || key ==="shootId" || key ==="leads" || key ==="mentions" ? (
-  // <CustomSelect
-  //   placeholder={col.header?.toString()}
-  //   isMulti={true}
-  //   value={meta?.selectOptions?.filter((opt: any) =>
-  //     Array.isArray(filters[key]) ? filters[key].includes(opt.value) : false
-  //   )}
-  //   onChange={(options: any[]) =>
-  //     handleFilterChange(key, options ? options.map(opt => opt.value) : [])
-  //   }
-  //   options={meta?.selectOptions || []}
-  // />
+ 
 
   <TagMultiSelector
   options={meta?.selectOptions || []}
@@ -2431,14 +2516,7 @@ onClick={() => {
 ) 
 
      : meta?.editorType === 'select' || key === 'status' || key === 'converted' ? (
-      // <CustomSelect
-      //   placeholder={col.header?.toString()}
-      //   isMulti={false}
-      //   value={meta?.selectOptions?.find((opt: any) => opt.value === filters[key]) || null}
-      //   onChange={(option: any) => handleFilterChange(key, option ? option.value : '')}
-      //   options={meta?.selectOptions || []}
-       
-      // />
+    
 
        <TagSelector
             options={meta?.selectOptions || []}
@@ -2532,8 +2610,12 @@ onClick={() => {
          data={filteredData || []}
         
           columns={columnsWithWidth}
-
-          
+          openLogsModal={openLogsModal}
+          setOpenLogsModal={setOpenLogsModal}
+          handleLogClick={(rowId: any) => {
+            setSelectedLeadId(rowId);
+            setOpenLogsModal(true);
+          }}
           createEmptyRow={createEmptyDoc}
           onRowCreate={handleRowCreate} // ✅ hook for API
           onRowEdit={handleRowEdit} // ✅ added
@@ -2553,6 +2635,7 @@ onClick={() => {
    highlightRowId={highlightRowId}
    totalDataCount={totalLeads || 0}
    currentOffset={offset}
+
   
   pageSize={Object.keys(filters).length > 0 ? LeadsData?.filteredCount :  limit}
   withPagination={false}
@@ -2575,6 +2658,14 @@ if(offset + 40 <= totalLeads){
 };
     // Increment your value or fetch more data here
   }}
+
+  openFollowupModal={openFollowupModal}
+  setOpenFollowupModal={setOpenFollowupModal}
+  isFollowup={true}
+  openTablesModal={openTablesModal}
+  setOpenTablesModal={setOpenTablesModal}
+  isTablesLogs={true}
+  showRowLogs={true}
 
         />
 
@@ -2612,7 +2703,8 @@ if(offset + 40 <= totalLeads){
     onClose={() => setIsMentionModalOpen(false)}
     title="Tag Someone"
     leadId={selectedMentionLeadId || 0}
-    refetch={refetchLeadsData}
+    onSave={handleMentionSave}
+    // refetch={refetchLeadsData}
         mentions={selectedMentions} // Pass the tagged users here
 
   />
@@ -2649,6 +2741,41 @@ if(offset + 40 <= totalLeads){
             onSave={handleSaveVoice}
           />
         )}
+
+
+{openLogsModal && (
+  <LogsModal
+    open={openLogsModal}
+    onClose={() => setOpenLogsModal(false)}
+    title="Lead Logs"
+    rowId={selectedLeadId || 0}
+    tableName="leads"
+  />
+
+)}
+
+{openFollowupModal && (
+<FollowupModal
+  open={openFollowupModal}
+  onClose={() => setOpenFollowupModal(false)}
+  width={900}
+
+  />
+
+)}
+
+{openTablesModal && (
+  <UsersTableLogs
+    open={openTablesModal}
+    onClose={() => setOpenTablesModal(false)}
+    title="Leads Update history"
+    tableName="leads"
+    userId={userid}
+  />
+)}
+
+
+
 
 
 

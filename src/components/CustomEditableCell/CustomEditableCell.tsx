@@ -26,6 +26,11 @@ const CustomEditableCell: React.FC<CustomEditableCellProps> = ({
 
 
   const [inputValue, setInputValue] = useState(value || "");
+
+
+  useEffect(() => {
+    setInputValue(value || "");
+  }, [value]);
   const inputRef = useRef<HTMLTextAreaElement>(null);
 
   // Dynamic height for textarea
@@ -62,7 +67,7 @@ const CustomEditableCell: React.FC<CustomEditableCellProps> = ({
     inputRef.current.setSelectionRange(len, len);
     inputRef.current.focus();
   }
-}, [isEditing, inputValue]);
+}, [isEditing]);
 
   return (
     <div style={{ minHeight: 24, position: "relative" }}>
@@ -79,40 +84,52 @@ const CustomEditableCell: React.FC<CustomEditableCellProps> = ({
             background: "#202020",
             color: "white",
             minHeight: 40,
+            maxHeight: "35vh", // limit height to 60% of viewport
+
             fontSize: 14,
             resize: "none",
-            fontFamily: "sans-serif",
-            overflow: "hidden",
-            // border: "1px solid #0d4e8aff",
-            borderRadius: 4,
+            borderColor: "#1890ff",
             outline: "1px solid #1890ff", // blue outline
+
+            fontFamily: "sans-serif",
+            overflow: "auto",
+            borderRadius: 4,
+            lineHeight: 1.5,
     outlineOffset: "0px",
           }}
         />
       ) : value ? (
         <span
           style={{
-            whiteSpace: "pre-line",
+            whiteSpace: "pre-wrap", // preserves both spaces and all line breaks
             cursor: "pointer",
+                wordBreak: "break-word", // add this line
+
+            
             display: "block",
           }}
           onClick={e => {
             if ((e.target as HTMLElement).tagName !== "A") setIsEditing(true);
           }}
-          dangerouslySetInnerHTML={{
-            __html: (value || placeholder || "").replace(
-              /((https?:\/\/|www\.)[^\s]+)/g,
-              (url: any) => {
-                const href = url.startsWith("http") ? url : `https://${url}`;
-                return `<a href="${href}" target="_blank" rel="noopener noreferrer" style="color:#4fa3ff;text-decoration:underline;">${url}</a>`;
-              }
-            ),
-          }}
+         dangerouslySetInnerHTML={{
+    __html: (value || placeholder || "")
+      .replace(/ /g, "&nbsp;")
+            .replace(/\n/g, "<br>") // <-- Add this to handle line breaks
+
+      .replace(
+        /((https?:\/\/|www\.)[^\s]+)/g,
+        (url: any) => {
+          const href = url.startsWith("http") ? url : `https://${url}`;
+          return `<a href="${href}" target="_blank" rel="noopener noreferrer" style="color:#4fa3ff;text-decoration:underline;">${url}</a>`;
+        }
+      ),
+  }}
+
         />
       ) : (
         <span
           style={{
-            whiteSpace: "pre-line",
+    whiteSpace: "pre-wrap", // preserves both spaces and all line breaks
             cursor: "pointer",
             display: "block",
             color: "#888",

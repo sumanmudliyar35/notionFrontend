@@ -44,6 +44,7 @@ import { TaskCustomTable } from '../tasks/components/TaskCustomTable/TaskCustomT
 import CustomEditableCell from '../../components/CustomEditableCell/CustomEditableCell';
 import { useUpdateUsersTablePreference } from '../../api/put/updateUsersTablePreference';
 import { useGetRecursiveTaskTablePreference } from '../../api/get/getRecursiveTaskTablePreference';
+import imageCompression from 'browser-image-compression';
 
 
 
@@ -73,9 +74,12 @@ const RecursiveTaskTable = ({intervalDays, customFilters, customActiveFilters, i
 
   const currentMonth = dayjs().month() + 1; // 1 = January, 12 = December
   const currentYear = dayjs().year();
+  const currentDate = dayjs().date() - 2;
+
+  console.log("Current Date:", currentDate, "Current Month:", currentMonth, "Current Year:", currentYear);  
 
 
-  const { data: recursiveTasks = [], isLoading, refetch: refetchRecursiveTasks } = useGetRecursiveTaskByUser(userid || '', currentMonth, currentYear);
+  const { data: recursiveTasks = [], isLoading, refetch: refetchRecursiveTasks } = useGetRecursiveTaskByUser(userid || '', currentDate, currentMonth, currentYear);
 
 
 
@@ -145,17 +149,28 @@ const RecursiveTaskTable = ({intervalDays, customFilters, customActiveFilters, i
   }, [recursiveTasks]);
 
   // Compute all unique dates from recursiveTaskLogs
-  const allDates = useMemo(() => {
-    const now = dayjs();
-    const daysInMonth = now.daysInMonth();
-    const today = now.format('YYYY-MM-DD');
-    const dates = Array.from({ length: daysInMonth }, (_, i) =>
-      now.date(i + 1).format('YYYY-MM-DD')
-    );
-    // Move today to the front
-    // const rest = dates.filter(date => date !== today);
-    return [...dates];
-  }, []);
+  // const allDates = useMemo(() => {
+  //   const now = dayjs();
+  //   const daysInMonth = now.daysInMonth();
+  //   const today = now.format('YYYY-MM-DD');
+  //   const dates = Array.from({ length: daysInMonth }, (_, i) =>
+  //     now.date(i + 1).format('YYYY-MM-DD')
+  //   );
+  //   // Move today to the front
+  //   // const rest = dates.filter(date => date !== today);
+  //   return [...dates];
+  // }, []);
+const allDates = useMemo(() => {
+  const now = dayjs();
+  const daysInMonth = now.daysInMonth();
+  // Start from today - 2
+  const startDay = Math.max(1, now.date() - 2);
+  const dates = Array.from({ length: daysInMonth - startDay + 1 }, (_, i) =>
+    now.date(startDay + i).format('YYYY-MM-DD')
+  );
+  return dates;
+}, []);
+  
 
   // State to track which rows have hidden comments
 const [hiddenCommentRows, setHiddenCommentRows] = useState<{ [key: string]: boolean }>({});
@@ -203,7 +218,6 @@ const toggleCommentsVisibility = (
     }
   }, [useCreateRecursiveTaskMutate, userid, refetchRecursiveTasks]);
 
-  console.log('sdsdsfgh',openRecursiveTaskModal)
   
 
   const UpdateRecursiveTaskDateMutate = useUpdateRecursiveTaskDate();
@@ -216,12 +230,11 @@ const toggleCommentsVisibility = (
     taskId: string
   ) => {
     try {
-      console.log('Changing date for task:', taskId, 'from', originalDate, 'to', newDate);
       const body = {
         currentDate: originalDate,
         newDate: newDate,
       };
-      const response = await UpdateRecursiveTaskDateMutate.mutateAsync([body, taskId]);
+      const response = await UpdateRecursiveTaskDateMutate.mutateAsync([body, taskId, userid]);
 
       const taskData = await postGetRecursiveTask.mutateAsync([taskId]);
       setTasks(prev => prev.map(task => 
@@ -306,7 +319,7 @@ const toggleCommentsVisibility = (
     const body = {
       deletedAt: new Date()
     }
-    const response = await useDeleteCommentMutate.mutateAsync([body, commentId]);
+    const response = await useDeleteCommentMutate.mutateAsync([body, commentId, loggedInUserId]);
     const commentResponse = await postGetComment.mutateAsync([rowId]);
     
     setTasks(prev =>
@@ -352,7 +365,7 @@ const toggleCommentsVisibility = (
       status: checked ? 'completed' : 'pending',
     };
 
-    updateRecursiveTaskLogsMutate.mutateAsync([body, date, taskId], {
+    updateRecursiveTaskLogsMutate.mutateAsync([body, date, taskId, userid], {
       onSuccess: () => {
         setTasks(prev =>
           prev.map(task =>
@@ -380,7 +393,7 @@ const toggleCommentsVisibility = (
     const body = {
       title: row.title,
     }
-    updateRecursiveTaskMutate.mutateAsync([body, row.id]);
+    updateRecursiveTaskMutate.mutateAsync([body, row.id, userid]);
 
 
     setTasks(prev =>
@@ -398,9 +411,42 @@ const toggleCommentsVisibility = (
 
               const rescursiveTaskLogId = log.id;   
               // Append all files
-              Array.from(files).forEach(file => {
-                formData.append("files", file); // "files" should match your backend field for multiple files
-              });
+              // Array.from(files).forEach(file => {
+              //   formData.append("files", file); // "files" should match your backend field for multiple files
+              // });
+
+
+             for (const file of Array.from(files)) {
+  let fileToUpload = file;
+
+  // Check for image by MIME type and extension
+  const imageExtensions = ['.jpg', '.jpeg', '.png', '.webp', '.gif', '.bmp', '.tiff'];
+  const fileName = file.name.toLowerCase();
+  const isImageExtension = imageExtensions.some(ext => fileName.endsWith(ext));
+
+  if (file.type.startsWith('image/') && isImageExtension) {
+    try {
+      console.log("Compressing image:", file);
+    const   compressedBlob = await imageCompression(file, {
+        maxSizeMB: 1,
+        maxWidthOrHeight: 1920,
+        useWebWorker: true,
+      });
+          fileToUpload = new File([compressedBlob], file.name, { type: compressedBlob.type });
+
+      console.log("Compressed image file:", fileToUpload);
+    } catch (err) {
+      console.error("Image compression failed, uploading original file.", err);
+      fileToUpload = file;
+    }
+  }
+
+  formData.append("files", fileToUpload);
+}
+
+
+
+
               formData.append("recursiveTaskLogId", taskId);
               formData.append("logId", log.id);
               formData.append("date", date);          
@@ -408,9 +454,13 @@ const toggleCommentsVisibility = (
               await createAttachmentMutation.mutateAsync([formData, userid]);
               const attachmentResponse = await postGetAttachmentByTask.mutateAsync([log.id]);
 
+              console.log("Attachment response:", rescursiveTaskLogId, taskId, log.recursiveTaskId);
+
+
+
               setTasks(prev =>
       prev.map(task => {
-        return task.id === log.id
+        return task.id === log.recursiveTaskId
           ? { 
               ...task, 
               recursiveTaskLogs: task.recursiveTaskLogs.map((log: any) => 
@@ -464,7 +514,7 @@ const toggleCommentsVisibility = (
             
             e.preventDefault();
             e.stopPropagation();
-            setSelectedRecursiveTask(log.id);
+            setSelectedRecursiveTask(log.recursiveTaskId);
             setSelectedRecursiveTaskLogDate(date);
             setOpenChangeDateModal(true);
           };
@@ -494,21 +544,21 @@ const toggleCommentsVisibility = (
       
       ),
     },
-    {
-      header: "Interval",
-      accessorKey: 'intervalDays',
-      size: 60,
-            enableSorting: false,
+    // {
+    //   header: "Interval",
+    //   accessorKey: 'intervalDays',
+    //   size: 60,
+    //         enableSorting: false,
 
-      cell: ({ row }: { row: any }) => {
-        const interval = row.original.intervalDays;
-        return (
-          <span>
-            {interval} {interval === 1 ? 'day' : 'days'}
-          </span>
-        );
-      },
-    },
+    //   cell: ({ row }: { row: any }) => {
+    //     const interval = row.original.intervalDays;
+    //     return (
+    //       <span>
+    //         {interval} {interval === 1 ? 'day' : 'days'}
+    //       </span>
+    //     );
+    //   },
+    // },
     ...allDates.map(date => {
       // Check if the date is in the past
       const isPastDate = dayjs(date).isBefore(dayjs().startOf('day'));
@@ -744,7 +794,10 @@ const handleRemoveFilter = (key: string) => {
 
 
   // Find all date columns (skip the first two: 'Name' and 'Interval')
-  const dateColumns = columnsWithWidth.slice(2);
+  // const dateColumns = columnsWithWidth.slice(2);
+
+    const dateColumns = columnsWithWidth;
+
 
   // Parse filter values
   const filterDate = dayjs(Array.isArray(filters.taskDate) ? filters.taskDate[0] : filters.taskDate);
@@ -777,7 +830,20 @@ const handleRemoveFilter = (key: string) => {
   }
 
   // Always include the first two columns ('Name' and 'Interval')
-  return [...columnsWithWidth.slice(0, 2), ...filteredDateColumns];
+  // return [
+  //   ...columnsWithWidth.slice(0, 1),
+  //    ...filteredDateColumns];
+
+
+     return [
+  ...columnsWithWidth.slice(0, 1),
+  ...filteredDateColumns.filter(
+    col =>
+      !columnsWithWidth
+        .slice(0, 1)
+        .some(baseCol => baseCol.accessorKey === col.accessorKey)
+  ),
+];
 }, [columnsWithWidth, filters,customFilters, customActiveFilters]);
 
 
@@ -1002,7 +1068,7 @@ Date
   }}
   columnSizing={columnSizing}
         onRowEdit={handleRowEdit}
-        scrollToColumn={dayjs().format('YYYY-MM-DD')}
+        // scrollToColumn={dayjs().format('YYYY-MM-DD')}
         
         // isWithNewRow={true}
         onSelectionChange={handleDeleteRecursiveTask}

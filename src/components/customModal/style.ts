@@ -7,6 +7,7 @@ export const StyledModal = styled(Modal)`
     background-color: #202020;
     color: white;
     max-height: 70vh;
+    max-width: 90vw;
     overflow-y: auto;
   }
 

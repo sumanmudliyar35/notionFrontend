@@ -18,7 +18,11 @@ const DateInput: React.FC<DateInputProps> = ({
   placeholder = "Select Date",
 }) => {
   // Only use dayjs if value is a valid date string
-  const dateValue = value && dayjs(value).isValid() ? dayjs(value) : null;
+  // const dateValue = value && dayjs(value).isValid() ? dayjs(value) : null;
+
+  const dateValue =
+    value && value !== "0000-00-00" && dayjs(value).isValid() ? dayjs(value) : null;
+
 
   return (
     <div>

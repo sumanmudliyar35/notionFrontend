@@ -65,8 +65,9 @@ const RecursiveTaskTable = ({intervalDays, customFilters, customActiveFilters, i
 
     const currentMonth = dayjs().month() + 1; // 1 = January, 12 = December
     const currentYear = dayjs().year();
+    const currentDate = dayjs().date() - 2; // Adjusted to get the date two days ago
 
-  const { data: recursiveTasks = [], isLoading, refetch: refetchRecursiveTasks } = useGetRecursiveTaskByUser(userid || '', currentMonth, currentYear);
+  const { data: recursiveTasks = [], isLoading, refetch: refetchRecursiveTasks } = useGetRecursiveTaskByUser(userid || '', currentDate, currentMonth, currentYear);
   const [tasks, setTasks] = useState<any[]>([]);
 
       const {data: allMembersData} = useGetAllUsers();
@@ -188,7 +189,7 @@ const toggleCommentsVisibility = (
         currentDate: originalDate,
         newDate: newDate,
       };
-      const response = await UpdateRecursiveTaskDateMutate.mutateAsync([body, taskId]);
+      const response = await UpdateRecursiveTaskDateMutate.mutateAsync([body, taskId, userid]);
 
       const taskData = await postGetRecursiveTask.mutateAsync([taskId]);
       setTasks(prev => prev.map(task => 
@@ -273,7 +274,7 @@ const toggleCommentsVisibility = (
     const body = {
       deletedAt: new Date()
     }
-    const response = await useDeleteCommentMutate.mutateAsync([body, commentId]);
+    const response = await useDeleteCommentMutate.mutateAsync([body, commentId, loggedInUserId]);
     const commentResponse = await postGetComment.mutateAsync([rowId]);
     
     setTasks(prev =>
@@ -319,7 +320,7 @@ const toggleCommentsVisibility = (
       status: checked ? 'completed' : 'pending',
     };
 
-    updateRecursiveTaskLogsMutate.mutateAsync([body, date, taskId], {
+    updateRecursiveTaskLogsMutate.mutateAsync([body, date, taskId, userid], {
       onSuccess: () => {
         setTasks(prev =>
           prev.map(task =>
@@ -347,7 +348,7 @@ const toggleCommentsVisibility = (
     const body = {
       title: row.title,
     }
-    updateRecursiveTaskMutate.mutateAsync([body, row.id]);
+    updateRecursiveTaskMutate.mutateAsync([body, row.id, userid]);
 
 
     setTasks(prev =>

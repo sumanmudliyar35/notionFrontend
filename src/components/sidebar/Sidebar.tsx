@@ -5,9 +5,10 @@ import { Drawer, Input } from 'antd'; // <-- Import Input
 import NotificationDrawer from '../notificationDrawer/NotificationDrawer';
 import CustomSearchInput from '../CustomSearchInput/CustomSearchInput';
 import { useGetUsersMenu } from '../../api/get/getUsersMenu';
-import { UserOutlined, SettingOutlined, LogoutOutlined, BellOutlined, CheckSquareOutlined, RetweetOutlined, TeamOutlined } from '@ant-design/icons';
+import { UserOutlined, SettingOutlined, LogoutOutlined, BellOutlined, CheckSquareOutlined, RetweetOutlined, TeamOutlined, EllipsisOutlined } from '@ant-design/icons';
 import { useGetUnseenNotificationCount } from '../../api/get/getUnseenNotificationCount';
 import { DashboardOutlined } from '@ant-design/icons';
+import AccessModal from '../AccessModal/AccessModal';
 
 
 interface SidebarProps {
@@ -91,6 +92,13 @@ const adminMenuItems = [
     path: '/dashboard',
   },
 
+   {
+    key: 'logs',
+    label: 'Logs',
+    icon: <DashboardOutlined style={{ ...iconStyle, color: '#1890ff' }} />,
+    path: '/logs',
+  },
+
 
 ];
 
@@ -113,8 +121,16 @@ const lastMenuItem = [
   const [openUserMenus, setOpenUserMenus] = useState<{ [key: string]: boolean }>({});
   const drawerContainerRef = useRef<HTMLDivElement>(null);
 
+  const [accessorId, setAccessorId] = useState<string | number | undefined>(undefined);
+
+  const [openAccessModal, setOpenAccessModal] = useState(false);
   const handleNavigate = (path: string) => {
     navigate(path);
+  };
+
+  const handleAccessModalOpen = (id: string | number) => {
+    setAccessorId(id);
+    setOpenAccessModal(true);
   };
 
   const handleLogout = () => {
@@ -127,29 +143,41 @@ const lastMenuItem = [
 
  
  
-   // Defensive: only map if Array.isArray
-   const userMenuItems = Array.isArray(usersMenu?.data)
-     ? usersMenu.data.map((user: any) => ({
-         key: `user-${user.userId}`,
-         label: user.name,
-         icon: <UserOutlined style={{ ...iconStyle, color: '#1890ff' }} />,
-         children: [
-           {
-             key: `user-${user.userId}-task`,
-             label: 'Task',
-             icon: <CheckSquareOutlined style={{ ...iconStyle, color: '#52c41a' }} />,
-             path: `/user/${user.userId}/task`,
-           },
-           {
-             key: `user-${user.userId}-recursive-task`,
-             label: 'Recursive Task',
-             icon: <RetweetOutlined style={{ ...iconStyle, color: '#faad14' }} />,
-             path: `/user/${user.userId}/recursive-task`,
-           },
-         ],
-       }))
-     : [];
+  
 
+const userMenuItems = Array.isArray(usersMenu?.data)
+  ? usersMenu.data.map((user: any) => ({
+      key: `user-${user.userId}`,
+      label: (
+        <span style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: '100%' }}>
+          <span>{user.name}</span>
+          {/* <EllipsisOutlined
+            style={{ marginLeft: 8, color: '#aaa', cursor: 'pointer' }}
+            onClick={e => {
+              e.stopPropagation();
+              handleAccessModalOpen(user.userId);
+            }}
+          /> */}
+        </span>
+      ),
+      icon: <UserOutlined style={{ ...iconStyle, color: '#1890ff' }} />,
+      path: `/user/${user.userId}/task`,
+      children: [
+        {
+          key: `user-${user.userId}-task`,
+          label: 'Task',
+          icon: <CheckSquareOutlined style={{ ...iconStyle, color: '#52c41a' }} />,
+          path: `/user/${user.userId}/task`,
+        },
+        {
+          key: `user-${user.userId}-recursive-task`,
+          label: 'Recursive Task',
+          icon: <RetweetOutlined style={{ ...iconStyle, color: '#faad14' }} />,
+          path: `/user/${user.userId}/recursive-task`,
+        },
+      ],
+    }))
+  : [];
 
 
   // Combine static and dynamic menu items
@@ -203,51 +231,62 @@ const filterMenu = (items: any[]): any[] =>
 }, []);
   
 
+  
+
+
   const renderMenuItems = (items: any[]) =>
-    items.map(item => {
-      const isUser = item.children && item.key.startsWith('user-');
-      const isOpen = openUserMenus[item.key];
-      // Highlight if current path matches item's path
-      const isSelected = item.path && location.pathname === item.path;
+  items.map(item => {
+    const isUser = item.children && item.key.startsWith('user-');
+    const isOpen = openUserMenus[item.key];
+    // Highlight if current path matches item's path
+    const isSelected = item.path && location.pathname === item.path;
 
-      return (
-        <React.Fragment key={item.key}>
-          <styled.MenuItem
-            onClick={() => {
-              if (item.onClick === 'drawer') handleOpenDrawer();
-              else if (item.onClick === 'logout') handleLogout();
-              else if (item.path) handleNavigate(item.path);
-              else if (isUser) {
-                setOpenUserMenus(prev => ({
-                  ...prev,
-                  [item.key]: !prev[item.key],
-                }));
-              }
-            }}
-            style={{
-              ...(item.children ? { fontWeight: 600, cursor: isUser ? 'pointer' : undefined } : {}),
-              ...(isSelected
-                ? { background: 'rgba(255,255,255,0.055)', color: '#fff', borderRadius: 6 }
-                : {}),
-            }}
-          >
-            {item.icon}
-            {item.label}
-          </styled.MenuItem>
-          {item.children && isUser && isOpen && (
-            <styled.menuChildren>
-              {renderMenuItems(item.children)}
-            </styled.menuChildren>
-          )}
-          {item.children && !isUser && (
-            <styled.menuChildren  >
-              {renderMenuItems(item.children)}
-            </styled.menuChildren>
-          )}
-        </React.Fragment>
-      );
-    });
-
+    return (
+    <React.Fragment key={item.key}>
+  <styled.MenuItem
+    onClick={() => {
+      if (item.onClick === 'drawer') handleOpenDrawer();
+      else if (item.onClick === 'logout') handleLogout();
+      // If item has both path and children, navigate and toggle open/close
+      else if (item.path && item.children) {
+        handleNavigate(item.path); // Navigate to parent path
+        setOpenUserMenus(prev => ({
+          ...prev,
+          [item.key]: !prev[item.key],
+        }));
+      }
+      // If only path (no children), navigate
+      else if (item.path) handleNavigate(item.path);
+      else if (isUser) {
+        setOpenUserMenus(prev => ({
+          ...prev,
+          [item.key]: !prev[item.key],
+        }));
+      }
+    }}
+    style={{
+      ...(item.children ? { fontWeight: 600, cursor: isUser ? 'pointer' : undefined } : {}),
+      ...(isSelected
+        ? { background: 'rgba(255,255,255,0.055)', color: '#fff', borderRadius: 6 }
+        : {}),
+    }}
+  >
+    {item.icon}
+    {item.label}
+  </styled.MenuItem>
+  {item.children && isUser && isOpen && (
+    <styled.menuChildren>
+      {renderMenuItems(item.children)}
+    </styled.menuChildren>
+  )}
+  {item.children && !isUser && (
+    <styled.menuChildren>
+      {renderMenuItems(item.children)}
+    </styled.menuChildren>
+  )}
+</React.Fragment>
+    );
+  });
   const renderMenu = () => (
     <>
       <CustomSearchInput
@@ -278,6 +317,16 @@ const filterMenu = (items: any[]): any[] =>
         getContainer={drawerContainerRef.current || false}
         userId={Number(userId)}
       />
+
+
+
+      {openAccessModal && (
+        <AccessModal
+          open={openAccessModal}
+          onClose={() => setOpenAccessModal(false)}
+          accessorId={accessorId}
+        />
+      )}
     </styled.SidebarWrapper>
   );
 };

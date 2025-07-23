@@ -432,7 +432,8 @@ const handleSaveEventEdit = async (idx: number, field: string) => {
   // Save to backend (replace with your event update API if needed)
   await updateEventMutate.mutateAsync([
     {[customField]: valueToSave },
-    idx
+    idx,
+    userId
    
   ]);
 
@@ -743,7 +744,7 @@ useEffect(() => {
                             }}
                           />
                         ) : (
-                          event.eventDate ? new Date(event.eventDate).toLocaleDateString() : '-'
+                          event.eventDate ? formatDisplayDate(event.eventDate) : '-'
                         )}
                       </EventCell>
                       {/* Name */}

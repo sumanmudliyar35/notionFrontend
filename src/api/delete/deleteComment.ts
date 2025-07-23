@@ -3,13 +3,13 @@ import axiosInstance from "../../connection/axiosInstance";
 import type {MutationFunction} from "react-query";
 
 // Mutation function to create a lead
-const DeleteComment: MutationFunction<any, [any, any]> = async (
-  params: [any, any]
+const DeleteComment: MutationFunction<any, [any, any, any]> = async (
+  params: [any, any, any]
 ) => {
-  const [body, commentId] = params;
+  const [body, commentId, userId] = params;
 
   const response = await axiosInstance.put(
-    `/comment/deleteComment?commentId=${commentId}`,
+    `/comment/deleteComment?commentId=${commentId}&userId=${userId}`,
     body
   );
 

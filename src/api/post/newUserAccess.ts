@@ -2,14 +2,14 @@ import { useMutation } from "react-query";
 import axiosInstance from "../../connection/axiosInstance";
 import type { MutationFunction } from "react-query";
 
-// Mutation function to create a recursive task
-const createRecursiveTask: MutationFunction<any, [any, any]> = async (
+// Mutation function to create or update user access
+const createUserAccess: MutationFunction<any, [any, any]> = async (
   params: [any, any]
 ) => {
   const [body, userId] = params;
 
   const response = await axiosInstance.post(
-    `/recursiveTask/createRecursiveTask?userId=${userId}`,
+    `/usersAccess/createAccess`,
     body
   );
 
@@ -17,7 +17,6 @@ const createRecursiveTask: MutationFunction<any, [any, any]> = async (
 };
 
 // Custom hook to use in components
-export const useCreateRecursiveTask = () => {
-  return useMutation(createRecursiveTask);
-
+export const useCreateUserAccess = () => {
+  return useMutation(createUserAccess);
 };

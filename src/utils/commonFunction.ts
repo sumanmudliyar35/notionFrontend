@@ -67,3 +67,19 @@ export function DateWithThreeMonthletters(date?: string | null): string {
   return `${day}${getOrdinal(day)} ${month} '${year}`;
 
 };
+
+export const formatDisplayTime = (date: string | Date | null | undefined) => {
+  if (!date) return "";
+
+  // Accepts both "16:00:00" and full date strings
+  let d;
+  if (typeof date === "string" && /^\d{2}:\d{2}(:\d{2})?$/.test(date.trim())) {
+    // If only time is provided, use today as date
+    d = dayjs(`2000-01-01T${date.trim()}`);
+  } else {
+    d = dayjs(date);
+  }
+  if (!d.isValid()) return "";
+
+  return d.format("h:mm A");
+};

@@ -12,6 +12,10 @@ import Tasks from './pages/tasks/Tasks';
 import RecursiveTask from './pages/recursiveTask/RecursiveTask';
 import Dashboard from './pages/dashboard/Dashboard';
 import './customApp.css'; // Import your CSS file
+import { useGetReminderByUser } from './api/get/getReminderByUser';
+import { io } from 'socket.io-client';
+import Logs from './pages/logs/Logs';
+
 
 type NotificationPlacement = NotificationArgsProps['placement'];
 
@@ -23,65 +27,77 @@ const App: React.FC = () => {
 
   
 
-  const openNotification = (message: string, placement: NotificationPlacement) => {
+  const userid = localStorage.getItem('userid');
+
+  const openNotification = (message: string, placement: NotificationPlacement,PlaySound: boolean ) => {
     api.info({
       message: message,
       placement: placement,
       duration: 0, // Stays until user closes
 
     });
-    if (canPlaySound) {
+
+    console.log('Notification opened:', message, PlaySound == true, PlaySound);
+    if (PlaySound == true) {
       notificationSound.currentTime = 0;
+      notificationSound.volume = 1;
+notificationSound.muted = false;
+      console.log('Playing sound');
       notificationSound.play().catch(() => {});
+      notificationSound.play().catch((err) => {
+  console.error('Audio play error:', err);
+});
+
     }
   };
 
-  const userid = localStorage.getItem('userid');
-  const wsUrl = userid
-    ? `wss://api.zealweb.in/?userId=${userid}`
-    : 'wss://api.zealweb.in/';
-
-  // useEffect(() => {
-  //   let ws: WebSocket | null = null;
-  //   let reconnectTimeout: ReturnType<typeof setTimeout> | null = null;
-
-  //   const connect = () => {
-  //     ws = new WebSocket(wsUrl);
 
 
-  //     ws.onopen = () => {
-  //       console.log('WebSocket connected');
-  //     };
 
-  //     ws.onmessage = (event) => {
-  //       try {
-  //         const data = JSON.parse(event.data);
-  //         openNotification(data.message || 'Notification', 'topRight');
-  //       } catch {
-  //         openNotification(String(event.data), 'topRight');
-  //       }
-  //     };
 
-  //     // ws.onclose = () => {
-  //     //   console.log('WebSocket disconnected, attempting to reconnect...');
-  //     //   reconnectTimeout = setTimeout(connect, 3000);
-  //     // };
 
-  //     // ws.onerror = (error) => {
-  //     //   console.error('WebSocket error:', error);
-  //     //   ws?.close();
-  //     // };
-  //   };
 
-  //   connect();
+  const socket = useRef(io('https://api.zealweb.in/', {
+    query: {
+      userId: userid
+    }
+  })).current;
 
-  //   return () => {
-  //     ws?.close();
-  //     if (reconnectTimeout) clearTimeout(reconnectTimeout);
-  //   };
-  //   // eslint-disable-next-line
-  // }, [wsUrl]);
 
+
+
+
+  useEffect(() => {
+    socket.connect();
+
+    return () => {
+      socket.disconnect();
+    };
+  }, [socket]);
+
+socket.on('connect', () => {
+  console.log('Connected to Socket.IO server');
+});
+
+socket.on('reminder', (data) => {
+  console.log('Reminder received:', data.userId, userid, data.userId == userid);
+  if (data.userId == userid) {
+    openNotification(data.message || 'Reminder Notification', 'topRight', true);
+  }
+});
+
+socket.on('serverMessage', (data) => {
+  console.log('Received from server:', data);
+  // openNotification(data.message || 'Notification from server', 'topRight', true);
+});
+
+socket.on('message', (msg) => {
+  console.log('Received:', msg);
+});
+
+
+
+ 
   return (
     <>
       {contextHolder}
@@ -97,6 +113,7 @@ const App: React.FC = () => {
             <Route path="/user/:userid/task" element={<Tasks />} />
             <Route path="/user/:userid/recursive-task" element={<RecursiveTask />} />
             <Route path="/dashboard" element={<Dashboard />} />
+            <Route path="/logs" element={<Logs/>}/>
 
             
           </Route>

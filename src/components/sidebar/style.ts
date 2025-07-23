@@ -5,7 +5,8 @@ export const SidebarWrapper = styled.aside<{ $collapsed: boolean }>`
   background: #202020;
   color: white;
   padding: 16px 8px;
-  height:100vh;
+  overflow-y: auto;
+  // height:100vh;
   transition: width 0.3s ease;
   display: flex;
   flex-direction: column;
@@ -36,6 +37,7 @@ export const HoverMenu = styled(Menu)`
 export const MenuItem = styled.div`
   padding: 6px 9px;
   border-radius: 6px;
+  display: flex;
   cursor: pointer;
   font-size: 14px;
   color: #e0e0e0;

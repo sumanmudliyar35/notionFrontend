@@ -1,5 +1,8 @@
 import React, { useState, useRef, useEffect } from 'react';
 import styled from 'styled-components';
+import ReactDOM from "react-dom";
+
+
 
 interface Tag {
   id: string | number;
@@ -30,23 +33,53 @@ const TagSelector: React.FC<TagSelectorProps> = ({
 }) => {
   const [isOpen, setIsOpen] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
+  const dropdownRef = useRef<HTMLDivElement>(null);
   const [dropdownPosition, setDropdownPosition] = useState<'bottom' | 'top'>('bottom');
   const containerRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
 
+    const [dropdownWidth, setDropdownWidth] = useState<number | undefined>(undefined);
+
+    useEffect(() => {
+    if (isOpen && containerRef.current) {
+      // Measure input width
+      const inputWidth = containerRef.current.offsetWidth;
+
+      // Create a temporary span to measure the longest option
+      const span = document.createElement('span');
+      span.style.visibility = 'hidden';
+      span.style.position = 'absolute';
+      span.style.fontSize = '14px';
+      span.style.fontFamily = 'sans-serif';
+      span.style.fontWeight = '400';
+      document.body.appendChild(span);
+
+      let maxOptionWidth = 0;
+      options.forEach(option => {
+        span.textContent = option.label;
+        maxOptionWidth = Math.max(maxOptionWidth, span.offsetWidth + 40); // +40 for padding/icons
+      });
+
+      document.body.removeChild(span);
+
+      setDropdownWidth(Math.max(inputWidth, maxOptionWidth));
+    }
+  }, [isOpen, options]);
+
+
   const selectedTag = options.find(opt => opt.id === value);
   
   // Handle click outside to close dropdown
-  useEffect(() => {
-    const handleClickOutside = (event: MouseEvent) => {
-      if (containerRef.current && !containerRef.current.contains(event.target as Node)) {
-        setIsOpen(false);
-      }
-    };
+  // useEffect(() => {
+  //   const handleClickOutside = (event: MouseEvent) => {
+  //     if (containerRef.current && !containerRef.current.contains(event.target as Node)) {
+  //       setIsOpen(false);
+  //     }
+  //   };
     
-    document.addEventListener('mousedown', handleClickOutside);
-    return () => document.removeEventListener('mousedown', handleClickOutside);
-  }, []);
+  //   document.addEventListener('mousedown', handleClickOutside);
+  //   return () => document.removeEventListener('mousedown', handleClickOutside);
+  // }, []);
 
   // Focus input when dropdown opens
   useEffect(() => {
@@ -55,7 +88,7 @@ const TagSelector: React.FC<TagSelectorProps> = ({
     }
   }, [isOpen]);
 
-  // Dynamically set dropdown position
+//Dynamically set dropdown position
   useEffect(() => {
     if (isOpen && containerRef.current) {
       const rect = containerRef.current.getBoundingClientRect();
@@ -71,13 +104,56 @@ const TagSelector: React.FC<TagSelectorProps> = ({
     }
   }, [isOpen]);
 
+
+  // Add these states at the top of your component
+const [dropdownLeft, setDropdownLeft] = useState<number | undefined>(undefined);
+const [dropdownRight, setDropdownRight] = useState<number | undefined>(undefined);
+
+// useEffect(() => {
+//   if (isOpen && containerRef.current) {
+//     const rect = containerRef.current.getBoundingClientRect();
+//     const dropdownHeight = 260; // Estimate: input + optionsList
+//     const spaceBelow = window.innerHeight - rect.bottom;
+//     const spaceAbove = rect.top;
+
+//     // Vertical position
+//     if (spaceBelow < dropdownHeight && spaceAbove > dropdownHeight) {
+//       setDropdownPosition('top');
+//     } else {
+//       setDropdownPosition('bottom');
+//     }
+
+   
+//   }
+// }, [isOpen]);
+
+
+useEffect(() => {
+  const handleClickOutside = (event: MouseEvent) => {
+    if (
+      containerRef.current &&
+      !containerRef.current.contains(event.target as Node) &&
+      dropdownRef.current &&
+      !dropdownRef.current.contains(event.target as Node)
+    ) {
+      setIsOpen(false);
+    }
+  };
+
+  document.addEventListener('mousedown', handleClickOutside);
+  return () => document.removeEventListener('mousedown', handleClickOutside);
+}, []);
+
+
   const filteredOptions = options.filter(option => 
     option.label.toLowerCase().includes(searchTerm.toLowerCase())
   );
+
   
   const handleTagSelect = (tag: Tag) => {
     onChange(tag.id);
     setSearchTerm('');
+    console.log("Selected tag:", tag);
     setIsOpen(false);
   };
 
@@ -93,6 +169,8 @@ const TagSelector: React.FC<TagSelectorProps> = ({
   const hasExactMatch = filteredOptions.some(
     opt => opt.label.toLowerCase() === searchTerm.toLowerCase()
   );
+
+
 
   return (
     <Container ref={containerRef}>
@@ -126,8 +204,33 @@ const TagSelector: React.FC<TagSelectorProps> = ({
         {/* <DropdownIcon isOpen={isOpen}>▾</DropdownIcon> */}
       </SelectedTag>
       
-      {isOpen && (
-        <DropdownContainer $position={dropdownPosition}>
+      {isOpen
+      && dropdownWidth 
+      &&  ReactDOM.createPortal 
+       
+       (
+        <DropdownContainer $position={dropdownPosition}
+          ref={dropdownRef}
+
+        
+        style={{
+          // left: dropdownLeft,
+      left: containerRef.current?.getBoundingClientRect().left,
+          position: "absolute",
+
+    right: dropdownRight,
+     top:
+              dropdownPosition === "bottom"
+                ? (containerRef.current?.getBoundingClientRect().bottom ?? 0) + window.scrollY + 4
+                : undefined,
+            bottom:
+              dropdownPosition === "top"
+                ? window.innerHeight - (containerRef.current?.getBoundingClientRect().top ?? 0) + window.scrollY + 4
+                : undefined,
+      width: dropdownWidth,      // <-- Use calculated width
+            minWidth: dropdownWidth,   // <-- Use calculated width
+            zIndex: 2000,
+  }}>
           <SearchInput 
             ref={inputRef}
             type="text" 
@@ -173,6 +276,8 @@ const TagSelector: React.FC<TagSelectorProps> = ({
             )}
           </OptionsList>
         </DropdownContainer>
+      ,
+        document.body
       )}
     </Container>
   );
@@ -220,7 +325,7 @@ const SelectedTag = styled.div<{ isPlaceholder: boolean }>`
   // border: 1px solid #3B4252;
   cursor: pointer;
   color: ${props => props.isPlaceholder ? '#6C7A96' : '#E5E9F0'};
-  font-size: 12px;
+  font-size: 14px;
   transition: all 0.2s ease;
   
   &:hover {

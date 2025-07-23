@@ -29,8 +29,8 @@ interface CustomColumnMeta {
   editable?: boolean;
    editorType?: 'input' | 'select' | 'date';
   selectOptions?: { label: string; value: string }[];
-  
 
+  
 }
 
 interface EditableTableProps<T> {
@@ -74,7 +74,17 @@ onOffsetChange?: (newOffset: number) => void; // New prop for offset change
     currentOffset?: number; // Current offset for pagination
     openRecursiveTaskModal?: boolean; // Whether the recursive task modal is open
     setOpenRecursiveTaskModal?: (open: boolean) => void; // Function to set the modal open state
+    openLogsModal?: boolean; // Whether the logs modal is open
+    setOpenLogsModal?: (open: boolean) => void; // Function to set the modal open state
 
+    handleLogClick?: (rowId: string | number) => void; // Function to handle log click
+    isFollowup?: boolean; // Whether the table is for follow-up leads
+    openFollowupModal?: boolean; // Whether the follow-up modal is open
+    setOpenFollowupModal?: (open: boolean) => void; // Function to set the modal open state
+    openTablesModal?: boolean; // Whether the tables modal is open
+    setOpenTablesModal?: (open: boolean) => void; // Function to set the modal open state
+    isTablesLogs?: boolean; // Whether the table is for logs
+    showRowLogs?: boolean; // Whether to show row logs
 
 }
 
@@ -150,6 +160,14 @@ export function TaskCustomTable<T extends RowWithId>(props: EditableTableProps<T
     isColumnHeaderCentered = false, // Default to false if not provided
     isColumnHovered = false, // Default to false if not provided
     isRowHovered = true, // Default to false if not provided
+    isFollowup = false, // Default to false if not provided
+    openFollowupModal = false, // Default to false if not provided
+    setOpenFollowupModal = () => {}, // Default to no-op function if not providedo
+    openTablesModal = false, // Default to false if not provided
+    setOpenTablesModal = () => {}, // Default to no-op function if not provided
+    isTablesLogs = false, // Default to false if not provided
+    showRowLogs = false, // Default to false if not provided
+    
 
   } = props;
 
@@ -344,26 +362,18 @@ if (index !== -1) {
     onDataChange && onDataChange([newRow, ...data]);
     onRowCreate?.(newRow);
     
-    // setTimeout(() => {
-    //   if (newRowRef.current) {
-    //     newRowRef.current.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
-    //   }
-    //   const lastRowIndex = table.getRowModel();
-    //   const firstEditableCol = columns.find((col: any) => col.meta?.editable);
-    //   // if (firstEditableCol) {
-      
-    //   // );
-    //   //   setCurrentlyEditing({
-    //   //     rowIndex: lastRowIndex,
-    //   //     columnId: table.getHeaderGroups()[0].headers[0].id as keyof T,
-    //   //   });
-    //   // } else {
-    //   // }
-    // }, 0);
+    const firstEditableCol = columns.find((col: any) => col.meta?.editable);
+  if (firstEditableCol) {
+    // Set editing to the first cell of the new row (row index 0)
+    setCurrentlyEditing({
+      rowIndex: 0,
+      columnId: table.getHeaderGroups()[0].headers[0].id as keyof T,
+    });
+  }
 
-    // setTimeout(() => {
-    //   addRowTriggeredRef.current = false;
-    // }, 300);
+    setTimeout(() => {
+      addRowTriggeredRef.current = false;
+    }, 300);
 
     setHasAdded(true);
   }, [data, createEmptyRow, onDataChange, onRowCreate, table, columns]);
@@ -604,9 +614,6 @@ useEffect(() => {
 
 
 
-
-
-
 // useEffect(() => {
 
 //   if(isVerticalScrolling){
@@ -649,10 +656,9 @@ useEffect(() => {
     if (!container) return;
     const { scrollTop, scrollHeight, clientHeight } = container;
     // If user is within 200px of the bottom, trigger the callback
-    if (scrollHeight - scrollTop - clientHeight < 500) {
+    if (scrollHeight - scrollTop - clientHeight < 2000) {
 
   
-      console.log("sds",props.totalDataCount, props.currentOffset);
       props.onIncrementNearEnd && props.onIncrementNearEnd();
       
     }
@@ -669,16 +675,14 @@ useEffect(() => {
 
 
 useEffect(() => {
-  if(data.length < 20){
+  console.log("insideUes");
+  if(data.length < 20 || table.getRowModel().rows.length < 20){
+    console.log("insideUes", data.length, table.getRowModel().rows.length);
+
     
         props.onIncrementNearEnd && props.onIncrementNearEnd();
-      
-    
-
   }
-
-
-}, [data]);
+}, [searchText]);
 
 
 
@@ -735,6 +739,26 @@ useEffect(() => {
               onClick={handleBulkDelete}
             />
           </Tooltip>
+        )}
+        {isFollowup && (
+          <Button
+            type="primary"
+            onClick={() => {
+              setOpenFollowupModal(true);
+            }}
+          >
+            Today's
+          </Button>
+        )}
+        {isTablesLogs && (
+          <Button
+            type="primary"
+            onClick={() => {
+              setOpenTablesModal(true);
+            }}
+          >
+            History
+          </Button>
         )}
 
         {isWithNewRowButton && (
@@ -1004,40 +1028,7 @@ useEffect(() => {
   }}
               >
 
-                {/* Action column for delete button   */}
-                {/* <td
-                  style={{
-                    width: actionCollapsed ? 30 : 48,
-                    minWidth: actionCollapsed ? 30 : 48,
-                    maxWidth: actionCollapsed ? 30 : 48,
-                    border: 'none',
-                    padding: 0,
-                    textAlign: 'center',
-                    background: '#1a1a1a',
-                    verticalAlign: 'middle',
-                    position: 'sticky',
-                    left: 0,
-                    zIndex: 101,
-                  }}
-                >
-                  {!actionCollapsed && (
-                    <Tooltip title="Delete">
-                      <DeleteOutlined
-                        style={{
-                          color: '#ff4757',
-                          fontSize: 18,
-                          cursor: 'pointer',
-                          opacity: hoveredRow === row.index ? 1 : 0.3,
-                          transition: 'opacity 0.2s',
-                        }}
-                        onClick={e => {
-                          e.stopPropagation();
-                          handleDeleteRow(row.index);
-                        }}
-                      />
-                    </Tooltip>
-                  )}
-                </td> */}
+               
 
 
 <td
@@ -1056,6 +1047,13 @@ useEffect(() => {
   }}
 >
 
+  {    showRowLogs  && (
+  <div onClick={() => props.handleLogClick && props.handleLogClick(row.original.id)} style={{ cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', width: '100%' }}>
+    logs
+
+  </div>
+  )}
+
 
                  <input
     type="checkbox"
@@ -1063,24 +1061,7 @@ useEffect(() => {
     onChange={e => handleCheckboxChange(row, e.target.checked)}
     style={{ marginBottom: 6 }}
   />
-  {/* Delete icon */}
-  {/* {!actionCollapsed && (
-    <Tooltip title="Delete">
-      <DeleteOutlined
-        style={{
-          color: '#ff4757',
-          fontSize: 18,
-          cursor: 'pointer',
-          opacity: hoveredRow === row.index ? 1 : 0.3,
-          transition: 'opacity 0.2s',
-        }}
-        onClick={e => {
-          e.stopPropagation();
-          handleDeleteRow(row.index);
-        }}
-      />
-    </Tooltip>
-  )} */}
+
 </td>
 
 
@@ -1205,65 +1186,121 @@ function EditableCell({
 
     const inputRef = useRef<any>(null);
 
-    if(editorType === 'date' && value) {    
-      console.log('EditableCell value:', value);  
-
-    }
-
- useEffect(() => {
-  if (editorType === 'input' && inputRef.current) {
-    // For AntD Input.TextArea, get the real textarea element
-    const textarea = inputRef.current?.resizableTextArea?.textArea;
-    if (textarea) {
-      textarea.focus();
-      const val = textarea.value ?? '';
-      const length = val.length;
-      textarea.setSelectionRange(length, length);
-    }
+    
+useEffect(() => {
+  if (inputRef.current) {
+    inputRef.current.focus();
+    // Optionally, place cursor at end:
+    const val = inputRef.current.value;
+    inputRef.current.setSelectionRange(val.length, val.length);
   }
-}, [editorType]);
+}, []);
 
+  
 
-  if (editorType === 'input') {
-    return (
-      <Input.TextArea
-        value={editValue}
-        ref={inputRef}
+    
 
-        onChange={e => { setEditValue(e.target.value);
-             e.target.style.height = "auto";
-    e.target.style.height = e.target.scrollHeight + "px";
+      if (editorType === 'input') {
+  useEffect(() => {
+    if (inputRef.current) {
+      inputRef.current.style.height = "auto";
+      inputRef.current.style.height = inputRef.current.scrollHeight + "px";
+    }
+  }, [editValue]);
 
-                    console.log('Input value:', e.target.value);
+  // Also auto-resize on mount (for initial value)
+  useEffect(() => {
+    if (inputRef.current) {
+      inputRef.current.style.height = "auto";
+      inputRef.current.style.height = inputRef.current.scrollHeight + "px";
+    }
+  }, []);
 
-         }}
-        onBlur={() => {
+  return (
+    <textarea
+      value={editValue}
+      ref={inputRef}
+      rows={1}
+      onChange={e => {
+        setEditValue(e.target.value);
+        if (inputRef.current) {
+          inputRef.current.style.height = "auto";
+          inputRef.current.style.height = inputRef.current.scrollHeight + "px";
+        }
+      }}
+      style={{
+        width: '100%',
+        opacity: 1,
+        pointerEvents: 'auto',
+        position: 'relative',
+        background: '#202020',
+        color: 'white',
+        minHeight: 0,
+        transition: 'opacity 0.2s',
+        fontSize: 14,
+        lineHeight: 1.4,
+        fontFamily: 'sans-serif',
+        borderRadius: 4,
+        borderColor: "#1890ff",
+        outline: "1px solid #1890ff",
+        overflow: 'hidden', // Prevent scrollbars
+        resize: 'none',     // Prevent manual resizing
+      }}
+      onKeyDown={e => {
+        if (e.key === 'Enter' && !e.shiftKey) {
+          e.preventDefault();
           onSave(editValue);
           onCancel();
-        }}
+        }
+      }}
+    />
+  );
+}
 
-        style={{
-          width: '100%',
-          opacity: 1,
-          pointerEvents: 'auto',
-          position: 'absolute',
-          background: '#202020',
-          color: 'white',
-          top: 0,
-          left: 0,
-          transition: 'opacity 0.2s',
-          zIndex: 1000000,
-        }}
-        onKeyDown={e => {
-          if (e.key === 'Enter' && !e.shiftKey) {
-            e.preventDefault();
-            onSave(editValue);
-            onCancel();
-          }
-        }}
-      />
-    );
-  }
+
+
+  // if (editorType === 'input') {
+  //   return (
+  //     <textarea
+  //       value={editValue}
+  //       ref={inputRef}
+  //       onChange={e => {
+  //   setEditValue(e.target.value);
+  //   // Dynamically adjust height
+  //   if (inputRef.current) {
+  //     inputRef.current.style.height = "auto";
+  //     inputRef.current.style.height = inputRef.current.scrollHeight + "px";
+  //   }
+  // }}
+
+  
+  //       style={{
+  //         width: '100%',
+  //         opacity: 1,
+  //         pointerEvents: 'auto',
+  //         position: 'relative',
+  //         background: '#202020',
+  //         color: 'white',
+  //         minHeight: 'fit-content',
+  //         transition: 'opacity 0.2s',
+  //         fontSize: 14,
+  //         lineHeight:1.4,
+  //         fontFamily: 'sans-serif',
+  //         borderRadius: 4,
+  //         borderColor: "#1890ff",
+  //         outline: "1px solid #1890ff", 
+  //         // zIndex: 1000000,
+  //       }}
+  //       onKeyDown={e => {
+  //         if (e.key === 'Enter' && !e.shiftKey) {
+  //           e.preventDefault();
+  //           onSave(editValue);
+  //           onCancel();
+  //         }
+  //       }}
+  //     />
+  //   );
+  // }
 
 //   if (editorType === 'date') {
 //   return (

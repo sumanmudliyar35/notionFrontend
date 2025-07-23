@@ -30,12 +30,13 @@ export const MetaRow = styled.div`
   align-items: center;
   gap: 32px;
   margin: 16px 0 24px 0;
-  font-size: 12px;
+  font-size: 14px;
 `;
 
 export const MetaItem = styled.div`
   display: flex;
   align-items: center;
+  
   gap: 8px;
   color: #bdbdbd;
 `;
@@ -89,7 +90,7 @@ export const CommentAvatar = styled.div`
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 12px;
+  font-size: 14px;
 `;
 
 export const CommentContent = styled.div`
@@ -104,7 +105,7 @@ export const CommentAuthor = styled.div`
   font-weight: 600;
   color: #fff;
   margin-bottom: 2px;
-  font-size: 12px;
+  font-size: 14px;
 `;
 
 export const CommentTime = styled.span`
@@ -115,13 +116,13 @@ export const CommentTime = styled.span`
 
 export const CommentText = styled.div`
   color: #fff;
-  font-size: 12px;
+  font-size: 14px;
 `;
 
 export const AddComment = styled.div`
   margin-top: 8px;
   color: #bdbdbd;
-  font-size: 12px;
+  font-size: 14px;
   padding-left: 44px;
 `;
 
@@ -135,10 +136,10 @@ export const SectionTitle = styled.div`
   font-weight: 600;
   color: #bdbdbd;
   margin-bottom: 8px;
-  font-size: 12px;
+  font-size: 14px;
 `;
 
 export const SectionContent = styled.div`
   color: #fff;
-  font-size: 12px;
+  font-size: 14px;
 `;

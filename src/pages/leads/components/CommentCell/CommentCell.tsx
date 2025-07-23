@@ -154,11 +154,14 @@ const CommentCell: React.FC<CommentCellProps> = ({
                     background: "#202020",
                     color: "white",
                     fontFamily: "sans-serif",
+                    fontSize: 14,
+                     borderColor: "#1890ff",
+            outline: "1px solid #1890ff",
+                    lineHeight: 1.4,
                     resize: "none", // Prevent manual resize
                     overflow: "hidden",
-                    padding: "8px",
+                    // padding: "8px",
                     borderRadius: "4px",
-                    border: "1px solid #444"
                   }}
                   onKeyDown={e => {
                     if (mentionProps.showDropdown && mentionProps.filteredOptions.length > 0) {
@@ -293,6 +296,7 @@ const CommentCell: React.FC<CommentCellProps> = ({
             cursor: "pointer",
             fontSize: 14,
             textDecoration: "none",
+           
             padding: "2px 6px",
             borderRadius: 4,
             background: "#23272f",
