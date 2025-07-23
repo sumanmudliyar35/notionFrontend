@@ -60,12 +60,7 @@ const Admin = () => {
 
   const updateUserMutate = useUpdateUser();
   const handleToggleShowLead = async(userId: number, checked: boolean) => {
-  // Call your API to update showLead property
-  // Example:
-  // updateUserMutation.mutate([{ showLead: checked }, userId], {
-  //   onSuccess: () => refetchAllMember(),
-  //   onError: () => message.error("Failed to update lead visibility."),
-  // });
+
   const response = await updateUserMutate.mutateAsync([{ showLeads: checked }, userId]);
 
 
@@ -76,6 +71,18 @@ const Admin = () => {
     )
   );
  
+
+}
+
+const handleToggleShowLogs = async(userId: number, checked: boolean) => {
+
+  const response = await updateUserMutate.mutateAsync([{ showLogs: checked }, userId]);
+  setTableData(prevData =>
+    prevData.map(user => 
+      user.userId === userId ? { ...user, showLogs: checked } : user
+    )
+  );
+
 
 }
 
@@ -138,6 +145,21 @@ const Admin = () => {
       <CustomSwitch
         enabled={!!row.original.showLeads}
         onChange={checked => handleToggleShowLead(row.original.userId, checked)}
+        // checkedChildren="Show"
+        // unCheckedChildren="Hide"
+      />
+    ),
+    meta: { editable: false },
+  },
+
+  {
+    header: 'Show Logs',
+    accessorKey: 'showLogs',
+    size: 120,
+    cell: ({ row }: any) => (
+      <CustomSwitch
+        enabled={!!row.original.showLogs}
+        onChange={checked => handleToggleShowLogs(row.original.userId, checked)}
         // checkedChildren="Show"
         // unCheckedChildren="Hide"
       />

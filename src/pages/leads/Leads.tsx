@@ -1455,20 +1455,20 @@ const reminderMutate = useCreateReminder();
    await reminderMutate.mutateAsync([reminderBeforeBody, selectedLeadId]);
   }
 
-   if (reminderData?.enabled && reminderData.reminderTime) {
-    // Combine date and time into a single dayjs object
-    const followupDateTime = dayjs(`${date}T${time || "00:00"}`);
-    // Subtract the reminder offset (in minutes)
-        const customReminderTime = reminderData.reminderTime || "00:00";
+  //  if (reminderData?.enabled && reminderData.reminderTime) {
+  //   // Combine date and time into a single dayjs object
+  //   const followupDateTime = dayjs(`${date}T${time || "00:00"}`);
+  //   // Subtract the reminder offset (in minutes)
+  //       const customReminderTime = reminderData.reminderTime || "00:00";
 
-    reminderBody = {
-      reminderDate: followupDateTime.format("YYYY-MM-DD"),
-    reminderTime: dayjs(`${date}T${customReminderTime}`).format("HH:mm"),
-      leadId: leadID,
-      userId: userid,
-    };
-   await reminderMutate.mutateAsync([reminderBody, selectedLeadId]);
-  }
+  //   reminderBody = {
+  //     reminderDate: followupDateTime.format("YYYY-MM-DD"),
+  //   reminderTime: dayjs(`${date}T${customReminderTime}`).format("HH:mm"),
+  //     leadId: leadID,
+  //     userId: userid,
+  //   };
+  //  await reminderMutate.mutateAsync([reminderBody, selectedLeadId]);
+  // }
      
 
       try {

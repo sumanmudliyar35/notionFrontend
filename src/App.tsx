@@ -15,6 +15,7 @@ import './customApp.css'; // Import your CSS file
 import { useGetReminderByUser } from './api/get/getReminderByUser';
 import { io } from 'socket.io-client';
 import Logs from './pages/logs/Logs';
+import { useQueryClient } from 'react-query';
 
 
 type NotificationPlacement = NotificationArgsProps['placement'];
@@ -24,6 +25,9 @@ const notificationSound = new Audio('/info.mp3'); // Use public path
 const App: React.FC = () => {
   const [api, contextHolder] = notification.useNotification();
   const [canPlaySound, setCanPlaySound] = useState(false);
+
+
+    const queryClient = useQueryClient();
 
   
 
@@ -42,7 +46,6 @@ const App: React.FC = () => {
       notificationSound.currentTime = 0;
       notificationSound.volume = 1;
 notificationSound.muted = false;
-      console.log('Playing sound');
       notificationSound.play().catch(() => {});
       notificationSound.play().catch((err) => {
   console.error('Audio play error:', err);
@@ -57,11 +60,17 @@ notificationSound.muted = false;
 
 
 
-  const socket = useRef(io('https://api.zealweb.in/', {
-    query: {
-      userId: userid
-    }
-  })).current;
+
+  // const backendUrl = 'https://backendapi.zealweb.in/';
+  const backendUrl = 'http://localhost:2432/';
+
+  const socket = useRef(io(backendUrl, {
+  query: { userId: userid },
+transports: ['polling'],
+  reconnection: true,
+  reconnectionAttempts: 10,
+  reconnectionDelay: 2000,
+})).current;
 
 
 
@@ -70,32 +79,45 @@ notificationSound.muted = false;
   useEffect(() => {
     socket.connect();
 
+    const onConnect = () => {
+      console.log('Connected to Socket.IO server');
+    };
+
+    const onReminder = (data: any) => {
+      console.log('Reminder event data:', data);
+      if (String(data.userId) === String(userid)) {
+        openNotification(data.message || 'Reminder Notification', 'topRight', true);
+
+         if (userid) {
+          queryClient.invalidateQueries(['mentionByUser', Number(userid)]);
+        }
+      }
+    };
+
+    const onServerMessage = (data: any) => {
+      console.log('Received from server:', data);
+    };
+
+    const onMessage = (msg: any) => {
+      console.log('Received:', msg);
+    };
+
+    socket.on('connect', onConnect);
+    socket.on('reminder', onReminder);
+    socket.on('serverMessage', onServerMessage);
+    socket.on('message', onMessage);
+
+    // Optional: Remove onAny if not needed
+    // socket.onAny((event, ...args) => { ... });
+
     return () => {
+      socket.off('connect', onConnect);
+      socket.off('reminder', onReminder);
+      socket.off('serverMessage', onServerMessage);
+      socket.off('message', onMessage);
       socket.disconnect();
     };
-  }, [socket]);
-
-socket.on('connect', () => {
-  console.log('Connected to Socket.IO server');
-});
-
-socket.on('reminder', (data) => {
-  console.log('Reminder received:', data.userId, userid, data.userId == userid);
-  if (data.userId == userid) {
-    openNotification(data.message || 'Reminder Notification', 'topRight', true);
-  }
-});
-
-socket.on('serverMessage', (data) => {
-  console.log('Received from server:', data);
-  // openNotification(data.message || 'Notification from server', 'topRight', true);
-});
-
-socket.on('message', (msg) => {
-  console.log('Received:', msg);
-});
-
-
+  }, [socket, userid]);
 
  
   return (

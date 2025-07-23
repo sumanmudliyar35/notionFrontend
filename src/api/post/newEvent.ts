@@ -9,7 +9,7 @@ const createEvent: MutationFunction<any, [any, any]> = async (
   const [body, userId] = params;
 
   const response = await axiosInstance.post(
-    `/event/createEvent`,
+    `/event/createEvent?userId=${userId}`,
     body
   );
 

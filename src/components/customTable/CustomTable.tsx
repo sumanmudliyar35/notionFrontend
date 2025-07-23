@@ -65,6 +65,7 @@ onOffsetChange?: (newOffset: number) => void; // New prop for offset change
     customSearchText?: string; // Custom search text to control search input value
     tableIndex?: number; // Optional index prop for the table
       tableScrollRef?: React.RefObject<HTMLDivElement>;
+      isWithCheckBox?: boolean; // Whether to show checkboxes for row selection
 
     
 
@@ -128,7 +129,9 @@ export function CustomTable<T extends RowWithId>(props: EditableTableProps<T>) {
     onSelectionChange,
     isManageColumn= true,
     isSearchable = true, // Default to false if not provided
-    isVerticalScrolling=true
+    isVerticalScrolling=true,
+    isWithCheckBox = true, // Default to false if not provided
+
     
   } = props;
 
@@ -717,7 +720,7 @@ useEffect(() => {
         scrollbarWidth: 'none', // Firefox
         msOverflowStyle: 'none',
       }}>
-        <table style={{ borderCollapse: 'collapse', tableLayout: 'fixed', position: 'sticky', zIndex: 120, top: 0 }}>
+        <table style={{ borderCollapse: 'collapse', tableLayout: 'fixed', position: 'sticky', zIndex: 120, top: 0, width: '100%' }}>
           <thead>
             <tr>
               <th
@@ -819,7 +822,7 @@ useEffect(() => {
           </thead>
         </table>
         
-        <table  style={{borderSpacing: 0}}  >
+        <table  style={{borderSpacing: 0, width:'100%'}}  >
           <tbody   ref={tableBodyRef}
  style={{
             
@@ -828,7 +831,8 @@ useEffect(() => {
             maxHeight: 'calc(100vh - 260px)',
 
             // maxHeight: '60vh',
-            display: 'block'
+            
+            // display: 'block'
           }}>
             {table.getRowModel().rows.map((row) =>{ 
 
@@ -937,6 +941,8 @@ useEffect(() => {
   }}
 >
 
+{isWithCheckBox && (
+
 
                  <input
     type="checkbox"
@@ -944,6 +950,8 @@ useEffect(() => {
     onChange={e => handleCheckboxChange(row, e.target.checked)}
     style={{ marginBottom: 6 }}
   />
+
+  )}
   {/* Delete icon */}
   {/* {!actionCollapsed && (
     <Tooltip title="Delete">

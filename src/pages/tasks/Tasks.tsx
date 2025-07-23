@@ -117,6 +117,14 @@ const Tasks = () => {
   const { userid } = useParams(); // If your route is defined as /user/:userId/recursive-task
   const roleid = Number(localStorage.getItem('roleid'));
   const loggedInUserId = Number(localStorage.getItem('userid'));
+           const location = useLocation();
+
+
+const accessType = location.state?.accessType;
+
+console.log('Access Type:', accessType);
+
+  
 
        const [offset, setOffset] = useState(0);
 
@@ -142,7 +150,6 @@ useEffect(() => {
   setTableData([]);
 }, [userid]);
 
-         const location = useLocation();
         
              const [highlightRowId, setHighlightRowId] = useState<number | null>(null);
         
@@ -426,6 +433,12 @@ const columns :ColumnDef<Doc>[] = [
         
 
       const handleUpdate = async (newValue: string) => {
+
+         if(accessType=="read"){
+        alert("You do not have permission to update a task.");
+        return;
+
+      }
         const response = await updateTaskMutate.mutateAsync([{name: newValue}, row.original.id, loggedInUserId]);
         setTableData(prev => prev.map(item => item.id === row.original.id ? { ...item, name: newValue } : item));
         setNewAddedRow(null); // Reset newAddedRow after saving
@@ -500,6 +513,11 @@ const columns :ColumnDef<Doc>[] = [
     // Function to handle date changes
     const handleDateChange = (date: any) => {
 
+       if(accessType=="read"){
+        alert("You do not have permission to update a task.");
+        return;
+
+      }
       setSelectedDate(date);
       const formattedDate = date ? date.format('YYYY-MM-DD') : null;
       
@@ -607,6 +625,11 @@ const columns :ColumnDef<Doc>[] = [
   const handleChange = async (newValue: string | number | null) => {
 
     console.log('Selected value:', newValue);
+     if(accessType=="read"){
+        alert("You do not have permission to update a task.");
+        return;
+
+      }
     setSelected(newValue);
     // Update the backend and local table data
     await updateTaskMutate.mutateAsync([{ assignedTo: newValue }, row.original.id, loggedInUserId]);
@@ -668,6 +691,11 @@ const columns :ColumnDef<Doc>[] = [
 
     const handleChange =async (newValue: string | number | null) => {
       // setSelected(newValue);
+       if(accessType=="read"){
+        alert("You do not have permission to update a task.");
+        return;
+
+      }
       const body={
         status: newValue,
       }
@@ -800,6 +828,11 @@ cell: ({ row }) => {
                 const [selected, setSelected] = React.useState<string | number | null>(value as string | number | null);
 
                 const handleChange = async (newValue: string | number | null) => {
+                   if(accessType=="read"){
+        alert("You do not have permission to update a task.");
+        return;
+
+      }
                   setSelected(newValue);
                   const body = {
                     project: newValue,
@@ -863,6 +896,11 @@ const attachments = row.original.files
                 
                         // Modified handleUpload to take file directly
                         const handleUpload = async (file: File, log: any, taskId: any) => {
+                           if(accessType=="read"){
+        alert("You do not have permission to update a task.");
+        return;
+
+      }
                           
                           try {
                             const formData = new FormData();
@@ -897,12 +935,20 @@ const attachments = row.original.files
                         const handleMultipleUpload = async (files: FileList, log: any, taskId: any) => {
   try {
     const formData = new FormData();
+
+     if(accessType=="read"){
+        alert("You do not have permission to update a task.");
+        return;
+
+      }
     // Append all files
     Array.from(files).forEach(file => {
       formData.append("files", file); // "files" should match your backend field for multiple files
     });
     formData.append("taskId", taskId);
     // formData.append("logId", log.id);
+
+    
 
     // Use your multiple attachments mutation
     const response = await createMultipleAttachmentsMutation.mutateAsync([formData, userid]);
@@ -1046,6 +1092,11 @@ const createEmptyDoc = (): Doc => {
     const handleRowCreate=async(newRow: Doc)=>{
 
 
+      if(accessType=="read"){
+        alert("You do not have permission to create a new task.");
+        return;
+
+      }
       console.log("newRoew:", newRow);
       const body={
         name: newRow.name,
@@ -1079,7 +1130,11 @@ const createEmptyDoc = (): Doc => {
 
     const getTaskMutate = usePostGetTaskByTaskId();
     const handleRowEdit=async(updatedRow: Doc, rowIndex: number)=>{
-      console.log("Updated Row:", updatedRow);
+      if(accessType=="read"){
+        alert("You do not have permission to update a task.");
+        return;
+
+      }
       const body={
               name: updatedRow?.name,
               dueDate: updatedRow?.dueDate,
@@ -1106,6 +1161,12 @@ const createEmptyDoc = (): Doc => {
 
     const handleRowDelete = async (rowIndex: number) => {
 
+       if(accessType=="read"){
+        alert("You do not have permission to update a task.");
+        return;
+
+      }
+
       const taskid = tableData[rowIndex].id;
       await updateTaskMutate.mutateAsync([{deletedAt: new Date()}, taskid, loggedInUserId]);
       refetchTasksData();
@@ -1115,6 +1176,11 @@ const createEmptyDoc = (): Doc => {
     const updateLeadMutate = useUpdateLead();
 
     const handleFollowupChange = async (date: any,time: any, leadID: any) => {
+       if(accessType=="read"){
+        alert("You do not have permission to update a task.");
+        return;
+
+      }
       const body = {
         followup: date ,
         followupTime: time,
@@ -1169,6 +1235,12 @@ const reminderMutate = useCreateReminder();
 
     const handleReminderChange = async (date: any, time: any, leadID: any, title: any) => {
 
+
+       if(accessType=="read"){
+        alert("You do not have permission to update a task.");
+        return;
+
+      }
       const body = {
         reminderDate: date,
         reminderTime: time,
@@ -1237,6 +1309,12 @@ useEffect(() => {
 const commentMutate = useCreateComment();
 const handleComment= async(data: any) => {
 
+   if(accessType=="read"){
+        alert("You do not have permission to create a comment.");
+        return;
+
+      }
+
   const body = {
     comment: data.comment,
     mentionedMembers: data.mentionedUserIds || [],
@@ -1260,6 +1338,13 @@ const createVoiceRecordMutation  = useCreateTaskVoiceRecord();
 
 const getVoiceRecordByTaskId = usePostGetVoiceRecordByTask();
 const handleSaveVoice = async(audioBlob: Blob) => {
+
+
+   if(accessType=="read"){
+        alert("You do not have permission to update a task.");
+        return;
+
+      }
   if (selectedVoiceRow) {
     const url = URL.createObjectURL(audioBlob);
 
@@ -1585,6 +1670,13 @@ const handleColumnVisibilityChange = async(columnKey: string, isVisible: boolean
 const updateBulkTask = useUpdateBulkTask();
 
 const handleDeleteTask = async (tasks: any) => {
+
+
+   if(accessType=="read"){
+        alert("You do not have permission to delete a task.");
+        return;
+
+      }
   const confirmed = window.confirm("Are you sure you want to delete the selected tasks?");
   if (!confirmed) return;
 

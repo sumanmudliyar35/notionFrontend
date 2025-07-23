@@ -5,9 +5,13 @@ import { Checkbox } from "antd";
 import { useGetAllUsers } from "../../api/get/getAllMember";
 import { useCreateUserAccess } from "../../api/post/newUserAccess";
 import CustomSelect from "../customSelect/CustomSelect";
+import { useGetAccessByOwner } from "../../api/get/getAccessOfUser";
+import { DeleteOutlined } from "@ant-design/icons"; // Add this import at the top
+import * as styled from './style'
+import { useUpdateUserAccess } from "../../api/put/updateUserAccess";
 
 interface AccessModalProps {
-    accessorId?: string | number;
+    accessorId: any;
   open: boolean;
   onClose: () => void;
  
@@ -19,6 +23,8 @@ const AccessModal: React.FC<AccessModalProps> = ({
   accessorId
 }) => {
   const { data: allMembersData } = useGetAllUsers();
+
+  const {data: allAccessorData, refetch: refetchAccessors} = useGetAccessByOwner(accessorId);
   const userId = Number(localStorage.getItem('userid'));
   const [assigneeOptions, setAssigneeOptions] = useState<
     { id: string | number; label: string; value: any }[]
@@ -56,9 +62,24 @@ const AccessModal: React.FC<AccessModalProps> = ({
 
     };
 
+
     const response = await usersAccessMutate.mutateAsync([body, userId]);
+    refetchAccessors();
+    onClose();
 
     
+  };
+
+  const updateMutate = useUpdateUserAccess();
+
+  const handleUpdate = async (accessId: string | number) => {
+    const body = {
+     
+      deletedAt: new Date(),
+    };
+
+    await updateMutate.mutateAsync([body, accessId]);
+    refetchAccessors();
   };
 
   return (
@@ -69,22 +90,30 @@ const AccessModal: React.FC<AccessModalProps> = ({
       footer={null}
       width={400}
     >
-      <div style={{ marginBottom: 16 }}>
-       
 
-        <CustomSelect
-          options={assigneeOptions}
-          value={selectedUsers}
-          onChange={(value) => setSelectedUsers(value !== undefined && value !== null ? value : undefined)}
-          allowCreate={false}
-          placeholder="Select users..."
-        />
+      <styled.mainContainer>
+
+      
+      <div style={{ marginBottom: 16 }}>
+        <TagSelector
+  options={assigneeOptions}
+  value={selectedUsers ?? null}
+  onChange={(id) => setSelectedUsers(id !== undefined && id !== null ? id : undefined)}
+  allowCreate={false}
+  placeholder="Select users..."
+  horizontalOptions={false}
+  isWithDot={false}
+/>
       </div>
- <div style={{ display: "flex", gap: 16, marginBottom: 16, color: "white" }}>
-        <Checkbox checked={readChecked} style={{ color: "white" }} onChange={e => setReadChecked(e.target.checked)}>
+
+      {/* Show current accessors */}
+     
+
+      <div style={{ display: "flex", gap: 16, marginBottom: 16, color: "white" }}>
+        <Checkbox checked={readChecked} style={{ color: "white" }} onChange={e => {setReadChecked(e.target.checked); setModifyChecked(false);}}>
           Read
         </Checkbox>
-        <Checkbox checked={modifyChecked} style={{ color: "white" }} onChange={e => setModifyChecked(e.target.checked)}>
+        <Checkbox checked={modifyChecked} style={{ color: "white" }} onChange={e => {setModifyChecked(e.target.checked); setReadChecked(false);}}>
           Modify
         </Checkbox>
       </div>
@@ -96,6 +125,37 @@ const AccessModal: React.FC<AccessModalProps> = ({
           Cancel
         </button>
       </div>
+
+
+       {Array.isArray(allAccessorData) && allAccessorData.length > 0 && (
+        <div style={{ marginBottom: 16 }}>
+          {allAccessorData.map((item: any) => (
+            <div
+              key={item.id || `${item.accessorId}-${item.ownerId}`}
+              style={{
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "space-between",
+                background: "#23272e",
+                color: "#fff",
+                padding: "8px 12px",
+                borderRadius: 6,
+                marginBottom: 8,
+              }}
+            >
+              <span>
+                <b>{item.name}</b> &nbsp; <span style={{ color: "#81c784" }}>{item.accessType}</span>
+              </span>
+              <DeleteOutlined
+                style={{ color: "#e57373", cursor: "pointer", fontSize: 18 }}
+                onClick={() => handleUpdate(item.id)}
+              />
+            </div>
+          ))}
+        </div>
+      )}
+
+      </styled.mainContainer>
     </CustomModal>
   );
 };

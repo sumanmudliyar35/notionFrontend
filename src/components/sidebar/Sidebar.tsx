@@ -28,9 +28,12 @@ const Sidebar: React.FC<SidebarProps> = ({ collapsed }) => {
 
   const [showLeads, setShowLeads] = useState(false);
 
+  const [showLogs, setShowLogs] = useState(false);
+
   useEffect(() => {
     if (usersMenu?.data) {
       setShowLeads(usersMenu?.showLeads || false);
+      setShowLogs(usersMenu?.showLogs || false);
     }
   }, [usersMenu, userId]);
 
@@ -56,21 +59,20 @@ const Sidebar: React.FC<SidebarProps> = ({ collapsed }) => {
         },
       ]
     : []),
-  // {
-  //   key: 'leads',
-  //   label: 'Leads',
-  //   icon: <TeamOutlined style={{ ...iconStyle, color: '#fa8c16' }} />, // <-- new icon and color
-  //   path: '/leads',
-  // },
 
-  // {
-  //   key: 'tasks',
-  //   label: 'Tasks',
-  //   icon: <UserOutlined style={{ ...iconStyle, color: '#1890ff' }} />,
-  //   path: '/tasks',
-  //   // adminOnly: true,
+    ...(showLogs
+    ? [
 
-  // },
+        {
+    key: 'logs',
+    label: 'Logs',
+    icon: <DashboardOutlined style={{ ...iconStyle, color: '#1890ff' }} />,
+    path: '/logs',
+  },
+    ] : []),
+  
+
+ 
  
 ];
 
@@ -92,12 +94,7 @@ const adminMenuItems = [
     path: '/dashboard',
   },
 
-   {
-    key: 'logs',
-    label: 'Logs',
-    icon: <DashboardOutlined style={{ ...iconStyle, color: '#1890ff' }} />,
-    path: '/logs',
-  },
+ 
 
 
 ];
@@ -124,9 +121,14 @@ const lastMenuItem = [
   const [accessorId, setAccessorId] = useState<string | number | undefined>(undefined);
 
   const [openAccessModal, setOpenAccessModal] = useState(false);
-  const handleNavigate = (path: string) => {
-    navigate(path);
-  };
+  // const handleNavigate = (path: string) => {
+  //   navigate(path);
+  // };
+
+  const handleNavigate = (path: string, state?: any) => {
+    console.log('Navigating to:', path, 'with state:', state);
+  navigate(path, state ? { state } : undefined);
+};
 
   const handleAccessModalOpen = (id: string | number) => {
     setAccessorId(id);
@@ -151,29 +153,33 @@ const userMenuItems = Array.isArray(usersMenu?.data)
       label: (
         <span style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: '100%' }}>
           <span>{user.name}</span>
-          {/* <EllipsisOutlined
+          <EllipsisOutlined
             style={{ marginLeft: 8, color: '#aaa', cursor: 'pointer' }}
             onClick={e => {
               e.stopPropagation();
               handleAccessModalOpen(user.userId);
             }}
-          /> */}
+          />
         </span>
       ),
       icon: <UserOutlined style={{ ...iconStyle, color: '#1890ff' }} />,
-      path: `/user/${user.userId}/task`,
+      path: `/user/${user.userId}/task`,...(user.accessType ? { accessType: user.accessType } : {}),
       children: [
         {
           key: `user-${user.userId}-task`,
           label: 'Task',
           icon: <CheckSquareOutlined style={{ ...iconStyle, color: '#52c41a' }} />,
           path: `/user/${user.userId}/task`,
+              ...(user.accessType ? { accessType: user.accessType } : {}),
+
         },
         {
           key: `user-${user.userId}-recursive-task`,
           label: 'Recursive Task',
           icon: <RetweetOutlined style={{ ...iconStyle, color: '#faad14' }} />,
           path: `/user/${user.userId}/recursive-task`,
+              ...(user.accessType ? { accessType: user.accessType } : {}),
+
         },
       ],
     }))
@@ -249,14 +255,16 @@ const filterMenu = (items: any[]): any[] =>
       else if (item.onClick === 'logout') handleLogout();
       // If item has both path and children, navigate and toggle open/close
       else if (item.path && item.children) {
-        handleNavigate(item.path); // Navigate to parent path
+        // handleNavigate(item.path, ); // Navigate to parent path
+                      handleNavigate(item.path, item.accessType ? { accessType: item.accessType } : undefined);
+
         setOpenUserMenus(prev => ({
           ...prev,
           [item.key]: !prev[item.key],
         }));
       }
       // If only path (no children), navigate
-      else if (item.path) handleNavigate(item.path);
+      else if (item.path) handleNavigate(item.path, item.accessType ? { accessType: item.accessType } : undefined);
       else if (isUser) {
         setOpenUserMenus(prev => ({
           ...prev,

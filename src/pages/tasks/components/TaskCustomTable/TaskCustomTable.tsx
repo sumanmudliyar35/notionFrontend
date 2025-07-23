@@ -85,6 +85,8 @@ onOffsetChange?: (newOffset: number) => void; // New prop for offset change
     setOpenTablesModal?: (open: boolean) => void; // Function to set the modal open state
     isTablesLogs?: boolean; // Whether the table is for logs
     showRowLogs?: boolean; // Whether to show row logs
+    isWithCheckBox?: boolean; // Whether to show checkboxes for row selection
+
 
 }
 
@@ -167,6 +169,7 @@ export function TaskCustomTable<T extends RowWithId>(props: EditableTableProps<T
     setOpenTablesModal = () => {}, // Default to no-op function if not provided
     isTablesLogs = false, // Default to false if not provided
     showRowLogs = false, // Default to false if not provided
+    isWithCheckBox = true, // Default to false if not provided
     
 
   } = props;
@@ -1047,20 +1050,21 @@ useEffect(() => {
   }}
 >
 
-  {    showRowLogs  && (
+  {showRowLogs  && (
   <div onClick={() => props.handleLogClick && props.handleLogClick(row.original.id)} style={{ cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', width: '100%' }}>
     logs
 
   </div>
   )}
 
-
+{  isWithCheckBox && (
                  <input
     type="checkbox"
     checked={selectedIds.includes(row)}
     onChange={e => handleCheckboxChange(row, e.target.checked)}
     style={{ marginBottom: 6 }}
   />
+)}
 
 </td>
 

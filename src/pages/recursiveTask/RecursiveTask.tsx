@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState, useCallback, useRef } from 'react'
-import { useParams } from 'react-router-dom'
+import { useLocation, useParams } from 'react-router-dom'
 import dayjs from 'dayjs';
 import isSameOrAfter from 'dayjs/plugin/isSameOrAfter';
 import isSameOrBefore from 'dayjs/plugin/isSameOrBefore';
@@ -62,6 +62,10 @@ const RecursiveTaskTable = ({intervalDays, customFilters, customActiveFilters, i
   const { userid } = useParams();
     const loggedInUserId = Number(localStorage.getItem('userid'));
 
+               const location = useLocation();
+    
+    const accessType = location.state?.accessType;
+
 
 
 
@@ -76,7 +80,6 @@ const RecursiveTaskTable = ({intervalDays, customFilters, customActiveFilters, i
   const currentYear = dayjs().year();
   const currentDate = dayjs().date() - 2;
 
-  console.log("Current Date:", currentDate, "Current Month:", currentMonth, "Current Year:", currentYear);  
 
 
   const { data: recursiveTasks = [], isLoading, refetch: refetchRecursiveTasks } = useGetRecursiveTaskByUser(userid || '', currentDate, currentMonth, currentYear);
@@ -204,6 +207,12 @@ const toggleCommentsVisibility = (
     interval: number 
   }) => {
     try {
+
+        if(accessType=="read"){
+        alert("You do not have permission to update a task.");
+        return;
+
+      }
       await useCreateRecursiveTaskMutate.mutateAsync([{
         title: data.name,
         startDate: data.startDate,
@@ -230,11 +239,17 @@ const toggleCommentsVisibility = (
     taskId: string
   ) => {
     try {
+
+        if(accessType=="read"){
+        alert("You do not have permission to update a task.");
+        return;
+
+      }
       const body = {
         currentDate: originalDate,
         newDate: newDate,
       };
-      const response = await UpdateRecursiveTaskDateMutate.mutateAsync([body, taskId, userid]);
+      const response = await UpdateRecursiveTaskDateMutate.mutateAsync([body, taskId, loggedInUserId]);
 
       const taskData = await postGetRecursiveTask.mutateAsync([taskId]);
       setTasks(prev => prev.map(task => 
@@ -251,6 +266,12 @@ const toggleCommentsVisibility = (
 
   const commentMutate = useCreateComment();
   const handleComment= useCallback(async(data: any) => {
+
+      if(accessType=="read"){
+        alert("You do not have permission to update a task.");
+        return;
+
+      }
     console.log("Adding comment:", data, "for task ID:", selectedTaskId);
     const body = {
       comment: data.comment,
@@ -259,7 +280,7 @@ const toggleCommentsVisibility = (
       givenBy: loggedInUserId,
     }
 
-    const response = await commentMutate.mutateAsync([body, userid]);
+    const response = await commentMutate.mutateAsync([body, loggedInUserId]);
     const commentResponse = await postGetComment.mutateAsync([selectedTaskId]);
     
     setTasks(prev =>
@@ -287,12 +308,18 @@ const toggleCommentsVisibility = (
     commentText: string, 
     mentionedMember: any
   ) => {
+
+      if(accessType=="read"){
+        alert("You do not have permission to update a task.");
+        return;
+
+      }
     console.log("Editing comment:", rowId, commentId, commentText, mentionedMember);
     const body = {
       comment: commentText,
       mentionedMember: mentionedMember,
     }
-    const response = await useUpdateCommentMutate.mutateAsync([body, commentId, userid]);
+    const response = await useUpdateCommentMutate.mutateAsync([body, commentId, loggedInUserId]);
     const commentResponse = await postGetComment.mutateAsync([rowId]);
     
     setTasks(prev =>
@@ -316,6 +343,11 @@ const toggleCommentsVisibility = (
   const useDeleteCommentMutate = useDeleteComment();
   
   const handleDeleteComment = useCallback(async (rowId: any, commentId: any) => {
+      if(accessType=="read"){
+        alert("You do not have permission to update a task.");
+        return;
+
+      }
     const body = {
       deletedAt: new Date()
     }
@@ -348,7 +380,12 @@ const toggleCommentsVisibility = (
     }));
 
     try {
-      await updateBulkRecursiveTaskMutate.mutateAsync([taskWithDeletedAt, userid]);
+        if(accessType=="read"){
+        alert("You do not have permission to update a task.");
+        return;
+
+      }
+      await updateBulkRecursiveTaskMutate.mutateAsync([taskWithDeletedAt, loggedInUserId]);
       setTasks(prev => prev.filter(task => 
         !allTask.some((t: any) => t.original.id === task.id)
       ));
@@ -361,11 +398,17 @@ const toggleCommentsVisibility = (
   const updateRecursiveTaskLogsMutate = useUpdateRecursiveTaskLog();
 
   const handleCheck = useCallback((checked: boolean, log: any, date: string, taskId: any) => {
+
+      if(accessType=="read"){
+        alert("You do not have permission to update a task.");
+        return;
+
+      }
     const body = {
       status: checked ? 'completed' : 'pending',
     };
 
-    updateRecursiveTaskLogsMutate.mutateAsync([body, date, taskId, userid], {
+    updateRecursiveTaskLogsMutate.mutateAsync([body, date, taskId, loggedInUserId], {
       onSuccess: () => {
         setTasks(prev =>
           prev.map(task =>
@@ -389,11 +432,17 @@ const toggleCommentsVisibility = (
   const updateRecursiveTaskMutate = useUpdateRecursiveTask();
 
   const handleRowEdit = useCallback((row: any) => {
+
+      if(accessType=="read"){
+        alert("You do not have permission to update a task.");
+        return;
+
+      }
     console.log('Editing row:', row);
     const body = {
       title: row.title,
     }
-    updateRecursiveTaskMutate.mutateAsync([body, row.id, userid]);
+    updateRecursiveTaskMutate.mutateAsync([body, row.id, loggedInUserId]);
 
 
     setTasks(prev =>
@@ -407,6 +456,12 @@ const toggleCommentsVisibility = (
 
      const handleMultipleUpload = async (files: FileList, log: any, date: any,taskId: any) => {
             try {
+
+                if(accessType=="read"){
+        alert("You do not have permission to update a task.");
+        return;
+
+      }
               const formData = new FormData();
 
               const rescursiveTaskLogId = log.id;   
@@ -451,7 +506,7 @@ const toggleCommentsVisibility = (
               formData.append("logId", log.id);
               formData.append("date", date);          
               // Use your multiple attachments mutation
-              await createAttachmentMutation.mutateAsync([formData, userid]);
+              await createAttachmentMutation.mutateAsync([formData, loggedInUserId]);
               const attachmentResponse = await postGetAttachmentByTask.mutateAsync([log.id]);
 
               console.log("Attachment response:", rescursiveTaskLogId, taskId, log.recursiveTaskId);
