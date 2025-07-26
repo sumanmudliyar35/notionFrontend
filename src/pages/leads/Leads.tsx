@@ -2619,7 +2619,6 @@ onClick={() => {
           createEmptyRow={createEmptyDoc}
           onRowCreate={handleRowCreate} // ✅ hook for API
           onRowEdit={handleRowEdit} // ✅ added
-          isWithNewRow={true}
           columnSizing={columnSizing}
   onColumnSizingChange={(newSizing, columnId) => {
     setColumnSizing(newSizing);
@@ -2664,8 +2663,11 @@ if(offset + 40 <= totalLeads){
   isFollowup={true}
   openTablesModal={openTablesModal}
   setOpenTablesModal={setOpenTablesModal}
-  isTablesLogs={true}
+  isTablesLogs={false}
   showRowLogs={true}
+  isWithNewRowButton={true}
+  isWithNewRow={false}
+  
 
         />
 
@@ -2719,6 +2721,7 @@ if(offset + 40 <= totalLeads){
     onSave={handleFollowupChange}
     leadID={editingRow}
     data={editingRowValue}
+    userId={userid}
   />
 )}
 

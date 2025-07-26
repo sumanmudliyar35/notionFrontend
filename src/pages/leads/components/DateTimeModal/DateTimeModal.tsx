@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import CustomModal from '../../../../components/customModal/CustomModal';
 import { SharedInputWrapper } from '../../../../style/sharedStyle';
 import { DatePicker, Button, Switch } from 'antd';
@@ -6,6 +6,10 @@ import dayjs from 'dayjs';
 import TimeInput from '../TimeInput/TimeInput';
 import TagSelector from '../../../../components/customSelectModal/CustomSelectModal';
 import CustomInput from '../../../../components/customInput/CustomInput';
+import { useGetReminderByLeadAndUser } from '../../../../api/get/getReminderByLeadAndUser';
+import { DeleteOutlined } from '@ant-design/icons';
+import { formatDisplayDate, formatDisplayTime } from '../../../../utils/commonFunction';
+import { useUpdateReminder } from '../../../../api/put/updateReminder';
 
 interface DateTimeModalProps {
   open: boolean;
@@ -14,6 +18,7 @@ interface DateTimeModalProps {
   onSave?: (date: string | null, time: string | null, leadID: any, reminder?: { enabled: boolean, before: number | null, reminderTime: string | null }) => void;
   leadID?: any;
   data?: any;
+  userId: any;
 }
 
 const REMINDER_UNIT_OPTIONS = [
@@ -32,9 +37,16 @@ const REMINDER_VALUE_OPTIONS: Record<string, { id: number, label: string }[]> = 
   days: Array.from({ length: 7 }, (_, i) => ({ id: i + 1, label: String(i + 1) })),
 };
 
-const DateTimeModal = ({ open, onClose, title, onSave, leadID, data }: DateTimeModalProps) => {
+const DateTimeModal = ({ open, onClose, title, onSave, leadID, data, userId }: DateTimeModalProps) => {
   const [selectedDate, setSelectedDate] = useState<string | null>(data?.date || null);
   const [selectedTime, setSelectedTime] = useState<string | null>(data?.time || null);
+  console.log("leadID", leadID, "userId", userId);
+  const {data: reminderData, refetch: refetchReminder} = useGetReminderByLeadAndUser(leadID, userId);
+
+  useEffect(() => { 
+refetchReminder
+
+  },[leadID, userId]);
 
   // const [reminderTime, setReminderTime] = useState<string | null>( null);
 
@@ -65,6 +77,21 @@ const DateTimeModal = ({ open, onClose, title, onSave, leadID, data }: DateTimeM
     }
     onClose(); // Close the modal after saving
   };
+
+
+  const useUpdateReminderMutate = useUpdateReminder();
+
+
+  const handleDeleteReminder= async(reminderId: number) => {
+    try {
+      await useUpdateReminderMutate.mutateAsync([{deletedAt: new Date()}, reminderId]);
+      refetchReminder(); // Refetch reminders after deletion
+    } catch (error) {
+      console.error("Error deleting reminder:", error);
+    }
+
+
+  }
 
   return (
     <CustomModal
@@ -151,6 +178,41 @@ const DateTimeModal = ({ open, onClose, title, onSave, leadID, data }: DateTimeM
             </>
           )}
         </div>
+
+        {/* Display reminders below the form */}
+        {Array.isArray(reminderData) && reminderData.length > 0 && (
+          <div style={{ margin: '16px 0 8px 0' }}>
+            <label style={{ color: '#fff', fontWeight: 600 }}>Existing Reminders:</label>
+            {reminderData.map((reminder: any) => (
+              <div
+                key={reminder.id}
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'space-between',
+                  background: '#23272e',
+                  color: '#fff',
+                  padding: '8px 12px',
+                  borderRadius: 6,
+                  marginTop: 8,
+                }}
+              >
+                <span>
+                  <b>Reminder on</b>
+                  &nbsp;|&nbsp;
+                  <span style={{ color: '#81c784' }}>{formatDisplayDate(reminder.reminderDate)} at {formatDisplayTime(reminder.reminderTime)}</span>
+                </span>
+                <DeleteOutlined
+                  style={{ color: "#e57373", cursor: "pointer", fontSize: 18 }}
+                  onClick={() => handleDeleteReminder(reminder.id)}
+                  
+                
+                />
+              </div>
+            ))}
+          </div>
+        )}
+
         <div>
           <Button
             type="primary"

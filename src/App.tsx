@@ -22,6 +22,8 @@ type NotificationPlacement = NotificationArgsProps['placement'];
 
 const notificationSound = new Audio('/info.mp3'); // Use public path
 
+const mentionSound = new Audio('/mention.wav'); // Use public path
+
 const App: React.FC = () => {
   const [api, contextHolder] = notification.useNotification();
   const [canPlaySound, setCanPlaySound] = useState(false);
@@ -33,7 +35,7 @@ const App: React.FC = () => {
 
   const userid = localStorage.getItem('userid');
 
-  const openNotification = (message: string, placement: NotificationPlacement,PlaySound: boolean ) => {
+  const openNotification = (message: string, placement: NotificationPlacement,PlaySound: boolean, type: string) => {
     api.info({
       message: message,
       placement: placement,
@@ -43,6 +45,7 @@ const App: React.FC = () => {
 
     console.log('Notification opened:', message, PlaySound == true, PlaySound);
     if (PlaySound == true) {
+      if( type === 'reminder') {
       notificationSound.currentTime = 0;
       notificationSound.volume = 1;
 notificationSound.muted = false;
@@ -50,6 +53,17 @@ notificationSound.muted = false;
       notificationSound.play().catch((err) => {
   console.error('Audio play error:', err);
 });
+
+      }
+      else if (type === 'mention') {
+        mentionSound.currentTime = 0;
+        mentionSound.volume = 1;
+        mentionSound.muted = false;
+        mentionSound.play().catch(() => {});
+        mentionSound.play().catch((err) => {
+          console.error('Audio play error:', err);
+        });
+      }
 
     }
   };
@@ -61,8 +75,8 @@ notificationSound.muted = false;
 
 
 
-  // const backendUrl = 'https://backendapi.zealweb.in/';
-  const backendUrl = 'http://localhost:2432/';
+  const backendUrl = 'https://api.zealweb.in/';
+  // const backendUrl = 'http://localhost:2432/';
 
   const socket = useRef(io(backendUrl, {
   query: { userId: userid },
@@ -86,10 +100,11 @@ transports: ['polling'],
     const onReminder = (data: any) => {
       console.log('Reminder event data:', data);
       if (String(data.userId) === String(userid)) {
-        openNotification(data.message || 'Reminder Notification', 'topRight', true);
+        openNotification(data.message || 'Reminder Notification', 'topRight', true, "reminder");
 
          if (userid) {
-          queryClient.invalidateQueries(['mentionByUser', Number(userid)]);
+          console.log("Invalidating mentionByUser query for userId:", userid);
+          queryClient.invalidateQueries(['mentionByUser']);
         }
       }
     };
@@ -102,10 +117,18 @@ transports: ['polling'],
       console.log('Received:', msg);
     };
 
+    const onMention = (data: any) => {
+      console.log('Mention event data:', data);
+      if (String(data.userId) === String(userid)) {
+        openNotification(data.message || 'New Mention Notification', 'topRight', true, "mention");
+      }
+    };
+
     socket.on('connect', onConnect);
     socket.on('reminder', onReminder);
     socket.on('serverMessage', onServerMessage);
     socket.on('message', onMessage);
+    socket.on('mention', onMention);
 
     // Optional: Remove onAny if not needed
     // socket.onAny((event, ...args) => { ... });

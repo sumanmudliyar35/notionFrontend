@@ -1087,51 +1087,77 @@ function EditableCell({
 
     }
 
- useEffect(() => {
-  if (editorType === 'input' && inputRef.current) {
-    // For AntD Input.TextArea, get the real textarea element
-    const textarea = inputRef.current?.resizableTextArea?.textArea;
-    if (textarea) {
-      textarea.focus();
-      const val = textarea.value ?? '';
-      const length = val.length;
-      textarea.setSelectionRange(length, length);
-    }
-  }
-}, [editorType]);
+//  useEffect(() => {
+//   if (editorType === 'input' && inputRef.current) {
+//     // For AntD Input.TextArea, get the real textarea element
+//     const textarea = inputRef.current?.resizableTextArea?.textArea;
+//     if (textarea) {
+//       textarea.focus();
+//       const val = textarea.value ?? '';
+//       const length = val.length;
+//       textarea.setSelectionRange(length, length);
+//     }
+//   }
+// }, [editorType]);
+
+
 
 
   if (editorType === 'input') {
+
+      useEffect(() => {
+        if (inputRef.current) {
+          inputRef.current.style.height = "auto";
+          inputRef.current.style.height = inputRef.current.scrollHeight + "px";
+        }
+      }, [editValue]);
+    
+      // Also auto-resize on mount (for initial value)
+      useEffect(() => {
+        if (inputRef.current) {
+          inputRef.current.style.height = "auto";
+          inputRef.current.style.height = inputRef.current.scrollHeight + "px";
+        }
+      }, []);
+    
     return (
-      <Input.TextArea
-        value={editValue}
-        ref={inputRef}
-        autoFocus
-        onChange={e => setEditValue(e.target.value)}
-        onBlur={() => {
+      <textarea
+      value={editValue}
+      ref={inputRef}
+      rows={1}
+      onChange={e => {
+        setEditValue(e.target.value);
+        if (inputRef.current) {
+          inputRef.current.style.height = "auto";
+          inputRef.current.style.height = inputRef.current.scrollHeight + "px";
+        }
+      }}
+      style={{
+        width: '100%',
+        opacity: 1,
+        pointerEvents: 'auto',
+        position: 'relative',
+        background: '#202020',
+        color: 'white',
+        minHeight: 0,
+        transition: 'opacity 0.2s',
+        fontSize: 14,
+        lineHeight: 1.4,
+        fontFamily: 'sans-serif',
+        borderRadius: 4,
+        borderColor: "#1890ff",
+        outline: "1px solid #1890ff",
+        overflow: 'hidden', // Prevent scrollbars
+        resize: 'none',     // Prevent manual resizing
+      }}
+      onKeyDown={e => {
+        if (e.key === 'Enter' && !e.shiftKey) {
+          e.preventDefault();
           onSave(editValue);
           onCancel();
-        }}
-        style={{
-          width: '100%',
-          opacity: 1,
-          pointerEvents: 'auto',
-          position: 'absolute',
-          background: '#202020',
-          color: 'white',
-          top: 0,
-          left: 0,
-          transition: 'opacity 0.2s',
-          zIndex: 2,
-        }}
-        onKeyDown={e => {
-          if (e.key === 'Enter' && !e.shiftKey) {
-            e.preventDefault();
-            onSave(editValue);
-            onCancel();
-          }
-        }}
-      />
+        }
+      }}
+    />
     );
   }
 

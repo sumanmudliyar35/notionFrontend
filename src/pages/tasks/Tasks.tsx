@@ -1,6 +1,6 @@
 import type { ColumnDef } from "@tanstack/react-table";
 import  { CustomTable } from "../../components/customTable/CustomTable"
-import React, { useEffect, useState, useMemo, useRef, useCallback } from "react";
+import React, { useEffect, useState, useMemo, useRef, useCallback, use } from "react";
 import { useGetLeadsByUser } from "../../api/get/getLeadsByUser";
 import { useCreateLead } from "../../api/post/newLead";
 import { useUpdateLead } from "../../api/put/updateLead";
@@ -36,7 +36,6 @@ import { useUpdateUsersTablePreference } from "../../api/put/updateUsersTablePre
 import { useDownloadLeadsCSV } from "../../api/get/getLeadsCSV";
 import Papa from "papaparse"; // Add at the top if not already imported
 import { useUpdateBulkUsersTablePreference } from "../../api/put/updateBulkUpdateUsersTablePreference";
-import DescriptionCell from "./components/DescriptionCell/DescriptionCell";
 import CommentCell from "./components/CommentCell/CommentCell";
 import DateTimeModal from "../leads/components/DateTimeModal/DateTimeModal";
 import CommentModal from "../leads/components/CommentModal/CommentModal";
@@ -62,6 +61,8 @@ import { TaskCustomTable } from "./components/TaskCustomTable/TaskCustomTable";
 import { usePostGetTaskByTaskId } from "../../api/get/postGetTaskByTask";
 import CustomEditableCell from "../../components/CustomEditableCell/CustomEditableCell";
 import { usePostGetVoiceRecordByTask } from "../../api/get/postGetVoiceRecordByTask";
+import DescriptionCell from "../leads/components/DescriptionCell/DescriptionCell";
+import DescriptionCellWithActiveCell from "../leads/components/DescriptionCellWithActiveCell/DescriptionCellWithActiveCell";
 
 
 
@@ -119,10 +120,11 @@ const Tasks = () => {
   const loggedInUserId = Number(localStorage.getItem('userid'));
            const location = useLocation();
 
+           console.log("startuser", userid)
+
 
 const accessType = location.state?.accessType;
 
-console.log('Access Type:', accessType);
 
   
 
@@ -141,14 +143,23 @@ console.log('Access Type:', accessType);
 
         const isOffsetLoadingRef = useRef(false);
 
+
+useEffect(() => {
+  console.log("useEffect userid", userid);
+  setOffset(0);
+  setTableData([]);
+   setIsOffsetLoading(false);
+  isOffsetLoadingRef.current = false;
+}, [userid]);
+
+console.log("afteruser")
+
+
 useEffect(() => {
   isOffsetLoadingRef.current = isOffsetLoading;
 }, [isOffsetLoading]);
 
-useEffect(() => {
-  setOffset(0);
-  setTableData([]);
-}, [userid]);
+
 
         
              const [highlightRowId, setHighlightRowId] = useState<number | null>(null);
@@ -194,9 +205,9 @@ useEffect(() => {
     setTableData(prev => {
       if (offset === 0) {
         setTotalTasks(TaskData?.totalCount);
+        setTableData(TaskData.data);
         // Only include tasks assigned to the current user
-        return TaskData.data.filter((item: any) => String(item.assignedTo) === String(userid));
-      }
+        }
       setTotalTasks(TaskData?.totalCount);
       // Filter prev to only include tasks assigned to the current user
       const filteredPrev = prev.filter((item: any) => String(item.assignedTo) === String(userid));
@@ -209,6 +220,12 @@ useEffect(() => {
     setIsOffsetLoading(false);
   }
 }, [TaskData, offset, userid]);
+
+
+console.log("tasklength", userid, tableData.length, "totalTasks", totalTasks, "offset", offset); 
+
+
+
 
     const columnWidthMap = useMemo(() => {
   if (!taskTablePreference) return {};
@@ -432,16 +449,41 @@ const columns :ColumnDef<Doc>[] = [
       cell: ({ row }) => { 
         
 
-      const handleUpdate = async (newValue: string) => {
 
-         if(accessType=="read"){
-        alert("You do not have permission to update a task.");
-        return;
+      // const handleUpdate = async (newValue: string) => {
 
-      }
-        const response = await updateTaskMutate.mutateAsync([{name: newValue}, row.original.id, loggedInUserId]);
-        setTableData(prev => prev.map(item => item.id === row.original.id ? { ...item, name: newValue } : item));
+      //    if(accessType=="read"){
+      //   alert("You do not have permission to update a task.");
+      //   return;
+
+      // }
+      //   const response = await updateTaskMutate.mutateAsync([{name: newValue}, row.original.id, loggedInUserId]);
+      //   setTableData(prev => prev.map(item => item.id === row.original.id ? { ...item, name: newValue } : item));
+      //   setNewAddedRow(null); // Reset newAddedRow after saving
+
+
+      // }
+
+      const handleNameChange = async (value: string, rowId: any, mentionedMembers: any[] ) => {
+        if (accessType === "read") {
+          alert("You do not have permission to update a task.");
+          return;
+        }
+
+        console.log("Row ID:", rowId, "New Value:", value, "Mentioned Members:", mentionedMembers);
+        const body={
+
+          mentionedMember: mentionedMembers,
+          name: value,
+        }
+
+            const response = await updateTaskMutate.mutateAsync([body, row.original.id, loggedInUserId]);
+        setTableData(prev => prev.map(item => item.id === row.original.id ? { ...item, name: value } : item));
         setNewAddedRow(null); // Reset newAddedRow after saving
+
+
+
+
 
 
       }
@@ -455,15 +497,28 @@ const columns :ColumnDef<Doc>[] = [
            
         // </div>
         
-
-        <CustomEditableCell
-  value={row.original.name} // or any string value you want to edit
-  onSave={newValue => {
+//         <CustomEditableCell
+//   value={row.original.name} // or any string value you want to edit
+//   onSave={newValue => {
     
-    handleUpdate(newValue);
-  }}
-  isCellActive={newAddedRow === row.original.id } 
-/>
+//     handleUpdate(newValue);
+//   }}
+//   isCellActive={newAddedRow === row.original.id } 
+// />
+
+<DescriptionCellWithActiveCell
+ value={row.original.name} // or any string value you want to edit
+      onChange={handleNameChange}
+            leadid={row.original.id}
+            assigneeOptions={assigneeOptions}
+            activeCell={newAddedRow === row.original.id} // Pass activeCell prop
+
+
+    />
+
+
+
+
       )},
   },
 
@@ -492,6 +547,41 @@ const columns :ColumnDef<Doc>[] = [
         const option = assigneeOptions.find(opt => opt.value == value);
         return option ? option.label : '';
       },
+    },
+     { header: 'Reminder', accessorKey: 'followup',     
+          meta: { editorType: 'datetime', // <-- add this
+     }
+     ,
+        cell: (getValue: any) => {
+      const { followup, followupTime } = getValue.row.original;
+    
+    
+    
+    
+      // if (!followup) return  <span style={{ color: '#888' }}>Set follow up</span>;
+    
+      // Combine date and time as a string in local time
+      const dateTimeString = `${followup}T${followupTime || '00:00'}`;
+      const d = new Date(dateTimeString);
+    
+    
+    
+      return (
+        <span
+          style={{ cursor: 'pointer', color: '#fff' }}
+          onClick={() =>
+            handleOpenDateTimeModal(
+              getValue.row.original.id,
+              followup,
+              followupTime
+            )
+          }
+        >
+          {formatDisplayDate(d) || <span style={{ color: '#888' }}>Set follow up</span>}
+        </span>
+      );
+    },
+    
     },
  
 
@@ -1173,24 +1263,52 @@ const createEmptyDoc = (): Doc => {
 
     }
 
-    const updateLeadMutate = useUpdateLead();
+    
 
-    const handleFollowupChange = async (date: any,time: any, leadID: any) => {
+    const handleFollowupChange = async (date: any,time: any, taskId: any, reminderData: any) => {
        if(accessType=="read"){
         alert("You do not have permission to update a task.");
         return;
 
       }
+
+
+      console.log("Selectedtaskdate:", date, "Selected time:", time, "Lead ID:", taskId);
       const body = {
         followup: date ,
         followupTime: time,
         mentionedMembers: [],
       };
       try {
-        await updateLeadMutate.mutateAsync([body, leadID, userid]);
+
+        let reminderBeforeBody = null;
+        
+          let reminderBody=null;
+        
+              const followupDateTime = dayjs(`${date}T${time || "00:00"}`);
+        
+        
+          if (reminderData?.enabled && reminderData.before) {
+            // Combine date and time into a single dayjs object
+            // Subtract the reminder offset (in minutes)
+            
+        
+            const customReminderTime = reminderData.reminderTime || "00:00";
+              const reminderTimeObj = dayjs(`${date}T${customReminderTime}`);
+          const reminderDateTime = reminderTimeObj.subtract(reminderData.before, "minute");
+        
+            reminderBeforeBody = {
+              reminderDate: followupDateTime.format("YYYY-MM-DD"),
+            reminderTime: reminderDateTime.format("HH:mm"),
+              taskId: taskId,
+              userId: userid,
+            };
+           await reminderMutate.mutateAsync([reminderBeforeBody, taskId]);
+          }
+        await updateTaskMutate.mutateAsync([body, taskId, userid]);
         setTableData(prev =>
           prev.map(row =>
-            row.id === leadID ? { ...row, followup: date, followupTime: time } : row
+            row.id === taskId ? { ...row, followup: date, followupTime: time } : row
           )
         );
 
@@ -1445,7 +1563,6 @@ const filteredData = React.useMemo(() => {
   return Object.entries(filters).every(([key, val]) => {
 
 
-console.log("keyfilters", enabledFilters[key], key);
 
    const isEnabled = enabledFilters[key] !== false; // Default to true if not set
       if (!isEnabled) return true;
@@ -1590,6 +1707,21 @@ console.log("keyfilters", enabledFilters[key], key);
 }, [tableData, filters, enabledFilters, offset]);
 
 
+
+
+
+useEffect(() => {
+  // Only load more if there is more data to fetch
+  if (
+    filteredData.length < 40 &&
+    offset + 40 < totalTasks && // Only increment if not exceeding totalTasks
+    filteredData.length > 0 // Only if there is some data
+  ) {
+    setOffset((prev) => prev + 40);
+  }
+  // Optionally, you can add a guard to prevent repeated calls
+}, [filteredData, offset, totalTasks]);
+
   const updateTablePreferences = useUpdateUsersTablePreference();
 
   const handleColumnResize = (columnId: string, newSize: number) => {
@@ -1686,13 +1818,15 @@ const handleDeleteTask = async (tasks: any) => {
   }));
 
   try {
+        setTableData(prev => prev.filter(item => !tasks.some((task: any) => task.original.id === item.id)));
+
     await updateBulkTask.mutateAsync([taskWithDeletedAt, loggedInUserId]);
 
-    setTableData(prev => prev.filter(item => !tasks.some((task: any) => task.original.id === item.id)));
   } catch (error) {
     console.error("Error deleting tasks:", error);
   }
 };  
+
 
 
 
@@ -2072,13 +2206,16 @@ onClick={() => {
 
         
         <TaskCustomTable
+  key={userid + '-' + offset} // ensures remount on user or offset change
+
          data={filteredData || []}
           
           columns={columnsWithWidth}
           createEmptyRow={createEmptyDoc}
           onRowCreate={handleRowCreate} // ✅ hook for API
           onRowEdit={handleRowEdit} // ✅ added
-          isWithNewRow={true}
+          isWithNewRow={false}
+          isWithNewRowButton={true}
           columnSizing={columnSizing}
   onColumnSizingChange={(newSizing, columnId) => {
     setColumnSizing(newSizing);
@@ -2105,11 +2242,11 @@ onClick={() => {
    onIncrementNearEnd={() => {
   if (isOffsetLoadingRef.current) return; // Use ref for immediate check
 
-    if( offset >= totalTasks ) return;
+    if( offset + 40 >= totalTasks ) return;
       setIsOffsetLoading(true);
         isOffsetLoadingRef.current = true; // Set ref immediately
 
-
+console.log("IncrementingoffsetInsideTable:", offset);
     setOffset((prevOffset) => prevOffset + 40);
     // Increment your value or fetch more data here
   }}
@@ -2155,6 +2292,7 @@ onClick={() => {
     onSave={handleFollowupChange}
     leadID={editingRow}
     data={editingRowValue}
+    userId={userid}
   />
 )}
 

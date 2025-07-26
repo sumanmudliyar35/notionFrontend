@@ -41,6 +41,13 @@ const CustomEditableCell: React.FC<CustomEditableCellProps> = ({
     }
   }, [inputValue, isEditing]);
 
+   useEffect(() => {
+          if (inputRef.current) {
+            inputRef.current.style.height = "auto";
+            inputRef.current.style.height = inputRef.current.scrollHeight + "px";
+          }
+        }, []);
+
   const handleInputChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
     setInputValue(e.target.value);
   };

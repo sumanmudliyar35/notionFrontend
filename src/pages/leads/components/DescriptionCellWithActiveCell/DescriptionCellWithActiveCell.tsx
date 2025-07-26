@@ -1,31 +1,59 @@
-import React, { useEffect, useMemo, useRef, useState } from 'react';
+import React, { use, useEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 
 const DROPDOWN_HEIGHT = 150; // px
 
-const DescriptionCell = ({ value = '', onChange, leadid, assigneeOptions = [] }: any) => {
+// Utility to hide @@id parts for display
+
+
+
+interface DescriptionCellProps {  value?: string;
+  onChange?: (value: string, leadid: string | number, mentionedUserIds: string[]) => void;
+  leadid?: string | number;
+  assigneeOptions?: { id: string | number; label: string; value: any }[];
+  activeCell?: boolean;
+
+};
+
+const DescriptionCellWithActiveCell = ({ value = '', onChange, leadid, assigneeOptions = [], customIsEdited, activeCell }: any) => {
   const [isEditing, setIsEditing] = useState(false);
+
+ useEffect(() => {
+   
+    if (activeCell) {
+      setIsEditing(true);
+    }
+  }, [activeCell]);
+
+ 
+
   const [inputValue, setInputValue] = useState(value);
+
+
+  useEffect(() => {
+  setInputValue(value);
+}, [value]);
   const [showDropdown, setShowDropdown] = useState(false);
   const [searchText, setSearchText] = useState('');
+  const [highlightedIndex, setHighlightedIndex] = useState(0);
+
   const [dropdownPos, setDropdownPos] = useState({ top: 0, left: 0, width: 0, above: false });
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const ignoreBlurRef = useRef(false);
-  const [highlightedIndex, setHighlightedIndex] = useState(0);
+
 
   const filteredOptions = useMemo(() => {
-    if (!showDropdown) return [];
-    // Find the last @ and get the text after it
-    const cursorPos = inputRef.current?.selectionStart || inputValue.length;
-    const textBeforeCursor = inputValue.slice(0, cursorPos);
-    const match = textBeforeCursor.match(/@([^@\s]*)$/);
-    const search = match ? match[1].toLowerCase() : '';
-    if (!search) return assigneeOptions;
-    return assigneeOptions.filter((option: any) =>
-      option.label.toLowerCase().includes(search)
-    );
-  }, [showDropdown, inputValue, assigneeOptions]);
-
+  if (!showDropdown) return [];
+  // Find the last @ and get the text after it
+  const cursorPos = inputRef.current?.selectionStart || inputValue.length;
+  const textBeforeCursor = inputValue.slice(0, cursorPos);
+  const match = textBeforeCursor.match(/@([^@\s]*)$/);
+  const search = match ? match[1].toLowerCase() : '';
+  if (!search) return assigneeOptions;
+  return assigneeOptions.filter((option: any) =>
+    option.label.toLowerCase().includes(search)
+  );
+}, [showDropdown, inputValue, assigneeOptions]);
   // Calculate dropdown position dynamically
   const showDropdownDynamic = () => {
     if (inputRef.current) {
@@ -56,6 +84,10 @@ const DescriptionCell = ({ value = '', onChange, leadid, assigneeOptions = [] }:
     const textBeforeCursor = val.slice(0, cursorPos);
     const matches = textBeforeCursor.match(/@([^@\s]*)$/);
 
+    // Auto-resize on change
+    e.target.style.height = "auto";
+    e.target.style.height = e.target.scrollHeight + "px";
+
     if (matches) {
       setShowDropdown(true);
       setSearchText(matches[1] || '');
@@ -73,6 +105,7 @@ const DescriptionCell = ({ value = '', onChange, leadid, assigneeOptions = [] }:
   }, [isEditing]);
 
   const [mentionedUserIds, setMentionedUserIds] = useState<string[]>([]);
+
 
   const handleSelectMember = (member: any) => {
     ignoreBlurRef.current = true;
@@ -110,6 +143,7 @@ const DescriptionCell = ({ value = '', onChange, leadid, assigneeOptions = [] }:
     }, 0);
   };
 
+  // Reset highlight when dropdown or options change
   useEffect(() => {
     if (showDropdown) setHighlightedIndex(0);
   }, [showDropdown, filteredOptions.length]);
@@ -119,18 +153,16 @@ const DescriptionCell = ({ value = '', onChange, leadid, assigneeOptions = [] }:
       if (e.key === 'ArrowDown') {
         e.preventDefault();
         setHighlightedIndex(i => (i + 1) % filteredOptions.length);
-        return;
       } else if (e.key === 'ArrowUp') {
         e.preventDefault();
         setHighlightedIndex(i => (i - 1 + filteredOptions.length) % filteredOptions.length);
-        return;
       } else if (e.key === 'Enter') {
         e.preventDefault();
         if (filteredOptions[highlightedIndex]) {
           handleSelectMember(filteredOptions[highlightedIndex]);
         }
-        return;
       }
+      return;
     }
     if (e.key === 'Enter') {
       if (e.shiftKey) {
@@ -166,12 +198,24 @@ const DescriptionCell = ({ value = '', onChange, leadid, assigneeOptions = [] }:
   };
 
   const handleBlur = () => {
-    console.log('DescriptionCell blurred', isEditing);
+    console.log('DescriptionCellWithActiveCell blurred', isEditing);
     if (ignoreBlurRef.current) return; // Ignore blur if selecting member
     console.log('Saving on blur', isEditing);
     setIsEditing(false);
 
   };
+
+  useEffect(() => {
+  if (isEditing && inputRef.current) {
+    inputRef.current.focus();
+    // Place cursor at the end
+    const length = inputRef.current.value.length;
+    inputRef.current.setSelectionRange(length, length);
+    // Auto-resize on edit start
+    inputRef.current.style.height = "auto";
+    inputRef.current.style.height = inputRef.current.scrollHeight + "px";
+  }
+}, [isEditing]);
 
   return (
     <div style={{ minHeight: 24, position: 'relative' }}>
@@ -183,7 +227,21 @@ const DescriptionCell = ({ value = '', onChange, leadid, assigneeOptions = [] }:
             onChange={handleInputChange}
             onBlur={handleBlur}
             onKeyDown={handleKeyDown}
-            style={{ width: '100%', background: '#202020', color: 'white', minHeight: 40, resize: 'vertical',  fontFamily: 'sans-serif' }}
+            style={{
+              width: '100%',
+              background: '#202020',
+              color: 'white',
+              minHeight: 40,
+              borderRadius: 4,
+               borderColor: "#1890ff",
+               outline: "1px solid #1890ff", // blue outline
+              fontSize: 14,
+              lineHeight: 1.4,
+
+              resize: 'none', // Prevent manual resize
+              fontFamily: 'sans-serif',
+              overflow: 'hidden'
+            }}
           />
           {showDropdown && createPortal(
             <div
@@ -258,4 +316,4 @@ const DescriptionCell = ({ value = '', onChange, leadid, assigneeOptions = [] }:
   );
 };
 
-export default DescriptionCell;
+export default DescriptionCellWithActiveCell;

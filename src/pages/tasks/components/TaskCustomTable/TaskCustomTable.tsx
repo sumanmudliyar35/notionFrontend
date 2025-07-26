@@ -95,13 +95,16 @@ interface RowWithId {
 }
 
 export function TaskCustomTable<T extends RowWithId>(props: EditableTableProps<T>) {
+
+
+
   // ✅ ALL HOOKS FIRST - NO CONDITIONS
-  const [searchText, setSearchText] = useState(props.customSearchText || '');
+  const [searchText, setSearchText] = useState('');
 
-  useEffect(() => {
+  // useEffect(() => {
 
-    setSearchText(props.customSearchText || '');
-  }, [props.customSearchText]);
+  //   setSearchText(props.customSearchText || '');
+  // }, [props.customSearchText]);
 
 
   const [selectMenuOpen, setSelectMenuOpen] = useState(true);
@@ -401,6 +404,8 @@ if (index !== -1) {
 // }, [data.length, columns, table]);
 
 
+const verticalScrollingRef = useRef<HTMLDivElement>(null);
+
 const prevRowCount = useRef(data.length);
 useEffect(() => {
   // Only run if not initial mount and a row was added
@@ -535,7 +540,28 @@ useEffect(() => {
 // First, add a separate ref for the scrollable table body
 const tableBodyRef = useRef<HTMLTableSectionElement>(null);
 
-const verticalScrollingRef = useRef<HTMLDivElement>(null);
+const prevScrollHeightRef = useRef<number>(0);
+
+useEffect(() => {
+  // Before loading more data, record scroll height
+  if (verticalScrollingRef.current) {
+    prevScrollHeightRef.current = verticalScrollingRef.current.scrollHeight;
+  }
+}, [data.length]); // or before you trigger data fetch
+
+useEffect(() => {
+  // After new data is loaded, restore scroll position
+  if (verticalScrollingRef.current) {
+    const container = verticalScrollingRef.current;
+    // Only restore if user was near the bottom before
+    if (container.scrollHeight > prevScrollHeightRef.current) {
+      const diff = container.scrollHeight - prevScrollHeightRef.current;
+      container.scrollTop += diff;
+    }
+  }
+}, [data]);
+
+// const verticalScrollingRef = useRef<HTMLDivElement>(null);
 
 
 // Then modify your useEffect to target both containers
@@ -651,29 +677,57 @@ useEffect(() => {
 
 // Add this effect in your TaskCustomTable component
 
-useEffect(() => {
+// useEffect(() => {
   
+//   if (!verticalScrollingRef.current || !props.onIncrementNearEnd) return;
+
+//   const handleScroll = () => {
+//     if (!container) return;
+//     const { scrollTop, scrollHeight, clientHeight } = container;
+//     // If user is within 200px of the bottom, trigger the callback
+//     if (scrollHeight - scrollTop - clientHeight < 1000) {
+
+//   console.log("Near end of scroll, triggering onIncrementNearEnd");
+//       props.onIncrementNearEnd && props.onIncrementNearEnd();
+      
+//     }
+
+//   };
+
+//   const container = verticalScrollingRef.current;
+//   container.addEventListener('scroll', handleScroll);
+
+//   // return () => {
+//   //   container.removeEventListener('scroll', handleScroll);
+//   // };
+// }, [props.onIncrementNearEnd]);
+
+
+useEffect(() => {
   if (!verticalScrollingRef.current || !props.onIncrementNearEnd) return;
+
+  let debounceTimeout: NodeJS.Timeout | null = null;
+  const container = verticalScrollingRef.current;
 
   const handleScroll = () => {
     if (!container) return;
     const { scrollTop, scrollHeight, clientHeight } = container;
-    // If user is within 200px of the bottom, trigger the callback
-    if (scrollHeight - scrollTop - clientHeight < 2000) {
-
-  
-      props.onIncrementNearEnd && props.onIncrementNearEnd();
-      
-    }
-
+    // Debounce the scroll event
+    if (debounceTimeout) clearTimeout(debounceTimeout);
+    debounceTimeout = setTimeout(() => {
+      if (scrollHeight - scrollTop - clientHeight < 1000) {
+        console.log("Near end of scroll, triggering onIncrementNearEnd");
+        props.onIncrementNearEnd && props.onIncrementNearEnd();
+      }
+    }, 150); // 150ms debounce
   };
 
-  const container = verticalScrollingRef.current;
   container.addEventListener('scroll', handleScroll);
 
-  // return () => {
-  //   container.removeEventListener('scroll', handleScroll);
-  // };
+  return () => {
+    container.removeEventListener('scroll', handleScroll);
+    if (debounceTimeout) clearTimeout(debounceTimeout);
+  };
 }, [props.onIncrementNearEnd]);
 
 
@@ -688,8 +742,14 @@ useEffect(() => {
 }, [searchText]);
 
 
-
-
+useEffect(() => {
+  // If table contains less than 40 or 30 rows, call onIncrementNearEnd
+  console.log("data.length", data.length, props.totalDataCount, "table.getRowModel().rows.length", table.getRowModel().rows.length);
+  if ( table.getRowModel().rows.length < 30 && (props.totalDataCount ?? 0) < offset + 40) {
+    console.log("Calling onIncrementNearEnd due to low row count");
+    props.onIncrementNearEnd && props.onIncrementNearEnd();
+  }
+}, [data]);
 
 
 
@@ -770,6 +830,8 @@ useEffect(() => {
             onClick={() => {
               if (props.setOpenRecursiveTaskModal) {
                 props.setOpenRecursiveTaskModal(!props.openRecursiveTaskModal);
+              }else{
+                handleAddEmptyRow();
               }
               setHasAdded(false);
             }}

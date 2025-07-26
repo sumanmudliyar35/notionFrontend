@@ -153,16 +153,42 @@ const userMenuItems = Array.isArray(usersMenu?.data)
       label: (
         <span style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: '100%' }}>
           <span>{user.name}</span>
-          <EllipsisOutlined
+          {/* <EllipsisOutlined
             style={{ marginLeft: 8, color: '#aaa', cursor: 'pointer' }}
             onClick={e => {
               e.stopPropagation();
               handleAccessModalOpen(user.userId);
             }}
-          />
+          /> */}
         </span>
       ),
-      icon: <UserOutlined style={{ ...iconStyle, color: '#1890ff' }} />,
+      // icon: <UserOutlined style={{ ...iconStyle, color: '#1890ff' }} />,
+            searchText: user.name, // <-- Add this line
+
+       icon: user.profileUrl
+        ? (
+            <img
+              src={user.profileUrl}
+              alt={user.name}
+              style={{
+                width: 24,
+                height: 24,
+                borderRadius: '50%',
+                objectFit: 'cover',
+                marginRight: 8,
+                border: '2px solid #1890ff',
+                    aspectRatio: '1',         // Modern browsers only
+
+                background: '#fff',
+              }}
+
+              onClick={e => {
+              e.stopPropagation();
+              handleAccessModalOpen(user.userId);
+            }}
+            />
+          )
+        : <UserOutlined style={{ ...iconStyle, color: '#1890ff' }} />,
       path: `/user/${user.userId}/task`,...(user.accessType ? { accessType: user.accessType } : {}),
       children: [
         {
@@ -196,14 +222,39 @@ const userMenuItems = Array.isArray(usersMenu?.data)
 
   // Filter menu items based on search (including children)
  // Fix the filterMenu function to handle React elements in labels
+// const filterMenu = (items: any[]): any[] =>
+//   items
+//     .map((item: any) => {
+//       // Get the text representation of the label (either a string or from React element)
+//       const labelText = typeof item.label === 'string' 
+//         ? item.label 
+//         : (item.key === 'notifications' ? 'Notifications' : ''); // Handle special cases
+      
+//       if (item.children) {
+//         const filteredChildren = filterMenu(item.children);
+//         if (
+//           labelText.toLowerCase().includes(search.toLowerCase()) ||
+//           filteredChildren.length
+//         ) {
+//           return { ...item, children: filteredChildren };
+//         }
+//         return null;
+//       }
+      
+//       return labelText.toLowerCase().includes(search.toLowerCase()) ? item : null;
+//     })
+//     .filter(Boolean);
+
 const filterMenu = (items: any[]): any[] =>
   items
     .map((item: any) => {
-      // Get the text representation of the label (either a string or from React element)
-      const labelText = typeof item.label === 'string' 
-        ? item.label 
-        : (item.key === 'notifications' ? 'Notifications' : ''); // Handle special cases
-      
+      // Use searchText if available, else fallback to label
+      const labelText = item.searchText
+        ? item.searchText
+        : typeof item.label === 'string'
+          ? item.label
+          : (item.key === 'notifications' ? 'Notifications' : '');
+
       if (item.children) {
         const filteredChildren = filterMenu(item.children);
         if (
@@ -214,7 +265,7 @@ const filterMenu = (items: any[]): any[] =>
         }
         return null;
       }
-      
+
       return labelText.toLowerCase().includes(search.toLowerCase()) ? item : null;
     })
     .filter(Boolean);
