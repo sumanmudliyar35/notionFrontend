@@ -4,7 +4,7 @@ import CrossIcon from '../../assets/icons/CrossIcon';
 
 
 interface CustomChipProps {
-  label: string;
+  label: any;
   onDelete?: () => void;
 }
 

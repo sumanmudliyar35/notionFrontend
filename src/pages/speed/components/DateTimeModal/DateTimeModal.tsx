@@ -20,7 +20,7 @@ interface DateTimeModalProps {
   leadID?: any;
   data?: any;
   userId: any;
-  taskId?: any; // Optional taskId for reminders related to tasks
+  taskId?: any;
 }
 
 const REMINDER_UNIT_OPTIONS = [
@@ -42,19 +42,22 @@ const REMINDER_VALUE_OPTIONS: Record<string, { id: number, label: string }[]> = 
 const DateTimeModal = ({ open, onClose, title, onSave, leadID, data, userId, taskId }: DateTimeModalProps) => {
   const [selectedDate, setSelectedDate] = useState<string | null>(data?.date || null);
   const [selectedTime, setSelectedTime] = useState<string | null>(data?.time || null);
-  console.log("leadID", leadID, "userId", userId, "taskId", taskId);
+  console.log("leadID", leadID, "userId", userId);
   const {data: reminderData, refetch: refetchReminder} = useGetReminderByLeadAndUser(leadID, userId);
 
   const {data: reminderDataByTask, refetch: refetchReminderByTask} = useGetReminderByTaskAndUser(taskId, userId);
 
+  useEffect(() => { 
+refetchReminder
 
-    const activeReminderData = taskId ? reminderDataByTask : reminderData;
+  },[leadID, userId]);
 
 
-//   useEffect(() => { 
-// refetchReminder
-
-//   },[leadID, userId]);
+  useEffect(() => {
+    if (taskId && userId) {
+      refetchReminderByTask();
+    }
+  }, [taskId, userId]);
 
   // const [reminderTime, setReminderTime] = useState<string | null>( null);
 
@@ -81,7 +84,7 @@ const DateTimeModal = ({ open, onClose, title, onSave, leadID, data, userId, tas
     }
   }
     if (onSave) {
-      onSave(selectedDate, selectedTime, leadID ? leadID : taskId, reminderEnabled ? { enabled: true, before: beforeValue, reminderTime: selectedTime } : { enabled: false, before: null, reminderTime: null });
+      onSave(selectedDate, selectedTime, leadID, reminderEnabled ? { enabled: true, before: beforeValue, reminderTime: selectedTime } : { enabled: false, before: null, reminderTime: null });
     }
     onClose(); // Close the modal after saving
   };
@@ -93,12 +96,7 @@ const DateTimeModal = ({ open, onClose, title, onSave, leadID, data, userId, tas
   const handleDeleteReminder= async(reminderId: number) => {
     try {
       await useUpdateReminderMutate.mutateAsync([{deletedAt: new Date()}, reminderId]);
-      if (taskId) {
-        refetchReminderByTask();  
-      }
-      else {
       refetchReminder(); // Refetch reminders after deletion
-      }
     } catch (error) {
       console.error("Error deleting reminder:", error);
     }
@@ -193,10 +191,10 @@ const DateTimeModal = ({ open, onClose, title, onSave, leadID, data, userId, tas
         </div>
 
         {/* Display reminders below the form */}
-        {Array.isArray(activeReminderData) && activeReminderData.length > 0 && (
+        {Array.isArray(reminderData) && reminderData.length > 0 && (
           <div style={{ margin: '16px 0 8px 0' }}>
             <label style={{ color: '#fff', fontWeight: 600 }}>Existing Reminders:</label>
-            {activeReminderData.map((reminder: any) => (
+            {reminderData.map((reminder: any) => (
               <div
                 key={reminder.id}
                 style={{

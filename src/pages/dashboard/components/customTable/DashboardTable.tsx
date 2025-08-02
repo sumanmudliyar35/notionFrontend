@@ -113,9 +113,16 @@ const DashboardTable: React.FC<TableProps> = ({ data, title, height = 'auto', co
       <StyledTable 
         columns={columns} 
         dataSource={data.map(item => ({ ...item, key: item.id || item.name }))} 
-        pagination={{ pageSize: 10 }}
         scroll={{ y: typeof height === 'number' ? height : undefined }}
         size="middle"
+        pagination={{
+    showSizeChanger: false,
+    showQuickJumper: false,
+    itemRender: (current, type, originalElement) => {
+      if (type === 'page') return null; // Hide page numbers
+      return originalElement; // Show prev/next
+    }
+  }}
       />
     </TableContainer>
   );

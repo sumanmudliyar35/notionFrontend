@@ -2,6 +2,9 @@ import React from 'react';
 import { Button, Input, Badge } from 'antd';
 import { CalculatorOutlined, UploadOutlined, CommentOutlined } from '@ant-design/icons';
 import CommentCell from '../CommentCell/CommentCell';
+import CustomChip from '../../../../components/customChip/CustomChip';
+import CustomTag from '../../../../components/customTag/CustomTag';
+import dayjs from 'dayjs';
 
 interface RecursiveTaskLogCellProps {
   log: any;
@@ -22,6 +25,7 @@ interface RecursiveTaskLogCellProps {
   setEditingComment: any;
   assigneeOptions: any;
   commentsVisible: boolean;
+  onDeleteAttachment?: (attachmentId: string, logId: any, recursiveTaskLogId: any) => void;
 }
 
 const RecursiveTaskLogCell: React.FC<RecursiveTaskLogCellProps> = ({
@@ -43,6 +47,7 @@ const RecursiveTaskLogCell: React.FC<RecursiveTaskLogCellProps> = ({
   setEditingComment,
   assigneeOptions,
   commentsVisible,
+  onDeleteAttachment,
 }) => {
   return (
     <div style={{ 
@@ -129,7 +134,7 @@ const RecursiveTaskLogCell: React.FC<RecursiveTaskLogCellProps> = ({
         isCommentText={true}
       />
 
-      {commentsVisible && attachments && attachments.length > 0 && (
+      {/* {commentsVisible && attachments && attachments.length > 0 && (
         <div style={{ marginTop: 4, fontSize: '0.8em' }}>
           {attachments.map((attachment: any, idx: number) => (
             <div key={idx} style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
@@ -144,7 +149,33 @@ const RecursiveTaskLogCell: React.FC<RecursiveTaskLogCellProps> = ({
             </div>
           ))}
         </div>
-      )}
+      )} */}
+
+      {commentsVisible && attachments && attachments.length > 0 && (
+  <div style={{ marginTop: 4, fontSize: '0.8em', display: 'flex', flexWrap: 'wrap', gap: 4 }}>
+    {attachments.map((attachment: any, idx: number) => (
+      <CustomTag
+        key={attachment.id || idx}
+        name={
+          <a
+            href={attachment.downloadUrl}
+            target="_blank"
+            rel="noopener noreferrer"
+            style={{ color: '#1677ff', textDecoration: 'underline' }}
+          >
+            {`File ${idx + 1}`}
+          </a>
+        }
+onClose={
+  !log.date || dayjs(log.date).isSameOrAfter(dayjs(), 'day')
+    ? () => onDeleteAttachment && onDeleteAttachment(attachment.id, log.id, row.original.id)
+    : undefined
+}
+  
+  />
+    ))}
+  </div>
+)}
     </div>
   );
 };

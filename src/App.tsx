@@ -16,6 +16,7 @@ import { useGetReminderByUser } from './api/get/getReminderByUser';
 import { io } from 'socket.io-client';
 import Logs from './pages/logs/Logs';
 import { useQueryClient } from 'react-query';
+import Speed from './pages/speed/Speed';
 
 
 type NotificationPlacement = NotificationArgsProps['placement'];
@@ -80,7 +81,7 @@ notificationSound.muted = false;
 
   const socket = useRef(io(backendUrl, {
   query: { userId: userid },
-transports: ['polling'],
+  transports: ['polling'],
   reconnection: true,
   reconnectionAttempts: 10,
   reconnectionDelay: 2000,
@@ -152,6 +153,7 @@ transports: ['polling'],
           <Route element={<Layout />}>
             <Route path="/home" element={<Home />} />
             <Route path="/leads" element={<Leads />} />
+            <Route path="/speed" element={<Speed />} />
             <Route path="/admin" element={<Admin />} />
             <Route path="/notifications" element={<Notification />} />
             {/* <Route path="/tasks" element={<Tasks />} /> */}

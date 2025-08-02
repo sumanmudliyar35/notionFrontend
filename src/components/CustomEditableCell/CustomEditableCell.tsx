@@ -6,6 +6,8 @@ interface CustomEditableCellProps {
   placeholder?: string;
   options?: any[]; // for dropdown, if needed
   isCellActive?: boolean; // to control if the cell is active or not
+  showEditButton?: boolean; // to control if the edit button should be shown
+  opnenEditModal?: () => void; // function to open edit modal if needed
 }
 
 const CustomEditableCell: React.FC<CustomEditableCellProps> = ({
@@ -14,6 +16,9 @@ const CustomEditableCell: React.FC<CustomEditableCellProps> = ({
   placeholder = "Click to edit",
   options = [],
   isCellActive = false, // default to true if not provided
+  showEditButton = false, // default to false if not provided
+  opnenEditModal = () => {}, // default to empty function if not provided
+
 }) => {
   const [isEditing, setIsEditing] = useState(false);
 
@@ -146,6 +151,28 @@ const CustomEditableCell: React.FC<CustomEditableCellProps> = ({
           {placeholder}
         </span>
       )}
+
+
+      {/* {showEditButton && !isEditing && (
+        <button
+          onClick={opnenEditModal}
+          style={{
+            position: "absolute",
+            top: 0,
+            right: 0,
+            background: "transparent",
+            border: "none",
+            color: "#1890ff",
+            cursor: "pointer",
+            padding: 4,
+          }}
+        >
+          Edit
+        </button>
+      )} */}
+
+
+
     </div>
   );
 };

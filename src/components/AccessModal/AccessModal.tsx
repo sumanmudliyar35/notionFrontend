@@ -56,7 +56,7 @@ const AccessModal: React.FC<AccessModalProps> = ({
 
     const body={
         accessorId: selectedUsers,
-        accessType: readChecked? "read" : "modify",
+        accessType: readChecked? "read" : "edit",
         ownerId: accessorId,
         createdBy: userId,
 
@@ -144,7 +144,7 @@ const AccessModal: React.FC<AccessModalProps> = ({
               }}
             >
               <span>
-                <b>{item.name}</b> &nbsp; <span style={{ color: "#81c784" }}>{item.accessType}</span>
+                <b>{item.name}</b> &nbsp; <span style={{ color: "#81c784" }}>{item.accessType== "edit" ? "Modify": "Read"}</span>
               </span>
               <DeleteOutlined
                 style={{ color: "#e57373", cursor: "pointer", fontSize: 18 }}

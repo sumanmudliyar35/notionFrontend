@@ -259,7 +259,9 @@ render: (text, record) => {
     title: 'Revenue',
     dataIndex: 'revenue',
     key: 'revenue',
-    render: (_, record) => `₹${record.revenue?.total?.toLocaleString() || 0}`,
+    // render: (_, record) => `₹${record.revenue?.total?.toLocaleString() || 0}`,
+    render: (_, record) => `₹${record.revenue?.total?.toLocaleString('en-IN') || 0}`,
+
     sorter: (a, b) => (a.revenue?.total || 0) - (b.revenue?.total || 0),
   },
   {

@@ -11,7 +11,7 @@ import { Input, Select, DatePicker, Button, Modal, Tooltip, Pagination } from 'a
 import dayjs from 'dayjs';
 import * as styled from './style'
 
-import { EyeOutlined, EyeInvisibleOutlined, MenuUnfoldOutlined, MenuFoldOutlined, DeleteOutlined, ArrowUpOutlined, ArrowDownOutlined } from "@ant-design/icons";
+import { EyeOutlined, EyeInvisibleOutlined, MenuUnfoldOutlined, MenuFoldOutlined, DeleteOutlined, ArrowUpOutlined, ArrowDownOutlined, EditOutlined } from "@ant-design/icons";
 
 import { date } from 'yup';
 
@@ -86,6 +86,12 @@ onOffsetChange?: (newOffset: number) => void; // New prop for offset change
     isTablesLogs?: boolean; // Whether the table is for logs
     showRowLogs?: boolean; // Whether to show row logs
     isWithCheckBox?: boolean; // Whether to show checkboxes for row selection
+      isLoadingMore?: boolean; // Add this line
+      handleBulkUpdate?: (selectedIds: any[]) => void; // Add this line
+      showBulkUpdateButton?: boolean; // Add this line
+      customSelectedIds?: any[]; // Custom selected IDs for bulk actions
+      setCustomSelectedIds?: (ids: any[]) => void; // Function to set custom selected IDs
+
 
 
 }
@@ -120,7 +126,6 @@ export function TaskCustomTable<T extends RowWithId>(props: EditableTableProps<T
   const [sorting, setSorting] = useState<any[]>([]);
   const [hoveredRow, setHoveredRow] = useState<number | null>(null);
   const [isColumnModalOpen, setIsColumnModalOpen] = useState(false);
-  const [selectedIds, setSelectedIds] = useState<any[]>([]);
   const [offset, setOffset] = useState(0); // State for offset
 
   const [columnVisibility, setColumnVisibility] = useState<VisibilityState>({});
@@ -173,14 +178,17 @@ export function TaskCustomTable<T extends RowWithId>(props: EditableTableProps<T
     isTablesLogs = false, // Default to false if not provided
     showRowLogs = false, // Default to false if not provided
     isWithCheckBox = true, // Default to false if not provided
+    handleBulkUpdate,
+    customSelectedIds = [], // Default to empty array if not provided
     
-
+showBulkUpdateButton = false, // Default to false if not provided
   } = props;
 
 
 
+    const [selectedIds, setSelectedIds] = useState<any[]>([]);
 
-
+    
 
   useEffect(() => {
   const handleKeyDown = (e: KeyboardEvent) => {
@@ -407,25 +415,25 @@ if (index !== -1) {
 const verticalScrollingRef = useRef<HTMLDivElement>(null);
 
 const prevRowCount = useRef(data.length);
-useEffect(() => {
-  // Only run if not initial mount and a row was added
-  if (prevRowCount.current !== 0 && data.length > prevRowCount.current) {
-    // Scroll to top when a row is added
-    if (verticalScrollingRef.current) {
-      verticalScrollingRef.current.scrollTo({ top: 0, behavior: 'smooth' });
-    }
-    // Focus first editable cell in the new row
-    const lastRowIndex = 0;
-    const firstEditableCol = columns.find((col: any) => col.meta?.editable);
-    if (firstEditableCol) {
-      setCurrentlyEditing({
-        rowIndex: lastRowIndex,
-        columnId: table.getHeaderGroups()[0].headers[0].id as keyof T,
-      });
-    }
-  }
-  prevRowCount.current = data.length;
-}, [data.length, columns, table]);
+// useEffect(() => {
+//   // Only run if not initial mount and a row was added
+//   if (prevRowCount.current !== 0 && data.length > prevRowCount.current) {
+//     // Scroll to top when a row is added
+//     if (verticalScrollingRef.current) {
+//       verticalScrollingRef.current.scrollTo({ top: 0, behavior: 'smooth' });
+//     }
+//     // Focus first editable cell in the new row
+//     const lastRowIndex = 0;
+//     const firstEditableCol = columns.find((col: any) => col.meta?.editable);
+//     if (firstEditableCol) {
+//       setCurrentlyEditing({
+//         rowIndex: lastRowIndex,
+//         columnId: table.getHeaderGroups()[0].headers[0].id as keyof T,
+//       });
+//     }
+//   }
+//   prevRowCount.current = data.length;
+// }, [data.length, columns, table]);
 
   const handleDeleteRow = React.useCallback((rowIndex: number) => {
     const updated = [...data];
@@ -715,8 +723,7 @@ useEffect(() => {
     // Debounce the scroll event
     if (debounceTimeout) clearTimeout(debounceTimeout);
     debounceTimeout = setTimeout(() => {
-      if (scrollHeight - scrollTop - clientHeight < 1000) {
-        console.log("Near end of scroll, triggering onIncrementNearEnd");
+      if (scrollHeight - scrollTop - clientHeight < 2000) {
         props.onIncrementNearEnd && props.onIncrementNearEnd();
       }
     }, 150); // 150ms debounce
@@ -734,19 +741,16 @@ useEffect(() => {
 useEffect(() => {
   console.log("insideUes");
   if(data.length < 20 || table.getRowModel().rows.length < 20){
-    console.log("insideUes", data.length, table.getRowModel().rows.length);
 
     
         props.onIncrementNearEnd && props.onIncrementNearEnd();
   }
-}, [searchText]);
+}, [searchText, data.length, table.getRowModel().rows.length, props.onIncrementNearEnd]);
 
 
 useEffect(() => {
   // If table contains less than 40 or 30 rows, call onIncrementNearEnd
-  console.log("data.length", data.length, props.totalDataCount, "table.getRowModel().rows.length", table.getRowModel().rows.length);
   if ( table.getRowModel().rows.length < 30 && (props.totalDataCount ?? 0) < offset + 40) {
-    console.log("Calling onIncrementNearEnd due to low row count");
     props.onIncrementNearEnd && props.onIncrementNearEnd();
   }
 }, [data]);
@@ -794,11 +798,20 @@ useEffect(() => {
 
 
 
+{showBulkUpdateButton && selectedIds.length > 0 && (
+          <Tooltip title="Bulk Update">
+            <Button
+              icon={<EditOutlined />}
+              onClick={() => { handleBulkUpdate && handleBulkUpdate(selectedIds); setSelectedIds([]); }}
+            />
+          </Tooltip>
+        )}
+
             {selectedIds.length > 0 && (
           <Tooltip title="Delete selected">
             <Button
               icon={<DeleteOutlined style={{ color: "#ff4757" }} />}
-              style={{ marginLeft: 8, background: "#23272f", border: "none" }}
+              style={{ background: "#23272f", border: "none" }}
               onClick={handleBulkDelete}
             />
           </Tooltip>
@@ -988,7 +1001,7 @@ useEffect(() => {
             </tr>
           </thead>
         </table>
-        
+
         <table  style={{borderSpacing: 0}}  >
           <tbody   ref={tableBodyRef}
  style={{
@@ -998,7 +1011,8 @@ useEffect(() => {
             maxHeight: 'calc(100vh - 260px)',
 
             // maxHeight: '60vh',
-            display: 'block'
+            display: 'block',
+            // overflowY: "scroll"
           }}>
             {table.getRowModel().rows.map((row, idx) =>{ 
 
@@ -1112,7 +1126,7 @@ useEffect(() => {
   }}
 >
 
-  {showRowLogs  && (
+  {false  && (
   <div onClick={() => props.handleLogClick && props.handleLogClick(row.original.id)} style={{ cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', width: '100%' }}>
     logs
 
@@ -1228,8 +1242,19 @@ background:
                 </td>
               </tr>
             )}
+
+{props.isLoadingMore && (
+    <tr>
+      <td colSpan={columns.length + 1} style={{ textAlign: 'center', padding: 16, background: '#181f2a', color: '#1890ff' }}>
+        Loading more...
+      </td>
+    </tr>
+  )}
+
+
           </tbody>
         </table>
+
       </div>
     </styled.tableMainContainer>
   );

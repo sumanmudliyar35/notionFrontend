@@ -45,6 +45,10 @@ import CustomEditableCell from '../../components/CustomEditableCell/CustomEditab
 import { useUpdateUsersTablePreference } from '../../api/put/updateUsersTablePreference';
 import { useGetRecursiveTaskTablePreference } from '../../api/get/getRecursiveTaskTablePreference';
 import imageCompression from 'browser-image-compression';
+import EditRecursiveTask from './components/EditRecursiveTask/EditRecursiveTask';
+import TagSelector from '../../components/customSelectModal/CustomSelectModal';
+import { useDeleteAttachment } from '../../api/delete/deleteAttachment';
+import BulkUpdateTaskModal from '../../components/BulkUpdateTaskModal/BulkUpdateTaskModal';
 
 
 
@@ -66,23 +70,54 @@ const RecursiveTaskTable = ({intervalDays, customFilters, customActiveFilters, i
     
     const accessType = location.state?.accessType;
 
-
-
-
-
-
-
     const [columnSizing, setColumnSizing] = useState<{ [key: string]: number }>({});
+
+    const [bulkSelectedTasks, setBulkSelectedTasks] = useState<any[]>([]);
+
+    const [openEditRecursiveTaskModal, setOpenEditRecursiveTaskModal] = useState(false);
 
   const [activeInterval, setActiveInterval] = useState<number>(intervalDays || 0);
 
+
+  const [openBulkUpdateModal, setOpenBulkUpdateModal] = useState(false);
+
+  const [selectedBulkUpdateTasks, setSelectedBulkUpdateTasks] = useState<any[]>([]);
+    const [filters, setFilters] = useState<Record<string, string | string[]>>({});
+        const [activeFilters, setActiveFilters] = useState<string[]>([]);
+
   const currentMonth = dayjs().month() + 1; // 1 = January, 12 = December
   const currentYear = dayjs().year();
-  const currentDate = dayjs().date() - 2;
+// const currentDate = Math.max(1, dayjs().date() - 2);
+
+const today = dayjs();
+let currentDate: number[] = [];
+
+if (today.date() === 2) {
+  // If today is the 2nd, get last date of previous month and 1st of current month
+  const lastDayPrevMonth = today.subtract(1, 'month').endOf('month').date();
+  currentDate = [lastDayPrevMonth, 1];
+} else if (today.date() === 1) {
+  // If today is the 1st, only last date of previous month
+  const lastDayPrevMonth = today.subtract(1, 'month').endOf('month').date();
+  currentDate = [lastDayPrevMonth];
+} else {
+  // Otherwise, previous two days
+  currentDate = [today.date() - 2, today.date() - 1];
+}
 
 
 
-  const { data: recursiveTasks = [], isLoading, refetch: refetchRecursiveTasks } = useGetRecursiveTaskByUser(userid || '', currentDate, currentMonth, currentYear);
+  // const selectedDate = filters.month ? '01' : currentDate;
+
+  const selectedDate = filters.month ? '01' : currentDate[currentDate.length-1];
+   const selectedMonth = filters.month || currentMonth;
+
+  const selectedYear = filters.year || currentYear;
+
+
+
+
+  const { data: recursiveTasks = [], isLoading, refetch: refetchRecursiveTasks } = useGetRecursiveTaskByUser(userid || '', Number(selectedDate), Number(selectedMonth), Number(selectedYear) );
 
 
 
@@ -163,17 +198,79 @@ const RecursiveTaskTable = ({intervalDays, customFilters, customActiveFilters, i
   //   // const rest = dates.filter(date => date !== today);
   //   return [...dates];
   // }, []);
+// const allDates = useMemo(() => {
+//   const now = dayjs();
+//   const daysInMonth = now.daysInMonth();
+//   // Start from today - 2
+//   const startDay = Math.max(1, now.date() - 2);
+//   const dates = Array.from({ length: daysInMonth - startDay + 1 }, (_, i) =>
+//     now.date(startDay + i).format('YYYY-MM-DD')
+//   );
+//   return dates;
+// }, []);
+
+// const allDates = useMemo(() => {
+//   // Use selected month/year from filters if available, else fallback to current
+//   const month = filters.month ? Number(filters.month) - 1 : dayjs().month(); // dayjs months are 0-indexed
+//   const year = filters.year ? Number(filters.year) : dayjs().year();
+
+//   const base = dayjs().year(year).month(month).date(1);
+//   const daysInMonth = base.daysInMonth();
+
+//   // If current month/year, start from today - 2, else from 1
+//   const isCurrentMonth = month === dayjs().month() && year === dayjs().year();
+//   const startDay = isCurrentMonth ? Math.max(1, dayjs().date() - 2) : 1;
+
+//   const dates = Array.from({ length: daysInMonth - startDay + 1 }, (_, i) =>
+//     base.date(startDay + i).format('YYYY-MM-DD')
+//   );
+//   return dates;
+// }, [filters.month, filters.year]);
+
 const allDates = useMemo(() => {
-  const now = dayjs();
-  const daysInMonth = now.daysInMonth();
-  // Start from today - 2
-  const startDay = Math.max(1, now.date() - 2);
-  const dates = Array.from({ length: daysInMonth - startDay + 1 }, (_, i) =>
-    now.date(startDay + i).format('YYYY-MM-DD')
-  );
+  // Use selected month/year from filters if available, else fallback to current
+  const month = filters.month ? Number(filters.month) - 1 : dayjs().month(); // dayjs months are 0-indexed
+  const year = filters.year ? Number(filters.year) : dayjs().year();
+
+  // If month/year filter is applied, start from 1st day of month, else current date - 2
+  const isMonthYearFilterApplied = !!filters.month || !!filters.year;
+  const startDate = isMonthYearFilterApplied
+    ? dayjs().year(year).month(month).date(1)
+    : dayjs().year(year).month(month).date(dayjs().date());
+
+  // End at startDate + 35 days (36 days window)
+  const endDate = startDate.add(35, 'day');
+  const today = dayjs();
+let currentDate: number[] = [];
+  if (today.date() === 2) {
+    // If today is the 2nd, get last date of previous month and 1st of current month
+    const lastDayPrevMonth = today.subtract(1, 'month').endOf('month').date();
+    currentDate = [lastDayPrevMonth, 1];
+  } else if (today.date() === 1) {
+    // If today is the 1st, only last date of previous month
+    const lastDayPrevMonth = today.subtract(1, 'month').endOf('month').date();
+    currentDate = [lastDayPrevMonth];
+  } else {
+    // Otherwise, previous two days
+    currentDate = [today.date() - 2, today.date() - 1];
+  }
+
+  const dates: string[] = [];
+  let current = startDate;
+
+
+
+
+  console.log("Start Date:", startDate.format('YYYY-MM-DD') , currentDate);
+  console.log("End Date:", endDate.format('YYYY-MM-DD'),);
+
+  while (current.isSameOrBefore(endDate, 'day')) {
+    dates.push(current.format('YYYY-MM-DD'));
+    current = current.add(1, 'day');
+  }
+
   return dates;
-}, []);
-  
+}, [filters.month, filters.year]);
 
   // State to track which rows have hidden comments
 const [hiddenCommentRows, setHiddenCommentRows] = useState<{ [key: string]: boolean }>({});
@@ -342,12 +439,14 @@ const toggleCommentsVisibility = (
 
   const useDeleteCommentMutate = useDeleteComment();
   
-  const handleDeleteComment = useCallback(async (rowId: any, commentId: any) => {
+  const handleDeleteComment = useCallback(async (rowId: any, commentId: any, recursiveTaskId: any) => {
       if(accessType=="read"){
         alert("You do not have permission to update a task.");
         return;
 
       }
+
+      console.log("Deleting comment:", rowId, commentId, recursiveTaskId);
     const body = {
       deletedAt: new Date()
     }
@@ -356,7 +455,7 @@ const toggleCommentsVisibility = (
     
     setTasks(prev =>
       prev.map(task => {
-        return task.id === commentResponse?.[0]?.recursiveTaskId 
+        return task.id === recursiveTaskId 
           ? { 
               ...task, 
               recursiveTaskLogs: task.recursiveTaskLogs.map((log: any) => 
@@ -395,6 +494,33 @@ const toggleCommentsVisibility = (
   }, [updateBulkRecursiveTaskMutate, userid]);
   
 
+
+  const handleBulkUpdateRecursiveTask = useCallback(async (allTask: any, data: any) => {
+    const taskWithUpdatedData = allTask.map((task: any) => ({
+      id: task?.original?.id,
+      data: {
+        endDate: data.endDate ? dayjs(data.endDate).format('YYYY-MM-DD') : '',  
+      },
+    }));
+
+
+    try {
+        if(accessType=="read"){
+        alert("You do not have permission to update a task.");
+        return;
+
+      }
+      await updateBulkRecursiveTaskMutate.mutateAsync([taskWithUpdatedData, loggedInUserId]);
+      refetchRecursiveTasks();
+      // setTasks(prev => prev.map(task => 
+      //   taskWithUpdatedData.find(t => t.id === task.id) ? { ...task, ...t.data } : task
+      // ));
+    } catch (error) {
+      console.error('Error updating recursive tasks:', error);
+    }
+
+
+  }, [updateBulkRecursiveTaskMutate, userid]);  
   const updateRecursiveTaskLogsMutate = useUpdateRecursiveTaskLog();
 
   const handleCheck = useCallback((checked: boolean, log: any, date: string, taskId: any) => {
@@ -430,6 +556,18 @@ const toggleCommentsVisibility = (
   const fileInputRef = React.useRef<HTMLInputElement>(null);
 
   const updateRecursiveTaskMutate = useUpdateRecursiveTask();
+  const handleEditDateByRecursiveTask = useCallback(async(taskId: any, newDate: any) => {
+    const body = {
+      endDate: newDate ? dayjs(newDate).format('YYYY-MM-DD') : '',
+    };
+
+    const response = await updateRecursiveTaskMutate.mutateAsync([body, taskId, loggedInUserId]);
+     const taskData = await postGetRecursiveTask.mutateAsync([taskId]);
+      setTasks(prev => prev.map(task => 
+        task.id === taskId ? { ...task, ...taskData } : task
+      ));
+
+  },[updateRecursiveTaskMutate]);
 
   const handleRowEdit = useCallback((row: any) => {
 
@@ -573,7 +711,43 @@ const toggleCommentsVisibility = (
             setSelectedRecursiveTaskLogDate(date);
             setOpenChangeDateModal(true);
           };
-  
+
+
+        const deleteAttachmentMutation = useDeleteAttachment();
+
+
+          const handleDeleteAttachment = useCallback(async (attachmentId: any, logId: any, recursiveTaskLogId: any) => {
+            try {
+
+
+              console.log("Deleting attachment:", attachmentId, logId, recursiveTaskLogId);
+
+              await deleteAttachmentMutation.mutateAsync([attachmentId, loggedInUserId]);
+
+
+              setTasks(prev =>
+                prev.map(task => {
+                  if (task.id === recursiveTaskLogId) {
+                    return {
+                      ...task,
+                      recursiveTaskLogs: task.recursiveTaskLogs.map((log:any) => {
+                        if (log.id === logId) {
+                          return {
+                            ...log,
+                            files: log.files.filter((file: any) => file.id !== attachmentId)
+                          };
+                        }
+                        return log;
+                      })
+                    };
+                  }
+                  return task;
+                })
+              );
+            } catch (error) {
+              console.error("Error deleting attachment:", error);
+            }
+          }, [deleteAttachmentMutation]);
 
   const columns = useMemo(() => [
     {
@@ -594,6 +768,8 @@ const toggleCommentsVisibility = (
             handleRowEdit({ id: row.original.id, title: newValue });
             // handle save logic here, e.g. update state or call API
           }}
+          opnenEditModal={()=>{setSelectedRecursiveTask(row.original.id); setOpenEditRecursiveTaskModal(true)}}
+          showEditButton={true}
         />
 
       
@@ -651,6 +827,7 @@ cell: ({ row }: { row: any }) => {
       setEditingComment={setEditingComment}
       assigneeOptions={assigneeOptions}
       commentsVisible={commentsVisible}
+      onDeleteAttachment={handleDeleteAttachment}
     />
   );
 
@@ -685,8 +862,7 @@ cell: ({ row }: { row: any }) => {
 
 
 
-   const [filters, setFilters] = useState<Record<string, string | string[]>>({});
-        const [activeFilters, setActiveFilters] = useState<string[]>([]);
+ 
 
 //       useEffect(() => {
 //   if (customFilters) setFilters(customFilters);
@@ -696,6 +872,7 @@ cell: ({ row }: { row: any }) => {
          const availableFilterColumns = [
  
   {header: 'Date', accessorKey: 'taskDate'},
+  { header: 'Month/Year', accessorKey: 'monthYear' },
 ];
 
 
@@ -725,7 +902,7 @@ const handleFilterChange = (key: string, value: string) => {
 
   const handleAddFilter = (columnKey: any) => {
   console.log("Adding filter for column:", columnKey);
-  setActiveFilters((prev) => [...prev, columnKey.value]);
+  setActiveFilters((prev) => [...prev, columnKey]);
 };
 
 
@@ -750,6 +927,13 @@ const handleFilterChange = (key: string, value: string) => {
     }));
 
   };
+
+
+  const handleBulkUpdate = (selectedRows: any[]) => {
+    setOpenBulkUpdateModal(true);
+    setSelectedBulkUpdateTasks(selectedRows);
+
+  }
 
 const handleRemoveFilter = (key: string) => {
 
@@ -918,6 +1102,7 @@ const columnsWithSizing = filteredColumns.map(col =>{
 
 
 
+
     // Tabs items
 //   const tabItems: TabsProps['items'] = intervalOptions.map(opt => ({
 //     key: String(opt.value),
@@ -1018,12 +1203,67 @@ Date
     );
   };
 
+    // Add Month-Year filter
+    if (key === 'monthYear') {
+      const monthOptions = [
+        { label: 'January', value: '01' }, { label: 'February', value: '02' },
+        { label: 'March', value: '03' }, { label: 'April', value: '04' },
+        { label: 'May', value: '05' }, { label: 'June', value: '06' },
+        { label: 'July', value: '07' }, { label: 'August', value: '08' },
+        { label: 'September', value: '09' }, { label: 'October', value: '10' },
+        { label: 'November', value: '11' }, { label: 'December', value: '12' },
+      ];
+      // Generate years from 2020 to current year + 2
+      // const currentYear = dayjs().year();
+      // const yearOptions = Array.from({ length: 7 }, (_, i) => {
+      //   const year = 2020 + i;
+      //   return { label: String(year), value: String(year) };
+      // });
 
+      const currentYear = dayjs().year();
+const yearOptions = Array.from({ length: 5 }, (_, i) => {
+  const year = currentYear - 1 + i; // 1 before, current, and 3 after
+  return { label: String(year), value: String(year) };
+});
 
-
-  
-
-
+      return (
+        <styled.FilterTag key={key} active={!!filters[key]} style={{ background: 'rgb(25, 25, 25)' }}>
+          <span style={{ color: '#bbb', marginRight: 6, fontWeight: 500, minWidth: "fit-content" }}>
+            Month/Year
+          </span>
+          <CustomSelect
+            size="small"
+            style={{ width: 110, marginRight: 8 }}
+            value={monthOptions.find(opt => opt.value === filters.month) || null}
+            onChange={val => setFilters(prev => ({ ...prev, month: val.value }))}
+            options={monthOptions}
+            placeholder="Month"
+          />
+          <CustomSelect
+            size="small"
+            style={{ width: 90, marginRight: 8 }}
+            value={yearOptions.find(opt => opt.value === filters.year) || null}
+            onChange={val => setFilters(prev => ({ ...prev, year: val.value }))}
+            options={yearOptions}
+            placeholder="Year"
+          />
+          <span
+            onClick={() => {
+              handleRemoveFilter('monthYear');
+              setFilters(prev => ({ ...prev, month: '', year: '' }));
+            }}
+            style={{
+              cursor: 'pointer',
+              padding: '0 6px',
+              fontSize: 16,
+              color: 'white',
+            }}
+          >
+            ×
+          </span>
+        </styled.FilterTag>
+      );
+    }
 
   // Default rendering for other filters
   return (
@@ -1069,19 +1309,37 @@ Date
 })}
 
 
-   <CustomSelect
+   {/* <CustomSelect
     placeholder="+ Filter"
     size="small"
     width="150px"
     value={null}
     onChange={handleAddFilter}
-    options={availableFilterColumns.map((col: any) => ({
+    options={[
+      ...availableFilterColumns.map((col: any) => ({
+        label: col.header,
+        value: col.accessorKey,
+      })),
+       // Add this line
+    ]}
+  /> */}
+
+  <TagSelector
+  placeholder="+ Filter"
+  options={[
+    ...availableFilterColumns.map((col: any) => ({
+      id: col.accessorKey,  
       label: col.header,
       value: col.accessorKey,
-    }))}
-
-
-  />
+    })),
+    // Add this line if you want to add more options
+  ]}
+  value={null}
+  onChange={handleAddFilter}
+  allowCreate={false}
+  horizontalOptions={false}
+  isWithDot={false}
+/>
 
 
     <styled.CommentToggleButton 
@@ -1137,6 +1395,8 @@ Date
         setOpenRecursiveTaskModal={setOpenRecursiveTaskModal}
         withPagination={false}
         isWithNewRowButton={true}
+        handleBulkUpdate={ handleBulkUpdate }
+        showBulkUpdateButton={true}
         
         // highlightRowId={0}
 
@@ -1176,6 +1436,29 @@ Date
             initialDate={selectedRecursiveTaskLogDate}
             onSave={handleRecursiveTaskDateChange}
             taskId={selectedRecursiveTask}
+          />
+        )}
+
+
+        {openEditRecursiveTaskModal && (
+          <EditRecursiveTask
+            open={openEditRecursiveTaskModal}
+            onClose={() => setOpenEditRecursiveTaskModal(false)}
+            title="Edit Recursive Task"
+            taskId={selectedRecursiveTask}
+            onSave={handleEditDateByRecursiveTask}
+            width={600}
+          />
+        )}
+
+
+        {openBulkUpdateModal && (
+          <BulkUpdateTaskModal
+            open={openBulkUpdateModal}
+            onClose={() => setOpenBulkUpdateModal(false)}
+            title="Bulk Update Recursive Tasks"
+            selectedIds={selectedBulkUpdateTasks}
+            onSave={handleBulkUpdateRecursiveTask}
           />
         )}
 

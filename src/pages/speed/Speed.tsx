@@ -70,7 +70,6 @@ import { usePostGetVoiceRecordByLead } from "../../api/get/postVoiceRecordByLead
 import { useGetLeadByFollowup } from "../../api/get/getLeadByFollowup";
 import FollowupModal from "./components/FollowupModal/FollowupModal";
 import UsersTableLogs from "../../components/UsersTableLogs/UsersTableLogs";
-import { useGetLeadsWithNoOffset } from "../../api/get/getAllLeadsWithNoOffset";
 
 
 
@@ -117,7 +116,7 @@ const DROPDOWN_HEIGHT = 150; // px
 
 
 
-const Leads = () => {
+const Speed = () => {
 
   const userid = Number(localStorage.getItem('userid'));
   const roleid = localStorage.getItem('roleid');
@@ -182,7 +181,7 @@ const [enabledFilters, setEnabledFilters] = useState<Record<string, boolean>>(sa
 
 const {data: followupData} = useGetLeadByFollowup();
 
-  const {data: LeadsData, refetch: refetchLeadsData, isFetching: isLeadsDataFetching, isFetched: isLeadsDataFetched} = useGetLeadsWithNoOffset(Number(userid), offset, filters, limit);
+  const {data: LeadsData, refetch: refetchLeadsData, isFetching: isLeadsDataFetching, isFetched: isLeadsDataFetched} = useGetLeadsByUser(Number(userid), offset, filters, limit);
 
 
     const {data: leadsTablePreference, refetch: refetchLeadsTablePreference} = useGetLeadsTablePreference(userid);
@@ -1434,6 +1433,7 @@ const reminderMutate = useCreateReminder();
 
 
 
+      console.log("Followup date:", date, "Time:", time, "Lead ID:", leadID, "Reminder Data:", reminderData);
       const body = {
         followup: date ,
         followupTime: time,
@@ -1846,25 +1846,17 @@ const dateVal = Array.isArray(val) ? new Date(val[0]) : new Date(val);  if (isNa
   
     if (key === 'followup' || key === 'followupType' || key ==='followupStart' || key ==="followupEnd") {
 
-      console.log("Followup key:", key, "Value:", val, "Type:", followupType, filters.followup);  
             if (!followupType || !val) return true;
 
       const followupDate = row.followup?.slice(0, 10);
 
 
-      console.log("Followup date:", followupDate, filters.followup, "Type:", filters.followup==followupDate, "Value:", val);
-
-
-
-
- 
-
   if (followupType === 'between' && filters.followupStart && filters.followupEnd) {
 
 
-  const start = filters.followupStart;
-  const end = filters.followupEnd;
-  
+  const start = dayjs(Array.isArray(filters.followupStart) ? filters.followupStart[0] : filters.followupStart).format('YYYY-MM-DD');
+  const end = dayjs(Array.isArray(filters.followupEnd) ? filters.followupEnd[0] : filters.followupEnd).format('YYYY-MM-DD');
+
   // If no range is set, don't filter
   if (!start || !end) return true;
   
@@ -1881,16 +1873,22 @@ const dateVal = Array.isArray(val) ? new Date(val[0]) : new Date(val);  if (isNa
 
       if (followupType === 'before' && filters.followup) {
 
+    const filterDateValue = Array.isArray(filters.followup) ? filters.followup[0] : filters.followup;
+    const filterDateStr = dayjs(filterDateValue).format('YYYY-MM-DD');
 
-        return followupDate <= filters.followup;
+        return followupDate <= filterDateStr;
       }
       if (followupType === 'after' && filters.followup) {
+      const filterDateValue = Array.isArray(filters.followup) ? filters.followup[0] : filters.followup;
+      const filterDateStr = dayjs(filterDateValue).format('YYYY-MM-DD');
 
-        return followupDate >= filters.followup;
+        return followupDate >= filterDateStr;
       }
       if (followupType === 'on' && filters.followup) {
+      const filterDateValue = Array.isArray(filters.followup) ? filters.followup[0] : filters.followup;
+      const filterDateStr = dayjs(filterDateValue).format('YYYY-MM-DD');
 
-        return followupDate === filters.followup;
+        return followupDate === filterDateStr;
       }
       return true;
     }
@@ -1942,15 +1940,13 @@ const dateVal = Array.isArray(val) ? new Date(val[0]) : new Date(val);  if (isNa
       return val ? String(row[key as keyof Doc] || '').includes(String(val)) : true;
     }
     if (key === 'mentions') {
-console.log( "Rowmentions:" , row.mentions, val);
+
       return Array.isArray(row.mentions)
   ? row.mentions.some((m: any) =>
       m.userId && String(m.userId).includes(String(val))
     )
   : false;
     }
-
-
 
     if (key === 'referenceId') {
   if (Array.isArray(val) && val.length > 0) {
@@ -2129,9 +2125,7 @@ useEffect(() => {
 
 
 
-
-
-console.log("active filters,", activeFilters);
+console.log("activeFilters:", activeFilters);
 
 
 
@@ -2672,7 +2666,6 @@ onClick={() => {
 
 
 if (offset + 40 >= totalLeads) return;
-    console.log("Incrementing offset end", offset, "totalLeads", totalLeads);
 
       if (offset + 40 <= lastRequestedOffsetRef.current) return; // Prevent double increment
 
@@ -2823,4 +2816,4 @@ if (offset + 40 >= totalLeads) return;
   )
 }
 
-export default Leads
+export default Speed;

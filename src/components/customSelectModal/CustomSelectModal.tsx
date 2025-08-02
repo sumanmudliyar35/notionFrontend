@@ -309,7 +309,6 @@ const getTagColor = (text: string): string => {
 // Styled components
 const Container = styled.div`
   position: relative;
-  width: 100%;
   max-width: 500px;
   font-family:  sans-serif;
 `;

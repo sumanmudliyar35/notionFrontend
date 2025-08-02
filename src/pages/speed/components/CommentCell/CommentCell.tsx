@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Button, Input } from 'antd';
 import { PlusOutlined, DeleteOutlined } from '@ant-design/icons';
 import { useMention } from '../../../../hooks/useMention';
@@ -8,15 +8,16 @@ import { formatDisplayDate } from '../../../../utils/commonFunction';
 interface CommentCellProps {
   comments: any[];
   rowId: number;
-  openCommentModal: (row: any) => void;
+  openCommentModal: (rowId: any) => void;
   handleEditComment: (rowId: number, commentId: number, value: string, mentionedUserIds1: string[]) => void;
-  handleDeleteComment: (rowId: number, commentId: number, recursiveTaskId: number) => void;
-  editingComment: { rowId: number; commentId: number } | null;
-  setEditingComment: (value: { rowId: number; commentId: number } | null) => void;
+  handleDeleteComment: (rowId: number, commentId: number) => void;
+  // Remove these props since we'll manage them internally
+  // editingComment: { rowId: number; commentId: number } | null;
+  // setEditingComment: (value: { rowId: number; commentId: number } | null) => void;
   assigneeOptions: any[];
-    disabled?: boolean;
-    visible?: boolean; // Optional prop to control visibility
-  isCommentText?: boolean; // Optional prop to control text display
+    visible?: boolean; // Add this prop
+    isCommentText?: boolean; // Add this prop for type checking
+
 
 }
 
@@ -26,57 +27,90 @@ const CommentCell: React.FC<CommentCellProps> = ({
   openCommentModal,
   handleEditComment,
   handleDeleteComment,
-  editingComment,
-  setEditingComment,
+  // Remove these from the destructuring
+  // editingComment,
+  // setEditingComment,
   assigneeOptions,
-  disabled = false,
   visible = true, // Default to true if not provided
-    isCommentText = false, // Default to false if not provided
-
-
-  
+  isCommentText = true, // Default to true for type checking
 }) => {
+
+
+
+   if (!visible) {
+    return (
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+        <span style={{ color: '#aaa' }}>{comments.length > 0 ? `${comments.length} comments hidden` : 'No comments'}</span>
+        <Button 
+          size="small" 
+          icon={<PlusOutlined />} 
+          onClick={() => openCommentModal({ id: rowId })}
+        />
+      </div>
+    );
+  }
+
+  // Create local state to manage editing
+  const [localEditingComment, setLocalEditingComment] = useState<{ rowId: number; commentId: number } | null>(null);
+
+  // Track whether a comment has been initialized to prevent input value issues
+  const hasInitializedRef = useRef(false);
+
   // Find the comment being edited
-
-
-  if (!visible) {
-        return (
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-            {/* <span style={{ color: '#aaa' }}>{comments.length > 0 ? `${comments.length} comments ` : '0 comments '}</span> */}
-            {/* <Button 
-              size="small" 
-              icon={<PlusOutlined />} 
-              onClick={() => openCommentModal({ id: rowId })}
-            /> */}
-          </div>
-        );
-      }
   const editingIdx = comments.findIndex(
-    (c, idx) =>
-      editingComment &&
-      editingComment.rowId === rowId &&
-      editingComment.commentId === (c.id || idx)
+    (c, idx) => {
+      if (!localEditingComment) return false;
+      if (localEditingComment.rowId !== rowId) return false;
+      
+      // Compare as strings to avoid type issues
+      return String(c.id || idx) === String(localEditingComment.commentId);
+    }
   );
+
+
   const editingCommentObj = editingIdx !== -1 ? comments[editingIdx] : null;
 
   // Only call useMention for the editing comment
   const mentionProps = useMention(
     assigneeOptions,
-    editingCommentObj ? editingCommentObj.comment : ""
+    ""  // Start with empty string and initialize in useEffect
   );
 
+  // Initialize the input value when editing starts
   useEffect(() => {
-    if (editingComment && mentionProps.inputRef.current) {
-      mentionProps.inputRef.current.focus();
-      // Move cursor to the end of the text
-      const length = mentionProps.inputRef.current.value.length;
-      mentionProps.inputRef.current.setSelectionRange(length, length);
+    if (editingCommentObj && !hasInitializedRef.current) {
+      mentionProps.setInputValue(editingCommentObj.comment || "");
+      hasInitializedRef.current = true;
     }
-  }, [editingComment]);
+  }, [editingCommentObj]);
+
+  // Reset the initialization flag when editing stops
+  useEffect(() => {
+    if (!localEditingComment) {
+      hasInitializedRef.current = false;
+    }
+  }, [localEditingComment]);
+
+  // Focus and position cursor when editing
+  useEffect(() => {
+    if (localEditingComment && mentionProps.inputRef.current) {
+      // Use a timeout to ensure DOM is updated
+      setTimeout(() => {
+        if (mentionProps.inputRef.current) {
+          mentionProps.inputRef.current.focus();
+          // Move cursor to the end of the text
+          const length = mentionProps.inputRef.current.value.length;
+          mentionProps.inputRef.current.setSelectionRange(length, length);
+        }
+      }, 50);
+    }
+  }, [localEditingComment]);
 
   const handleBlur = () => {
     if (mentionProps.ignoreBlurRef.current) return;
-    setEditingComment(null);
+
+    console.log("Blur event triggered, resetting editing comment");
+    setLocalEditingComment(null);
   };
 
   // Add highlighted index state
@@ -90,9 +124,9 @@ const CommentCell: React.FC<CommentCellProps> = ({
     <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
       {comments.map((c: any, idx: number) => {
         const isEditing =
-          editingComment &&
-          editingComment.rowId === rowId &&
-          editingComment.commentId === (c.id || idx);
+          localEditingComment &&
+          localEditingComment.rowId === rowId &&
+          localEditingComment.commentId === (c.id || idx);
 
         return (
           <div key={c.id || idx} style={{ borderBottom: "1px solid #333", paddingBottom: 4 }}>
@@ -109,9 +143,6 @@ const CommentCell: React.FC<CommentCellProps> = ({
                   }}
                   value={mentionProps.inputValue}
                   onChange={e => {
-
-                        if (disabled) return;
-
                     mentionProps.handleInputChange(e);
                     // Auto-resize on change
                     const el = e.target;
@@ -123,14 +154,16 @@ const CommentCell: React.FC<CommentCellProps> = ({
                     background: "#202020",
                     color: "white",
                     fontFamily: "sans-serif",
+                    fontSize: 14,
+                     borderColor: "#1890ff",
+            outline: "1px solid #1890ff",
+                    lineHeight: 1.4,
                     resize: "none", // Prevent manual resize
-                    overflow: "hidden"
+                    overflow: "hidden",
+                    // padding: "8px",
+                    borderRadius: "4px",
                   }}
                   onKeyDown={e => {
-                        if (disabled) return;
-
-
-
                     if (mentionProps.showDropdown && mentionProps.filteredOptions.length > 0) {
                       if (e.key === "ArrowDown") {
                         e.preventDefault();
@@ -147,6 +180,10 @@ const CommentCell: React.FC<CommentCellProps> = ({
                     } else if (e.key === "Enter" && !e.shiftKey) {
                       e.preventDefault();
                       handleEditComment(rowId, c.id || idx, mentionProps.inputValue, mentionProps.mentionedUserIds);
+                      setLocalEditingComment(null);
+                    } else if (e.key === "Escape") {
+                      e.preventDefault();
+                      setLocalEditingComment(null);
                     }
                   }}
                   onBlur={handleBlur}
@@ -193,40 +230,38 @@ const CommentCell: React.FC<CommentCellProps> = ({
             ) : (
               <div
                 style={{
-                  cursor: disabled ? "not-allowed" : "pointer",
+                  cursor: "pointer",
                   display: "flex",
                   justifyContent: "space-between",
                   alignItems: "center",
-                  
-
-                  
-
                 }}
-                onClick={() => {
-                  setEditingComment({ rowId, commentId: c.id || idx });
+                onClick={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  console.log("Starting edit for comment:", c.id || idx);
+                  
+                  // First reset input value
+                  mentionProps.setInputValue(c.comment || "");
+                  
+                  // Then set editing state
+                  setLocalEditingComment({ rowId, commentId: c.id || idx });
                 }}
               >
-                <div >
-                  {/* <span style={{ whiteSpace: "pre-line" }}>
-                    <strong>{c.comment}</strong>
-                  </span> */}
+                <div>
                   <span
-  style={{ whiteSpace: "pre-line" }}
-  dangerouslySetInnerHTML={{
-    __html: String(c?.comment).replace(
-      /((https?:\/\/|www\.)[^\s]+)/g,
-      url => {
-        const href = url.startsWith('http') ? url : `https://${url}`;
-        return `<a href="${href}" target="_blank" rel="noopener noreferrer" style="color:#4fa3ff;text-decoration:underline;">${url}</a>`;
-      }
-    )
-  }}
-/>
+                    style={{ whiteSpace: "pre-line" }}
+                    dangerouslySetInnerHTML={{
+                      __html: String(c?.comment || "").replace(
+                        /((https?:\/\/|www\.)[^\s]+)/g,
+                        url => {
+                          const href = url.startsWith('http') ? url : `https://${url}`;
+                          return `<a href="${href}" target="_blank" rel="noopener noreferrer" style="color:#4fa3ff;text-decoration:underline;">${url}</a>`;
+                        }
+                      )
+                    }}
+                  />
                   <div style={{ fontSize: 12, color: "#aaa" }}>
-                    By: {c.givenBy || "Unknown"} | At:{" "}
-                    {c.givenAt
-                      ? formatDisplayDate(c.givenAt)
-                      : ""}
+                   By: {c.givenBy || "Unknown"} | At: {formatDisplayDate(c.givenAt)}
                   </div>
                 </div>
                 <Button
@@ -241,28 +276,27 @@ const CommentCell: React.FC<CommentCellProps> = ({
                   }
                   onClick={(e) => {
                     e.stopPropagation();
-                    handleDeleteComment(rowId, c.id || idx, c.recursiveTaskId );
+                    handleDeleteComment(rowId, c.id || idx);
                   }}
                   style={{
                     background: "lightgray",
                     borderColor: "lightgray",
                   }}
-                    disabled={disabled}
-
-                ></Button>
+                />
               </div>
             )}
           </div>
         );
       })}
       <div>
-  {/* {isCommentText ? (
+              {isCommentText ? (
                 <span
           style={{
             color: "#4fa3ff",
             cursor: "pointer",
             fontSize: 14,
             textDecoration: "none",
+           
             padding: "2px 6px",
             borderRadius: 4,
             background: "#23272f",
@@ -275,10 +309,8 @@ const CommentCell: React.FC<CommentCellProps> = ({
       
               ): (
               <Button size="small" icon={<PlusOutlined />} onClick={() => openCommentModal({ id: rowId })} />
-              )}      */}
-              
-              
-               </div>
+              )}
+            </div>
     </div>
   );
 };

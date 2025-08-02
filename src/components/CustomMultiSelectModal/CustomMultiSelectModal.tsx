@@ -17,6 +17,7 @@ interface TagSelectorProps {
   isMulti?: boolean; // <-- NEW
   isWithDot?: boolean; // <-- NEW prop for color dot
   isCustomOpen?: boolean; // <-- NEW prop to control dropdown open state
+  onBlur?: () => void; // <-- Optional prop for blur handling
 }
 
 const TagMultiSelector: React.FC<TagSelectorProps> = ({
@@ -29,6 +30,7 @@ const TagMultiSelector: React.FC<TagSelectorProps> = ({
   horizontalOptions = false, // <-- Default to false
   isMulti = false, // <-- NEW prop for multi-select
   isCustomOpen = false, // <-- NEW prop to control dropdown open state
+  onBlur, // <-- Optional prop for blur handling
 }) => {
   const [isOpen, setIsOpen] = useState(isCustomOpen);
   const [searchTerm, setSearchTerm] = useState('');
@@ -88,6 +90,8 @@ const TagMultiSelector: React.FC<TagSelectorProps> = ({
         newValue.push(tag.id);
       }
       onChange(newValue);
+          setIsOpen(false); // <-- Close dropdown after selection in multi mode
+
     } else {
       onChange(tag.id);
       setIsOpen(false);
@@ -113,6 +117,7 @@ const TagMultiSelector: React.FC<TagSelectorProps> = ({
       <SelectedTag 
         onClick={() => setIsOpen(!isOpen)}
         isPlaceholder={isMulti ? !(Array.isArray(selectedTags) && selectedTags.length) : !selectedTags}
+        onBlur={onBlur} // <-- Call onBlur if provided
       >
         {isMulti ? (
           Array.isArray(selectedTags) && selectedTags.length > 0 ? (

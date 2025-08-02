@@ -63,6 +63,7 @@ import CustomEditableCell from "../../components/CustomEditableCell/CustomEditab
 import { usePostGetVoiceRecordByTask } from "../../api/get/postGetVoiceRecordByTask";
 import DescriptionCell from "../leads/components/DescriptionCell/DescriptionCell";
 import DescriptionCellWithActiveCell from "../leads/components/DescriptionCellWithActiveCell/DescriptionCellWithActiveCell";
+import { useDeleteAttachment } from "../../api/delete/deleteAttachment";
 
 
 
@@ -222,7 +223,6 @@ useEffect(() => {
 }, [TaskData, offset, userid]);
 
 
-console.log("tasklength", userid, tableData.length, "totalTasks", totalTasks, "offset", offset); 
 
 
 
@@ -245,6 +245,8 @@ console.log("tasklength", userid, tableData.length, "totalTasks", totalTasks, "o
  
 
     const [columnSizing, setColumnSizing] = useState({});
+        const [filtersEnabled, setFiltersEnabled] = useState<boolean>(true);
+    
 
 
      
@@ -367,6 +369,28 @@ const [commentsVisible, setCommentsVisible] = useState<boolean>(false);
   
   };
 
+        const deleteAttachmentMutation = useDeleteAttachment();
+
+   const handleDeleteAttachment = async (attachmentId: any, taskId: any) => {
+        try {
+          await deleteAttachmentMutation.mutateAsync([ attachmentId,loggedInUserId ]);
+          setTableData (prev => prev.map(item => {  
+            if (item.id === taskId) {
+              return {
+                ...item,
+                files: item.files.filter((att: any) => att.id !== attachmentId),
+              };
+            }
+            return item;
+          }));
+        } catch (error) {
+          console.error("Error deleting attachment:", error);
+          
+        }
+
+
+      }
+
 
   const useDeleteCommentMutate = useDeleteComment();
 
@@ -463,6 +487,10 @@ const columns :ColumnDef<Doc>[] = [
 
 
       // }
+
+      
+
+     
 
       const handleNameChange = async (value: string, rowId: any, mentionedMembers: any[] ) => {
         if (accessType === "read") {
@@ -632,7 +660,8 @@ const columns :ColumnDef<Doc>[] = [
     };
     
     // Display editor when in edit mode
-    if (isEditing && (row.row.original.dueDateModifiedBy== null || (row.row.original.assignedTo === row.row.original.dueDateModifiedBy || roleid == 1))) {
+
+    if (isEditing && (row.row.original.dueDateModifiedBy== null || (row.row.original.assignedTo === row.row.original.dueDateModifiedBy || roleid == 1 || row.row.original.createdBy === loggedInUserId))) {
       return (
         <DatePicker
                    autoFocus
@@ -950,21 +979,7 @@ cell: ({ row }) => {
               
 const attachments = row.original.files
 
-                  const triggerFileUpload = (e: React.MouseEvent) => {
-                          e.preventDefault();
-                          e.stopPropagation();
-                          // Create a new file input element dynamically
-                          const input = document.createElement('input');
-                          input.type = 'file';
-                          input.onchange = (e) => {
-                            const files = (e.target as HTMLInputElement).files;
-                            if (files && files.length > 0) {
-                              handleUpload(files[0], row.original, row.original.id);
-                            }
-                          };
-                          // Trigger click on the input
-                          input.click();
-                        };
+               
 
 
                         const triggerMultipleFileUpload = (e: React.MouseEvent) => {
@@ -985,42 +1000,7 @@ const attachments = row.original.files
 };
                 
                         // Modified handleUpload to take file directly
-                        const handleUpload = async (file: File, log: any, taskId: any) => {
-                           if(accessType=="read"){
-        alert("You do not have permission to update a task.");
-        return;
-
-      }
-                          
-                          try {
-                            const formData = new FormData();
-                            formData.append("file", file);
-                            formData.append("taskId", taskId);
-                            // formData.append("logId", log.id);
-                            
-                           
-                            
-                          
-      
-                            const response = await createAttachmentMutation.mutateAsync([formData, userid]);
-
-                            const attachmentResponse = await postGetTaskAttachmentMutate.mutateAsync([row.original.id]);
-                            setTableData(prev =>
-                              prev.map(item => item.id === row.original.id ? { ...item, files: attachmentResponse } : item)
-                            );
-
-                            // refetchTasksData();
-                            
-                            
-                          } catch (error) {
-                            console.error("Error uploading file:", error);
-                            if (error instanceof Error) {
-                              console.error("Error message:", error.message);
-                            }
-                            alert("Failed to upload file. Please try again.");
-                          }
-                        };
-
+                      
 
                         const handleMultipleUpload = async (files: FileList, log: any, taskId: any) => {
   try {
@@ -1087,16 +1067,31 @@ const attachments = row.original.files
               attachments && attachments.length > 0 &&  (
               <div style={{ marginTop: 4, fontSize: '0.8em' }}>
                 {attachments.map((attachment: any, idx: number) => (
-                  <div key={idx} style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
-                    <a 
-                      href={attachment?.downloadUrl} 
-                      target="_blank" 
-                      rel="noopener noreferrer"
-                      style={{ color: '#1677ff', textDecoration: 'underline' }}
-                    >
-                      {attachment?.fileName || `File ${idx + 1}`}
-                    </a>
-                  </div>
+                  // <div key={idx} style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+                  //   <a 
+                  //     href={attachment?.downloadUrl} 
+                  //     target="_blank" 
+                  //     rel="noopener noreferrer"
+                  //     style={{ color: '#1677ff', textDecoration: 'underline' }}
+                  //   >
+                  //     {`File ${idx + 1}`}
+                  //   </a>
+                  // </div>
+                  <CustomTag
+        key={attachment.id || idx}
+        name={
+          <a
+            href={attachment.downloadUrl}
+            target="_blank"
+            rel="noopener noreferrer"
+            style={{ color: '#1677ff', textDecoration: 'underline' }}
+          >
+            {`File ${idx + 1}`}
+          </a>
+        }
+onClose={()=>handleDeleteAttachment(attachment.id, row.original.id)}
+  
+  />
                 ))}
               </div>
             )
@@ -1195,6 +1190,7 @@ const createEmptyDoc = (): Doc => {
         status:"notStarted",
         project:"ongoing",
         dueDate: new Date() || null, // Ensure dueDate is set to null if not provided
+        dueDateModifiedBy: loggedInUserId, // Add this line to set the modifier
 
       };
 
@@ -1298,8 +1294,8 @@ const createEmptyDoc = (): Doc => {
           const reminderDateTime = reminderTimeObj.subtract(reminderData.before, "minute");
         
             reminderBeforeBody = {
-              reminderDate: followupDateTime.format("YYYY-MM-DD"),
-            reminderTime: reminderDateTime.format("HH:mm"),
+              reminderDate: reminderDateTime.format("YYYY-MM-DD"),
+              reminderTime: reminderDateTime.format("HH:mm"),
               taskId: taskId,
               userId: userid,
             };
@@ -1411,7 +1407,7 @@ const handleFilterChange = (key: string, value: string) => {
 
 const handleAddFilter = (columnKey: any) => {
   console.log("Adding filter for column:", columnKey);
-  setActiveFilters((prev) => [...prev, columnKey.value]);
+  setActiveFilters((prev) => [...prev, columnKey]);
 };
 
 useEffect(() => {
@@ -1527,10 +1523,10 @@ const handleRemoveFilter = (key: string) => {
 
 
 const dateOption =[
-  { label: 'Before', value: 'before' },
-          { label: 'After', value: 'after' },
-          { label: 'On Date', value: 'on' },
-          { label: 'In Between', value: 'between' },
+  { label: 'Before', value: 'before', id: 'before' },
+  { label: 'After', value: 'after', id: 'after' },
+  { label: 'On Date', value: 'on', id: 'on' },
+  { label: 'In Between', value: 'between', id: 'between' },
 ]
 
 const savedFilterSwitches = useMemo(() => {
@@ -1545,9 +1541,41 @@ useEffect(() => {
 }, [filterSwitches]);
 
 
+const updateBulkTask = useUpdateBulkTask();
 
+const handleDeleteTask = async (tasks: any) => {
+
+
+   if(accessType=="read"){
+        alert("You do not have permission to delete a task.");
+        return;
+
+      }
+  // const confirmed = window.confirm("Are you sure you want to delete the selected tasks?");
+  // if (!confirmed) return;
+
+   const taskWithDeletedAt = tasks.map((task: any) => ({
+    id: task?.original?.id,
+    data: { deletedAt: new Date() },
+  }));
+
+  try {
+
+    console.log("Deleting tasks before :", taskWithDeletedAt);
+    setTableData(prev => prev.filter(item => !tasks.some((task: any) => task.original.id === item.id)));
+
+    console.log("Deleting tasks after", loggedInUserId);
+    await updateBulkTask.mutateAsync([taskWithDeletedAt, loggedInUserId]);
+
+  } catch (error) {
+    console.error("Error deleting tasks:", error);
+  }
+};  
 
 const filteredData = React.useMemo(() => {
+
+      if (!filtersEnabled) return tableData;
+
 
   const hasActiveFilters = Object.entries(filters).some(([key, val]) => {
     const isEnabled = enabledFilters[key] !== false; // Default to true if not set
@@ -1555,7 +1583,7 @@ const filteredData = React.useMemo(() => {
   });
 
 
-  return tableData?.filter((row) => {
+  let result = tableData?.filter((row) => {
 
 
     const followupType = filters.followupType;
@@ -1703,10 +1731,28 @@ const filteredData = React.useMemo(() => {
       ? String(row[key as keyof Doc] || '').toLowerCase().includes(String(val).toLowerCase())
       : true;
   });
-});
-}, [tableData, filters, enabledFilters, offset]);
+}) || [];
+
+ if (newAddedRow) {
+    const newRowObj = tableData.find(row => row.id === newAddedRow);
+    if (newRowObj && !result.some(row => row.id === newAddedRow)) {
+      result = [newRowObj, ...result];
+    }
+  }
+  return result;
 
 
+
+}, [tableData, filters,filtersEnabled, activeFilters, handleDeleteTask, enabledFilters, offset, newAddedRow]);
+
+
+console.log(
+  "Filtered Data:",
+  filteredData.map(row => ({
+    id: row.id,
+    deletedAt: row.deletedAt
+  }))
+);
 
 
 
@@ -1799,33 +1845,10 @@ const handleColumnVisibilityChange = async(columnKey: string, isVisible: boolean
 };
 
 
-const updateBulkTask = useUpdateBulkTask();
-
-const handleDeleteTask = async (tasks: any) => {
 
 
-   if(accessType=="read"){
-        alert("You do not have permission to delete a task.");
-        return;
 
-      }
-  const confirmed = window.confirm("Are you sure you want to delete the selected tasks?");
-  if (!confirmed) return;
-
-   const taskWithDeletedAt = tasks.map((task: any) => ({
-    id: task?.original?.id,
-    data: { deletedAt: new Date() },
-  }));
-
-  try {
-        setTableData(prev => prev.filter(item => !tasks.some((task: any) => task.original.id === item.id)));
-
-    await updateBulkTask.mutateAsync([taskWithDeletedAt, loggedInUserId]);
-
-  } catch (error) {
-    console.error("Error deleting tasks:", error);
-  }
-};  
+const [activeFilterEdit, setActiveFilterEdit] = useState<string | null>(null);
 
 
 
@@ -1835,7 +1858,15 @@ const handleDeleteTask = async (tasks: any) => {
   return (
     <div>
 
-    <styled.FiltersDiv>
+      <styled.FilterAndSwitchContainer>
+   <CustomSwitch
+          enabled={filtersEnabled} 
+          onChange={(enabled) => setFiltersEnabled(enabled)} 
+        />
+
+    <styled.FiltersDiv disabled={!filtersEnabled}>
+
+     
   {activeFilters.map((key: any) => {
     const col = columns.find((c: any) => c.accessorKey === key);
     if (!col) return null;
@@ -1879,6 +1910,9 @@ const handleDeleteTask = async (tasks: any) => {
   />
 );
 
+
+
+
   if (key === 'dueDate') {
   const followupType = filters.followupType;
   return (
@@ -1895,7 +1929,7 @@ const handleDeleteTask = async (tasks: any) => {
           </styled.FilterHeader>
 
 
-      <CustomSelect
+      {/* <CustomSelect
         size="small"
         style={{ width: 100, marginRight: 8 }}
        
@@ -1904,7 +1938,16 @@ const handleDeleteTask = async (tasks: any) => {
 onChange={val => {
   setFilters(prev => ({ ...prev, followupType: val.value }));
 }}        options={dateOption}
-      />
+      /> */}
+
+      <TagSelector
+  options={dateOption}
+  value={Array.isArray(followupType) ? (followupType[0] ?? null) : (followupType || null)}
+  onChange={val => {
+    setFilters(prev => ({ ...prev, followupType: val ? String(val) : '' }));  }}
+  placeholder="Select type"
+  allowCreate={false}
+/>
       
 
 
@@ -2002,7 +2045,7 @@ if (key === 'createdAt') {
             {filterSwitch}
           </styled.FilterHeader>
        
-      <CustomSelect
+      {/* <CustomSelect
         size="small"
         style={{ width: 100 }}
         value={dateOption?.find(opt => opt.value === createdAtType) || null}
@@ -2010,7 +2053,16 @@ if (key === 'createdAt') {
           setFilters(prev => ({ ...prev, createdAtType: val.value }));
         }}
         options={dateOption}
-      />
+      /> */}
+
+         <TagSelector
+  options={dateOption}
+  value={Array.isArray(createdAtType) ? (createdAtType[0] ?? null) : (createdAtType || null)}
+  onChange={val => {
+    setFilters(prev => ({ ...prev, createdAtType: val ? String(val) : '' }));  }}
+  placeholder="Select type"
+  allowCreate={false}
+/>
 
       {createdAtType === 'between' ? (
         <>
@@ -2069,6 +2121,11 @@ if (key === 'createdAt') {
     </styled.FilterTag>
   );
 }
+
+
+
+
+
 
 
 
@@ -2181,13 +2238,26 @@ onClick={() => {
 
   })}
 
-  <CustomSelect
+  {/* <CustomSelect
     placeholder="+ Filter"
     size="small"
     width="150px"
     value={null}
     onChange={handleAddFilter}
     options={availableFilterColumns.map((col: any) => ({
+      id: col.accessorKey,
+      label: col.header,
+      value: col.accessorKey,
+    }))}
+  /> */}
+
+   <TagSelector
+    placeholder="+ Filter"
+  
+    value={null}
+    onChange={(value: any) => handleAddFilter(value)}
+    options={availableFilterColumns.map((col: any) => ({
+      id: col.accessorKey,
       label: col.header,
       value: col.accessorKey,
     }))}
@@ -2202,6 +2272,9 @@ onClick={() => {
 
 
 </styled.FiltersDiv>
+
+      </styled.FilterAndSwitchContainer>
+
 
 
         
@@ -2246,11 +2319,11 @@ onClick={() => {
       setIsOffsetLoading(true);
         isOffsetLoadingRef.current = true; // Set ref immediately
 
-console.log("IncrementingoffsetInsideTable:", offset);
     setOffset((prevOffset) => prevOffset + 40);
     // Increment your value or fetch more data here
   }}
   withPagination={false}
+  showBulkUpdateButton={true}
   // onOffsetChange={(newOffset) => {
   //   setOffset(newOffset);
   //   console.log("Offset changed:", newOffset);
@@ -2290,9 +2363,10 @@ console.log("IncrementingoffsetInsideTable:", offset);
     onClose={() => setIsTimeDateModalOpen(false)}
     title="Add Time/Date"
     onSave={handleFollowupChange}
-    leadID={editingRow}
+    taskId={editingRow}
     data={editingRowValue}
     userId={userid}
+
   />
 )}
 
@@ -2302,7 +2376,7 @@ console.log("IncrementingoffsetInsideTable:", offset);
     onClose={() => setIsReminderModalOpen(false)}
     title="Add Reminder"
     onSave={handleReminderChange}
-    leadID={selectedTaskId}
+    taskId={selectedTaskId}
   />
 )}
 

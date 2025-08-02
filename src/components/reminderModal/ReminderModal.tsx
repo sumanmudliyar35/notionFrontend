@@ -15,11 +15,13 @@ interface DateTimeModalProps {
   title?: string;
   onSave?: (date: string | null, time: string | null, leadID: any, title: string) => void;
   leadID?: any;
+  taskId?: number;
 
 }
 
-const ReminderModal = ({ open, onClose, title, onSave, leadID }: DateTimeModalProps) => {
+const ReminderModal = ({ open, onClose, title, onSave, leadID, taskId }: DateTimeModalProps) => {
   const { data: reminderData, refetch } = useGetRemindersByLead(leadID);
+  
   const deleteReminderMutation = useDeleteReminder();
 
   const [selectedDate, setSelectedDate] = useState<string | null>(null);

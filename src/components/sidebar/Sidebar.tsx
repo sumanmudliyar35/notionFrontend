@@ -57,6 +57,12 @@ const Sidebar: React.FC<SidebarProps> = ({ collapsed }) => {
           icon: <TeamOutlined style={{ ...iconStyle, color: '#fa8c16' }} />,
           path: '/leads',
         },
+        {
+          key: 'Speed',
+          label: 'speed',
+          icon: <TeamOutlined style={{ ...iconStyle, color: '#fa8c16' }} />,
+          path: '/speed',
+        },
       ]
     : []),
 
