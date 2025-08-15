@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import styled from 'styled-components';
 import { Table } from 'antd';
 import type { ColumnsType } from 'antd/es/table';
@@ -8,6 +8,7 @@ interface TableProps {
   title?: string;
   height?: number | string;
   columns?: ColumnsType<any>;
+  lastRowKey?: string | number; // optional key to identify the last row
 }
 
 const TableContainer = styled.div`
@@ -26,7 +27,6 @@ const TableTitle = styled.h3`
   font-weight: 500;
 `;
 
-// Custom styling for the Ant Design table
 const StyledTable = styled(Table)`
   .ant-table {
     background-color: transparent;
@@ -43,31 +43,26 @@ const StyledTable = styled(Table)`
     color: rgb(247, 240, 240);
   }
   
-  /* Fix hover styles */
   .ant-table-tbody > tr:hover > td {
     background-color: transparent !important;
     color: rgb(247, 240, 240) !important;
   }
   
-  /* Fix sorted row styles */
   .ant-table-tbody tr.ant-table-row-selected > td {
     background-color: transparent !important;
     color: rgb(247, 240, 240) !important;
   }
   
-  /* Fix table cell background when sorting */
   .ant-table-column-sort {
     background-color: transparent !important;
     color: rgb(247, 240, 240) !important;
   }
   
-  /* Fix table when a column is sorted */
   .ant-table-tbody > tr > td.ant-table-column-sort {
     background-color: rgba(45, 45, 45, 0.7) !important;
     color: rgb(247, 240, 240) !important;
   }
   
-  /* Fix table header when sorted */
   .ant-table-thead > tr > th.ant-table-column-sort {
     background-color: #2a2a2a !important;
     color: #e0e0e0 !important;
@@ -89,40 +84,48 @@ const StyledTable = styled(Table)`
     color: #1890ff;
   }
   
-  /* Additional fixes for sorting and selection */
   .ant-table-cell-fix-left,
   .ant-table-cell-fix-right {
     background-color: #2a2a2a !important;
   }
   
-  /* Ensure background stays consistent in all states */
   .ant-table-tbody > tr.ant-table-row:nth-child(odd) > td,
   .ant-table-tbody > tr.ant-table-row:nth-child(even) > td {
     background-color: transparent !important;
   }
 `;
 
-const DashboardTable: React.FC<TableProps> = ({ data, title, height = 'auto', columns }) => {
+const DashboardTable: React.FC<TableProps> = ({ data, title, height = 'auto', columns, lastRowKey }) => {
+  // Separate last row from the rest
+  const processedData = useMemo(() => {
+    if (!lastRowKey) return data;
+ console.log("Processing data with lastRowKey:", lastRowKey, data);
+    const lastRow = data.find(item => item.id === lastRowKey || item.key === lastRowKey);
+    console.log("Last row found:", lastRow);
+    const otherRows = data.filter(item => (item.id || item.key) !== lastRowKey);
 
+    // Return with last row always at the end
+    return [...otherRows, ...(lastRow ? [lastRow] : [])];
+  }, [data, lastRowKey]);
 
- 
+  console.log("Processed data:", processedData);
 
   return (
     <TableContainer>
       {title && <TableTitle>{title}</TableTitle>}
-      <StyledTable 
-        columns={columns} 
-        dataSource={data.map(item => ({ ...item, key: item.id || item.name }))} 
+      <StyledTable
+        columns={columns}
+        dataSource={processedData.map(item => ({ ...item, key: item.id || item.name }))}
         scroll={{ y: typeof height === 'number' ? height : undefined }}
         size="middle"
         pagination={{
-    showSizeChanger: false,
-    showQuickJumper: false,
-    itemRender: (current, type, originalElement) => {
-      if (type === 'page') return null; // Hide page numbers
-      return originalElement; // Show prev/next
-    }
-  }}
+          showSizeChanger: false,
+          showQuickJumper: false,
+          itemRender: (current, type, originalElement) => {
+            if (type === 'page') return null;
+            return originalElement;
+          }
+        }}
       />
     </TableContainer>
   );

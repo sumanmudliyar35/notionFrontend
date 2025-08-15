@@ -12,10 +12,25 @@ flex-wrap: wrap;
 `;
 
 
+export const FilterAndHideCommentsDiv = styled.div`
+    display: flex;  
+
+
+    align-items: center;
+    gap: 10px;
+    `;
+
+
     export const singleDateDiv = styled.div`
     display: flex;
     width: 160px;
 
+
+    `;
+
+
+    export const searchInputDiv = styled.div`
+    display: flex;  
 
     `;
 
@@ -98,3 +113,11 @@ export const recursiveTaskContainer = styled.div`
 
 
 `;
+
+
+export const usersAssignedTimeDiv = styled.div`
+display: flex;
+flex-direction: row;
+justify-content: flex-start;
+gap: 16px;
+`

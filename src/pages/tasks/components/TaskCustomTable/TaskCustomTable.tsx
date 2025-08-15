@@ -165,7 +165,6 @@ export function TaskCustomTable<T extends RowWithId>(props: EditableTableProps<T
     onSelectionChange,
     isManageColumn= true,
     isSearchable = true, // Default to false if not provided
-    isVerticalScrolling=true,
     withPagination = true, // Default to true if not provided
     isColumnHeaderCentered = false, // Default to false if not provided
     isColumnHovered = false, // Default to false if not provided
@@ -414,26 +413,6 @@ if (index !== -1) {
 
 const verticalScrollingRef = useRef<HTMLDivElement>(null);
 
-const prevRowCount = useRef(data.length);
-// useEffect(() => {
-//   // Only run if not initial mount and a row was added
-//   if (prevRowCount.current !== 0 && data.length > prevRowCount.current) {
-//     // Scroll to top when a row is added
-//     if (verticalScrollingRef.current) {
-//       verticalScrollingRef.current.scrollTo({ top: 0, behavior: 'smooth' });
-//     }
-//     // Focus first editable cell in the new row
-//     const lastRowIndex = 0;
-//     const firstEditableCol = columns.find((col: any) => col.meta?.editable);
-//     if (firstEditableCol) {
-//       setCurrentlyEditing({
-//         rowIndex: lastRowIndex,
-//         columnId: table.getHeaderGroups()[0].headers[0].id as keyof T,
-//       });
-//     }
-//   }
-//   prevRowCount.current = data.length;
-// }, [data.length, columns, table]);
 
   const handleDeleteRow = React.useCallback((rowIndex: number) => {
     const updated = [...data];
@@ -550,24 +529,24 @@ const tableBodyRef = useRef<HTMLTableSectionElement>(null);
 
 const prevScrollHeightRef = useRef<number>(0);
 
-useEffect(() => {
-  // Before loading more data, record scroll height
-  if (verticalScrollingRef.current) {
-    prevScrollHeightRef.current = verticalScrollingRef.current.scrollHeight;
-  }
-}, [data.length]); // or before you trigger data fetch
+// useEffect(() => {
+//   // Before loading more data, record scroll height
+//   if (verticalScrollingRef.current) {
+//     prevScrollHeightRef.current = verticalScrollingRef.current.scrollHeight;
+//   }
+// }, [data.length]); // or before you trigger data fetch
 
-useEffect(() => {
-  // After new data is loaded, restore scroll position
-  if (verticalScrollingRef.current) {
-    const container = verticalScrollingRef.current;
-    // Only restore if user was near the bottom before
-    if (container.scrollHeight > prevScrollHeightRef.current) {
-      const diff = container.scrollHeight - prevScrollHeightRef.current;
-      container.scrollTop += diff;
-    }
-  }
-}, [data]);
+// useEffect(() => {
+//   // After new data is loaded, restore scroll position
+//   if (verticalScrollingRef.current) {
+//     const container = verticalScrollingRef.current;
+//     // Only restore if user was near the bottom before
+//     if (container.scrollHeight > prevScrollHeightRef.current) {
+//       const diff = container.scrollHeight - prevScrollHeightRef.current;
+//       container.scrollTop += diff;
+//     }
+//   }
+// }, [data]);
 
 // const verticalScrollingRef = useRef<HTMLDivElement>(null);
 
@@ -651,65 +630,6 @@ useEffect(() => {
 
 
 
-// useEffect(() => {
-
-//   if(isVerticalScrolling){
-//   if (props.highlightRowId && rowRefs.current[props.highlightRowId] && verticalScrollingRef.current) {
-//     const rowEl = rowRefs.current[props.highlightRowId];
-//     const container = verticalScrollingRef.current;
-//         const index = data.findIndex((d: any) => d.id === props.highlightRowId);
-
-//         setHoveredRow(index);
-
-
-//     // Get the offset of the row relative to the container
-//     if (!rowEl || !container) return;
-
-//     console.log('Row Element:', rowEl);
-//     const rowRect = rowEl.getBoundingClientRect();
-//     const containerRect = container.getBoundingClientRect();
-
-//     // Calculate the scroll position to center the row
-//     const offset = rowEl.offsetTop - container.offsetTop - (container.clientHeight / 2) + (rowEl.clientHeight / 2);
-
-   
-
-//     container.scrollTo({
-//       top: offset + 70,
-//       behavior: 'smooth'
-//     });
-//   }
-// }
-// }, [props.highlightRowId ]);
-
-
-// Add this effect in your TaskCustomTable component
-
-// useEffect(() => {
-  
-//   if (!verticalScrollingRef.current || !props.onIncrementNearEnd) return;
-
-//   const handleScroll = () => {
-//     if (!container) return;
-//     const { scrollTop, scrollHeight, clientHeight } = container;
-//     // If user is within 200px of the bottom, trigger the callback
-//     if (scrollHeight - scrollTop - clientHeight < 1000) {
-
-//   console.log("Near end of scroll, triggering onIncrementNearEnd");
-//       props.onIncrementNearEnd && props.onIncrementNearEnd();
-      
-//     }
-
-//   };
-
-//   const container = verticalScrollingRef.current;
-//   container.addEventListener('scroll', handleScroll);
-
-//   // return () => {
-//   //   container.removeEventListener('scroll', handleScroll);
-//   // };
-// }, [props.onIncrementNearEnd]);
-
 
 useEffect(() => {
   if (!verticalScrollingRef.current || !props.onIncrementNearEnd) return;
@@ -739,7 +659,6 @@ useEffect(() => {
 
 
 useEffect(() => {
-  console.log("insideUes");
   if(data.length < 20 || table.getRowModel().rows.length < 20){
 
     
@@ -796,6 +715,24 @@ useEffect(() => {
 
 <styled.searchAndManagerDiv>
 
+  {showRowLogs &&  selectedIds.length > 0 && (
+    <Tooltip title="View Data">
+      <Button
+            icon={<EyeOutlined />}
+            onClick={() => {
+              if (props.handleLogClick) {
+                props.handleLogClick(selectedIds[0]);
+                setSelectedIds([]); // Clear selection after viewing logs
+              }
+            }}
+          />     
+
+      </Tooltip>
+ 
+      
+      )}
+
+
 
 
 {showBulkUpdateButton && selectedIds.length > 0 && (
@@ -836,6 +773,9 @@ useEffect(() => {
             History
           </Button>
         )}
+       
+
+
 
         {isWithNewRowButton && (
           <Button
@@ -1126,12 +1066,18 @@ useEffect(() => {
   }}
 >
 
-  {false  && (
-  <div onClick={() => props.handleLogClick && props.handleLogClick(row.original.id)} style={{ cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', width: '100%' }}>
-    logs
+  {/* {showRowLogs  && (
+  <div onClick={() => props.handleLogClick && props.handleLogClick(row.original.id)}
+   style={{ cursor: 'pointer', display: 'flex', 
+    
+    alignItems: 'center', justifyContent: 'center', width: '100%' }}
+  
+  
+  >
+      <EyeOutlined style={{ marginRight: 4 }} />
 
   </div>
-  )}
+  )} */}
 
 {  isWithCheckBox && (
                  <input

@@ -40,6 +40,8 @@ const TagSelector: React.FC<TagSelectorProps> = ({
 
     const [dropdownWidth, setDropdownWidth] = useState<number | undefined>(undefined);
 
+      const [highlightedIndex, setHighlightedIndex] = useState<number>(-1);
+
     useEffect(() => {
     if (isOpen && containerRef.current) {
       // Measure input width
@@ -170,6 +172,49 @@ useEffect(() => {
     opt => opt.label.toLowerCase() === searchTerm.toLowerCase()
   );
 
+  //   const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+  //   if (!isOpen) return;
+  //   if (e.key === 'ArrowDown') {
+  //     e.preventDefault();
+  //     setHighlightedIndex(idx => Math.min(idx + 1, filteredOptions.length - 1));
+  //   } else if (e.key === 'ArrowUp') {
+  //     e.preventDefault();
+  //     setHighlightedIndex(idx => Math.max(idx - 1, 0));
+  //   } else if (e.key === 'Enter') {
+  //     e.preventDefault();
+  //     if (highlightedIndex >= 0 && filteredOptions[highlightedIndex]) {
+  //       handleTagSelect(filteredOptions[highlightedIndex]);
+  //     } else if (allowCreate && searchTerm && !hasExactMatch) {
+  //       handleCreateNew();
+  //     }
+  //   }
+  // };
+
+
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+  if (!isOpen) return;
+  if (e.key === 'ArrowDown') {
+    e.preventDefault();
+    setHighlightedIndex(idx => Math.min(idx + 1, filteredOptions.length - 1));
+  } else if (e.key === 'ArrowUp') {
+    e.preventDefault();
+    setHighlightedIndex(idx => Math.max(idx - 1, 0));
+  } else if (e.key === 'ArrowRight') {
+    e.preventDefault();
+    setHighlightedIndex(idx => Math.min(idx + 1, filteredOptions.length - 1));
+  } else if (e.key === 'ArrowLeft') {
+    e.preventDefault();
+    setHighlightedIndex(idx => Math.max(idx - 1, 0));
+  } else if (e.key === 'Enter') {
+    e.preventDefault();
+    if (highlightedIndex >= 0 && filteredOptions[highlightedIndex]) {
+      handleTagSelect(filteredOptions[highlightedIndex]);
+    } else if (allowCreate && searchTerm && !hasExactMatch) {
+      handleCreateNew();
+    }
+  }
+};
+
 
 
   return (
@@ -237,16 +282,22 @@ useEffect(() => {
             placeholder="Search"
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
+                          onKeyDown={handleKeyDown} // <-- Add this line
+
           />
           
           <OptionsList $horizontal={horizontalOptions}>
             {filteredOptions.length > 0 ? (
-              filteredOptions.map(tag => (
+              filteredOptions.map((tag, idx) => (
                 <Option 
                   key={tag.id} 
                   onClick={() => handleTagSelect(tag)}
-                  isSelected={tag.id === value}
-                >
+isSelected={tag.id === value || idx === highlightedIndex}
+                    style={
+                      idx === highlightedIndex
+                        ? { background: '#3B4252', color: '#fff' }
+                        : undefined
+                    }                >
                  <span
   style={
     isWithDot
@@ -395,7 +446,7 @@ const SearchInput = styled.input`
 `;
 
 const OptionsList = styled.div<{ $horizontal?: boolean }>`
-  // max-height: 220px;
+  max-height: 400px;
   overflow-y: auto;
   display: flex;
   flex-direction: ${props => props.$horizontal ? 'row' : 'column'};

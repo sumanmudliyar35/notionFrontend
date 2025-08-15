@@ -39,7 +39,6 @@ const BulkUpdateTaskModal: React.FC<BulkUpdateTaskModalProps> = ({ open, onClose
     >
       <form onSubmit={formik.handleSubmit}>
         <div style={{ padding: '20px', display: 'flex', flexDirection: 'column', gap: 16 }}>
-          <div>Bulk update tasks</div>
           <DateInput
             label="End Date"
             value={formik.values.endDate}

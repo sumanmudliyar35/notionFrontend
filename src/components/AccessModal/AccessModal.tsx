@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from "react";
 import CustomModal from "../customModal/CustomModal";
 import TagSelector from "../customSelectModal/CustomSelectModal";
-import { Checkbox } from "antd";
+import { Button, Checkbox } from "antd";
 import { useGetAllUsers } from "../../api/get/getAllMember";
 import { useCreateUserAccess } from "../../api/post/newUserAccess";
 import CustomSelect from "../customSelect/CustomSelect";
@@ -118,12 +118,12 @@ const AccessModal: React.FC<AccessModalProps> = ({
         </Checkbox>
       </div>
       <div style={{ textAlign: "right" }}>
-        <button onClick={handleSave} style={{ marginRight: 8 }}>
+        <Button type="primary" onClick={handleSave} style={{ marginRight: 8 }}>
           Save
-        </button>
-        <button onClick={onClose}>
+        </Button>
+        <Button onClick={onClose}>
           Cancel
-        </button>
+        </Button>
       </div>
 
 

@@ -11,6 +11,7 @@ import { DeleteOutlined } from '@ant-design/icons';
 import { formatDisplayDate, formatDisplayTime } from '../../../../utils/commonFunction';
 import { useUpdateReminder } from '../../../../api/put/updateReminder';
 import { useGetReminderByTaskAndUser } from '../../../../api/get/getReminderByTaskAndUser';
+import TimeInputWithInterval from '../../../../components/TimeInputWithInterval/TimeInputWithInterval';
 
 interface DateTimeModalProps {
   open: boolean;
@@ -134,29 +135,19 @@ const DateTimeModal = ({ open, onClose, title, onSave, leadID, data, userId, tas
             placeholder="DD-MM-YYYY"
           />
         </div>
-        <div>
-          <label style={{ color: '#fff', display: 'block' }}>
-            Select Time
-          </label>
-          <TimeInput
-            value={selectedTime}
-            onChange={setSelectedTime}
-            placeholder="Select Time"
-          />
-        </div>
+     
         <div style={{display: 'flex', flexDirection: 'column', gap: '8px'}}>
           <label style={{ color: '#fff' }}>
             Reminder
           </label>
+           
           <Switch
             checked={reminderEnabled}
             onChange={setReminderEnabled}
             style={{ marginRight: 8, width: 'fit-content',  }}
           />
-          {/* <span style={{ color: '#fff', marginRight: 8, width:'fit-content' }}>
-            Enable Reminder
-          </span> */}
-          {reminderEnabled && (
+       
+          {/* {reminderEnabled && (
 
             <>
               <div>
@@ -178,18 +169,64 @@ const DateTimeModal = ({ open, onClose, title, onSave, leadID, data, userId, tas
 
 
 />
-                {/* <TagSelector
-                  options={REMINDER_VALUE_OPTIONS[reminderUnit]}
-                  value={reminderValue}
-                  onChange={val => setReminderValue(val as number)}
-                  placeholder={`Select ${reminderUnit}`}
-                  allowCreate={false}
-                  isWithDot={false}
-                  horizontalOptions={false}
-                /> */}
+               
               </div>
             </>
-          )}
+          )} */}
+
+          {reminderEnabled && (
+  <>
+   <div>
+          <label style={{ color: '#fff', display: 'block' }}>
+            Select Time
+          </label>
+        
+
+          <TimeInputWithInterval
+            value={
+              selectedTime
+                ? (() => {
+                    const time = dayjs(selectedTime, 'HH:mm');
+                    return { hour: time.hour(), minute: time.minute() };
+                  })()
+                : undefined
+            }
+            onChange={val => {
+              if (!val) {
+                setSelectedTime(null);
+              } else if (typeof (val as any).format === 'function') {
+                setSelectedTime((val as any).format('HH:mm'));
+              } else if (typeof val === 'object' && 'hour' in val && 'minute' in val) {
+                const hour = String(val.hour).padStart(2, '0');
+                const minute = String(val.minute).padStart(2, '0');
+                setSelectedTime(`${hour}:${minute}`);
+              } else {
+                setSelectedTime(null);
+              }
+            }}
+          />
+        </div>
+    <div>
+      <TagSelector
+        options={REMINDER_UNIT_OPTIONS}
+        value={reminderUnit}
+        onChange={val => setReminderUnit(val as string)}
+        placeholder="Select unit"
+        allowCreate={false}
+        isWithDot={false}
+      />
+    </div>
+   <CustomInput
+                  type="number"
+                  value={reminderBefore || ''}
+                  onChange={e => setReminderBefore(Number(e.target.value))}
+                  placeholder={`Enter reminder value in ${reminderUnit}`}
+
+
+/>
+  
+  </>
+)}
         </div>
 
         {/* Display reminders below the form */}

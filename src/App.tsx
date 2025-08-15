@@ -17,6 +17,7 @@ import { io } from 'socket.io-client';
 import Logs from './pages/logs/Logs';
 import { useQueryClient } from 'react-query';
 import Speed from './pages/speed/Speed';
+import Maintance from './pages/maintance/Maintance';
 
 
 type NotificationPlacement = NotificationArgsProps['placement'];
@@ -72,12 +73,8 @@ notificationSound.muted = false;
 
 
 
-
-
-
-
   const backendUrl = 'https://api.zealweb.in/';
-  // const backendUrl = 'http://localhost:2432/';
+//  const backendUrl = 'http://localhost:2432/';
 
   const socket = useRef(io(backendUrl, {
   query: { userId: userid },
@@ -161,6 +158,7 @@ notificationSound.muted = false;
             <Route path="/user/:userid/recursive-task" element={<RecursiveTask />} />
             <Route path="/dashboard" element={<Dashboard />} />
             <Route path="/logs" element={<Logs/>}/>
+            <Route path="/maintance" element={<Maintance />} />
 
             
           </Route>

@@ -129,7 +129,7 @@ const handleAddComment =  async(value: string, rowId: any, mentionedMembers: any
                 style={{ color: '#faad14', cursor: 'pointer', minWidth: 80, marginLeft: 8 }}
                 onClick={() => setIsEditingStatus(true)}
               >
-                {isEditingStatus ? (
+                {false ? (
                   <TagSelector
                     value={statusValue}
                     onChange={async (id) => {
@@ -159,7 +159,7 @@ const handleAddComment =  async(value: string, rowId: any, mentionedMembers: any
           <S.MetaItem>
   <span style={{ fontSize: 16 }}>Project</span>
   <span style={{ minWidth: 120, marginLeft: 8, cursor: 'pointer' }} onClick={() => setIsEditingProject(true)}>
-    {isEditingProject ? (
+    {false ? (
       <TagSelector
         value={projectValue}
         onChange={async (id) => {
@@ -198,7 +198,7 @@ const handleAddComment =  async(value: string, rowId: any, mentionedMembers: any
              <S.MetaItem>
   <div style={{ fontSize: 16 }}>📅 End date</div>
   <div style={{ minWidth: 120, marginLeft: 8, cursor: 'pointer' }} onClick={() => setIsEditingDueDate(true)}>
-    {isEditingDueDate ? (
+    {false ? (
       <DatePicker
         onChange={async (date) => {
           if (date) {

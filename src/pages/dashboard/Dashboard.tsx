@@ -145,98 +145,189 @@ const Dashboard = () => {
 
   console.log('Reference Data:', totalLeads);
 
+//   const customSorter = (a: any, b: any, data: any[]) => {
+//   // If either a or b is the last row, keep their order
+//   const lastRow = data[data.length - 1];
+//   if (a.key === lastRow.key) return 1;
+//   if (b.key === lastRow.key) return -1;
+//   // Otherwise, sort normally (example for string)
+//   return a.name.localeCompare(b.name);
+// };
 
-   const columns: ColumnsType<any> = [
-    {
-      title: 'Source',
-      dataIndex: 'name',
-      key: 'name',
-      width: 150,
-      sorter: (a, b) => a.name.localeCompare(b.name),
-    },
-    {
-      title: 'Total Leads',
-      dataIndex: 'totalLeads',
-      key: 'totalLeads',
-      width: 100,
-      sorter: (a, b) => a.totalLeads - b.totalLeads,
-    },
 
-    {
-  title: 'Leads %',
-  key: 'leadsPercentage',
-  width: 120,
-  render: (_, record) => {
-    const leads = record.totalLeads || 0;
-    const percent = totalLeads > 0 ? (leads / totalLeads) * 100 : 0;
-    return `${percent.toFixed(2)}%`;
-  },
-  sorter: (a, b) => {
-    const percentA = totalLeads > 0 ? (a.totalLeads || 0) / totalLeads : 0;
-    const percentB = totalLeads > 0 ? (b.totalLeads || 0) / totalLeads : 0;
-    return percentA - percentB;
-  },
-},
-    {
-      title: 'Converted Leads',
-      dataIndex: 'convertedLeads',
-      key: 'convertedLeads',
-      width: 100,
-      sorter: (a, b) => a.convertedLeads - b.convertedLeads,
-    },
+//    const columns: ColumnsType<any> = [
+//     {
+//       title: 'Source',
+//       dataIndex: 'name',
+//       key: 'name',
+//       width: 150,
+//       sorter: (a, b) => customSorter(a, b, referenceData?.analytics?.referenceAnalytics || []),
+//     },
+//     {
+//       title: 'Total Leads',
+//       dataIndex: 'totalLeads',
+//       key: 'totalLeads',
+//       width: 100,
+//       sorter: (a, b) => customSorter(a, b, referenceData?.analytics?.referenceAnalytics || []),
+//     },
 
 //     {
-//   title: 'Conversion Ratio',
-//   key: 'conversionRatio',
+//   title: 'Leads %',
+//   key: 'leadsPercentage',
 //   width: 120,
 //   render: (_, record) => {
-//     const converted = record.convertedLeads || 0;
-//     const ratio = totalLeads > 0 ? (converted / totalLeads) * 100 : 0;
-//     return `${ratio.toFixed(2)}%`;
+//     const leads = record.totalLeads || 0;
+//     const percent = totalLeads > 0 ? (leads / totalLeads) * 100 : 0;
+//     return `${percent.toFixed(2)}%`;
 //   },
 //   sorter: (a, b) => {
-//     const ratioA = totalLeads > 0 ? (a.convertedLeads || 0) / totalLeads : 0;
-//     const ratioB = totalLeads > 0 ? (b.convertedLeads || 0) / totalLeads : 0;
-//     return ratioA - ratioB;
+//     const percentA = totalLeads > 0 ? (a.totalLeads || 0) / totalLeads : 0;
+//     const percentB = totalLeads > 0 ? (b.totalLeads || 0) / totalLeads : 0;
+//     return percentA - percentB;
 //   },
 // },
-    
-    {
-      title: 'Conversion Rate',
-      dataIndex: 'conversionRate',
-      key: 'conversionRate',
-      width: 100,
-render: (text, record) => {
-    // Try to get a numeric value for the progress bar
-    const percent = parseFloat(record.conversionRateValue || text || '0');
-    return (
-<div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-        <span>{text || '0%'}</span>
-        <Progress
-          percent={isNaN(percent) ? 0 : percent}
-          size="small"
-          showInfo={false}
-          strokeColor="#52c41a"
-            // trailColor="#e0e0e0"
+//     {
+//       title: 'Converted Leads',
+//       dataIndex: 'convertedLeads',
+//       key: 'convertedLeads',
+//       width: 100,
+//       sorter: (a, b) => a.convertedLeads - b.convertedLeads,
+//     },
 
-          style={{ marginTop: 4 }}
-        />
-      </div>
-    );
-  },      sorter: (a, b) => {
-        const rateA = parseFloat(a.conversionRateValue || 0);
-        const rateB = parseFloat(b.conversionRateValue || 0);
-        return rateA - rateB;
-      },
+// //     {
+// //   title: 'Conversion Ratio',
+// //   key: 'conversionRatio',
+// //   width: 120,
+// //   render: (_, record) => {
+// //     const converted = record.convertedLeads || 0;
+// //     const ratio = totalLeads > 0 ? (converted / totalLeads) * 100 : 0;
+// //     return `${ratio.toFixed(2)}%`;
+// //   },
+// //   sorter: (a, b) => {
+// //     const ratioA = totalLeads > 0 ? (a.convertedLeads || 0) / totalLeads : 0;
+// //     const ratioB = totalLeads > 0 ? (b.convertedLeads || 0) / totalLeads : 0;
+// //     return ratioA - ratioB;
+// //   },
+// // },
+    
+//     {
+//       title: 'Conversion Rate',
+//       dataIndex: 'conversionRate',
+//       key: 'conversionRate',
+//       width: 100,
+// render: (text, record) => {
+//     // Try to get a numeric value for the progress bar
+//     const percent = parseFloat(record.conversionRateValue || text || '0');
+//     return (
+// <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+//         <span>{text || '0%'}</span>
+//         <Progress
+//           percent={isNaN(percent) ? 0 : percent}
+//           size="small"
+//           showInfo={false}
+//           strokeColor="#52c41a"
+//             // trailColor="#e0e0e0"
+
+//           style={{ marginTop: 4 }}
+//         />
+//       </div>
+//     );
+//   },      sorter: (a, b) => {
+//         const rateA = parseFloat(a.conversionRateValue || 0);
+//         const rateB = parseFloat(b.conversionRateValue || 0);
+//         return rateA - rateB;
+//       },
+//     },
+//     // {
+//     //   title: 'Total Revenue',
+//     //   dataIndex: 'totalRevenue',
+//     //   key: 'totalRevenue',
+//     //   render: (value) => `₹${value?.toLocaleString() || 0}`,
+//     //   sorter: (a, b) => (a.totalRevenue || 0) - (b.totalRevenue || 0),
+//     // }
+//   ];
+
+const customSorter = (a: any, b: any, data: any[], key: string, valueFn?: (row: any) => number | string) => {
+  const lastRow = data[data.length - 1];
+  if (a.key === lastRow.key) return 1;
+  if (b.key === lastRow.key) return -1;
+
+  // Use valueFn if provided, otherwise use key directly
+  const valA = valueFn ? valueFn(a) : a[key];
+  const valB = valueFn ? valueFn(b) : b[key];
+
+  if (typeof valA === 'string' && typeof valB === 'string') {
+    return valA.localeCompare(valB);
+  }
+  return (valA as number) - (valB as number);
+};
+
+const columns: ColumnsType<any> = [
+  {
+    title: 'Source',
+    dataIndex: 'name',
+    key: 'name',
+    width: 150,
+    sorter: (a, b) => customSorter(a, b, referenceData?.analytics?.referenceAnalytics || [], "name"),
+  },
+  {
+    title: 'Total Leads',
+    dataIndex: 'totalLeads',
+    key: 'totalLeads',
+    width: 100,
+    sorter: (a, b) => customSorter(a, b, referenceData?.analytics?.referenceAnalytics || [], "totalLeads"),
+  },
+  {
+    title: 'Leads %',
+    key: 'leadsPercentage',
+    width: 120,
+    render: (_, record) => {
+      const leads = record.totalLeads || 0;
+      const percent = totalLeads > 0 ? (leads / totalLeads) * 100 : 0;
+      return `${percent.toFixed(2)}%`;
     },
-    // {
-    //   title: 'Total Revenue',
-    //   dataIndex: 'totalRevenue',
-    //   key: 'totalRevenue',
-    //   render: (value) => `₹${value?.toLocaleString() || 0}`,
-    //   sorter: (a, b) => (a.totalRevenue || 0) - (b.totalRevenue || 0),
-    // }
-  ];
+    sorter: (a, b) => {
+      const percentA = totalLeads > 0 ? (a.totalLeads || 0) / totalLeads : 0;
+      const percentB = totalLeads > 0 ? (b.totalLeads || 0) / totalLeads : 0;
+      // Use customSorter to keep last row at the bottom
+      return customSorter(
+        { ...a, leadsPercentage: percentA },
+        { ...b, leadsPercentage: percentB },
+        referenceData?.analytics?.referenceAnalytics || [],
+        "leadsPercentage"
+      );
+    },
+  },
+  {
+    title: 'Converted Leads',
+    dataIndex: 'convertedLeads',
+    key: 'convertedLeads',
+    width: 100,
+    sorter: (a, b) => customSorter(a, b, referenceData?.analytics?.referenceAnalytics || [], "convertedLeads"),
+  },
+  {
+    title: 'Conversion Rate',
+    dataIndex: 'conversionRate',
+    key: 'conversionRate',
+    width: 100,
+    render: (text, record) => {
+      const percent = parseFloat(record.conversionRateValue || text || '0');
+      return (
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+          <span>{text || '0%'}</span>
+          <Progress
+            percent={isNaN(percent) ? 0 : percent}
+            size="small"
+            showInfo={false}
+            strokeColor="#52c41a"
+            style={{ marginTop: 4 }}
+          />
+        </div>
+      );
+    },
+    sorter: (a, b) => customSorter(a, b, referenceData?.analytics?.referenceAnalytics || [], "conversionRate"),
+  },
+];
 
 
   const revenueColumns: ColumnsType<any> = [
@@ -272,6 +363,8 @@ render: (text, record) => {
     sorter: (a, b) => (a.revenue?.percentageValue || 0) - (b.revenue?.percentageValue || 0),
   }
 ];
+
+
 
 
 // First, add this useMemo to transform the potential revenue data
@@ -352,10 +445,16 @@ const inquiredLeadsConversionPieData = useMemo(() => {
   if (!referenceData?.analytics?.convertedLeadsByReference) return { series: [], labels: [] };
   
   // Filter out any items with 0 count to keep the chart clean
-  const filteredLeads = referenceData?.analytics?.convertedLeadsByReference.filter(
-    (lead: any) => parseFloat(lead.percentageValue) > 0
-  );
+  // const filteredLeads = referenceData?.analytics?.convertedLeadsByReference.filter(
+  //   (lead: any) => parseFloat(lead.percentageValue) > 0
+  // );
   
+
+    const filteredLeads = referenceData?.analytics?.convertedLeadsByReference.filter(
+    (item: any) =>
+      parseFloat(item.revenue?.total) > 0 &&
+      item.name?.toLowerCase() !== "total"
+  );
   // Parse the percentageValue string to a number
   const series = filteredLeads.map((lead: any) => parseFloat(lead.percentageValue));
   const labels = filteredLeads.map((lead: any) => lead.name);
@@ -448,6 +547,7 @@ const inquiredLeadsConversionPieData = useMemo(() => {
             <DashboardTable
                   data={referenceData?.analytics?.referenceAnalytics || []}
                   columns={columns}
+                  lastRowKey="total"
                 />
             <GridContainer>
 
@@ -490,7 +590,16 @@ const inquiredLeadsConversionPieData = useMemo(() => {
         <Col xs={24} md={24} lg={24} xl={24}>
           <StyledCard title="Revenue Analytics by Lead Source">
             <Row gutter={[24, 24]}>
-              {/* <Col xs={24} lg={10}>
+
+
+              <Col xs={24} lg={14}>
+                <DashboardTable
+                  data={referenceData?.analytics?.convertedLeadsByReference || []}
+                  // height={350}
+                  columns={revenueColumns}
+                />
+              </Col>
+              <Col xs={24} lg={10}>
                 <ChartWrapper>
                   <CustomPieChart
                     series={revenuePieData.series}
@@ -504,15 +613,9 @@ const inquiredLeadsConversionPieData = useMemo(() => {
   showTotal={true}
   legendPosition="bottom"                  />
                 </ChartWrapper>
-              </Col> */}
-              
-              <Col xs={24} lg={14}>
-                <DashboardTable
-                  data={referenceData?.analytics?.convertedLeadsByReference || []}
-                  // height={350}
-                  columns={revenueColumns}
-                />
               </Col>
+              
+              
             </Row>
           </StyledCard>
         </Col>

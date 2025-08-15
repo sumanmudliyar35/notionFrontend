@@ -1,5 +1,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import styled from 'styled-components';
+import ReactDOM from 'react-dom';
+
 
 interface Tag {
   id: string | number;
@@ -38,6 +40,32 @@ const TagMultiSelector: React.FC<TagSelectorProps> = ({
   const containerRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
 
+      const [dropdownWidth, setDropdownWidth] = useState<number | undefined>(undefined);
+  
+  const [dropdownRight, setDropdownRight] = useState<number | undefined>(undefined);
+  
+
+    const dropdownRef = useRef<HTMLDivElement>(null);
+  
+
+
+    useEffect(() => {
+      const handleClickOutside = (event: MouseEvent) => {
+        if (
+          containerRef.current &&
+          !containerRef.current.contains(event.target as Node) &&
+          dropdownRef.current &&
+          !dropdownRef.current.contains(event.target as Node)
+        ) {
+          setIsOpen(false);
+        }
+      };
+    
+      document.addEventListener('mousedown', handleClickOutside);
+      return () => document.removeEventListener('mousedown', handleClickOutside);
+    }, []);
+    
+
   const selectedTags = isMulti
     ? options.filter(opt => Array.isArray(value) && value.includes(opt.id))
     : options.find(opt => opt.id === value);
@@ -60,6 +88,33 @@ const TagMultiSelector: React.FC<TagSelectorProps> = ({
       inputRef.current.focus();
     }
   }, [isOpen]);
+
+
+  useEffect(() => {
+      if (isOpen && containerRef.current) {
+        // Measure input width
+        const inputWidth = containerRef.current.offsetWidth;
+  
+        // Create a temporary span to measure the longest option
+        const span = document.createElement('span');
+        span.style.visibility = 'hidden';
+        span.style.position = 'absolute';
+        span.style.fontSize = '14px';
+        span.style.fontFamily = 'sans-serif';
+        span.style.fontWeight = '400';
+        document.body.appendChild(span);
+  
+        let maxOptionWidth = 0;
+        options.forEach(option => {
+          span.textContent = option.label;
+          maxOptionWidth = Math.max(maxOptionWidth, span.offsetWidth + 40); // +40 for padding/icons
+        });
+  
+        document.body.removeChild(span);
+  
+        setDropdownWidth(Math.max(inputWidth, maxOptionWidth));
+      }
+    }, [isOpen, options]);
 
   // Dynamically set dropdown position
   useEffect(() => {
@@ -193,9 +248,29 @@ const TagMultiSelector: React.FC<TagSelectorProps> = ({
         {/* <DropdownIcon isOpen={isOpen}>▾</DropdownIcon> */}
       </SelectedTag>
       
-      {isOpen && (
-        <DropdownContainer $position={dropdownPosition}>
-          <SearchInput 
+      {isOpen && ReactDOM.createPortal (
+<DropdownContainer $position={dropdownPosition}
+          ref={dropdownRef}
+
+        
+        style={{
+          // left: dropdownLeft,
+      left: containerRef.current?.getBoundingClientRect().left,
+          position: "absolute",
+
+    right: dropdownRight,
+     top:
+              dropdownPosition === "bottom"
+                ? (containerRef.current?.getBoundingClientRect().bottom ?? 0) + window.scrollY + 4
+                : undefined,
+            bottom:
+              dropdownPosition === "top"
+                ? window.innerHeight - (containerRef.current?.getBoundingClientRect().top ?? 0) + window.scrollY + 4
+                : undefined,
+      width: dropdownWidth,      // <-- Use calculated width
+            minWidth: dropdownWidth,   // <-- Use calculated width
+            zIndex: 2000,
+  }}>          <SearchInput 
             ref={inputRef}
             type="text" 
             placeholder="Search tags..."
@@ -208,7 +283,7 @@ const TagMultiSelector: React.FC<TagSelectorProps> = ({
               filteredOptions.map(tag => (
                 <Option
                   key={tag.id}
-                  onClick={() => handleTagSelect(tag)}
+                  onMouseDown={() => handleTagSelect(tag)}
                   isSelected={isMulti
                     ? Array.isArray(value) && value.includes(tag.id)
                     : tag.id === value
@@ -229,7 +304,9 @@ const TagMultiSelector: React.FC<TagSelectorProps> = ({
               </CreateOption>
             )}
           </OptionsList>
-        </DropdownContainer>
+        </DropdownContainer>,
+          document.body
+
       )}
     </Container>
   );

@@ -17,6 +17,8 @@ import { ref } from "yup";
 import { useUpdateComment } from "../../api/put/updateComment";
 import { useDeleteComment } from "../../api/delete/deleteComment";
 import CrossIcon from "../../assets/icons/CrossIcon";
+import imageCompression from 'browser-image-compression';
+
 import { Popconfirm } from "antd";
 import { useUpdateEvent } from "../../api/put/updateEvent";
 import CustomInput from "../../components/customInput/CustomInput";
@@ -121,7 +123,6 @@ const Tasks = () => {
   const loggedInUserId = Number(localStorage.getItem('userid'));
            const location = useLocation();
 
-           console.log("startuser", userid)
 
 
 const accessType = location.state?.accessType;
@@ -153,7 +154,6 @@ useEffect(() => {
   isOffsetLoadingRef.current = false;
 }, [userid]);
 
-console.log("afteruser")
 
 
 useEffect(() => {
@@ -1012,9 +1012,33 @@ const attachments = row.original.files
 
       }
     // Append all files
-    Array.from(files).forEach(file => {
-      formData.append("files", file); // "files" should match your backend field for multiple files
-    });
+   for (const file of Array.from(files)) {
+    let fileToUpload = file;
+  
+    // Check for image by MIME type and extension
+    const imageExtensions = ['.jpg', '.jpeg', '.png', '.webp', '.gif', '.bmp', '.tiff'];
+    const fileName = file.name.toLowerCase();
+    const isImageExtension = imageExtensions.some(ext => fileName.endsWith(ext));
+  
+    if (file.type.startsWith('image/') && isImageExtension) {
+      try {
+        console.log("Compressing image:", file);
+      const   compressedBlob = await imageCompression(file, {
+          maxSizeMB: 0.2,
+          maxWidthOrHeight: 1920,
+          useWebWorker: true,
+        });
+            fileToUpload = new File([compressedBlob], file.name, { type: compressedBlob.type });
+  
+        console.log("Compressed image file:", fileToUpload);
+      } catch (err) {
+        console.error("Image compression failed, uploading original file.", err);
+        fileToUpload = file;
+      }
+    }
+  
+    formData.append("files", fileToUpload);
+  }
     formData.append("taskId", taskId);
     // formData.append("logId", log.id);
 
@@ -1269,7 +1293,7 @@ const createEmptyDoc = (): Doc => {
       }
 
 
-      console.log("Selectedtaskdate:", date, "Selected time:", time, "Lead ID:", taskId);
+      console.log("Selectedtaskdate:", date, "Selected time:", time, "Lead ID:", taskId, reminderData);
       const body = {
         followup: date ,
         followupTime: time,
@@ -1301,7 +1325,23 @@ const createEmptyDoc = (): Doc => {
             };
            await reminderMutate.mutateAsync([reminderBeforeBody, taskId]);
           }
-        await updateTaskMutate.mutateAsync([body, taskId, userid]);
+
+          if( reminderData?.enabled && reminderData.reminderTime){
+            const customReminderTime = reminderData.reminderTime || "00:00";
+            const reminderTimeObj = dayjs(`${date}T${customReminderTime}`);
+            const reminderDateTime = reminderTimeObj.subtract(reminderData.before, "minute");
+        
+            reminderBody = {
+              reminderDate: reminderDateTime.format("YYYY-MM-DD"),
+              reminderTime: reminderDateTime.format("HH:mm"),
+              taskId: taskId,
+              userId: loggedInUserId,
+            };
+                       await reminderMutate.mutateAsync([reminderBody, taskId]);
+
+
+          } 
+        await updateTaskMutate.mutateAsync([body, taskId, loggedInUserId]);
         setTableData(prev =>
           prev.map(row =>
             row.id === taskId ? { ...row, followup: date, followupTime: time } : row
@@ -1745,14 +1785,6 @@ const filteredData = React.useMemo(() => {
 
 }, [tableData, filters,filtersEnabled, activeFilters, handleDeleteTask, enabledFilters, offset, newAddedRow]);
 
-
-console.log(
-  "Filtered Data:",
-  filteredData.map(row => ({
-    id: row.id,
-    deletedAt: row.deletedAt
-  }))
-);
 
 
 

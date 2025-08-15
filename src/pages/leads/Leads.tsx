@@ -7,7 +7,7 @@ import { useUpdateLead } from "../../api/put/updateLead";
 import * as styled from './style';
 import { Button, Input, message, Modal, Select } from "antd";
 import EventModal from "./components/EventModal/EventModal";
-import { DeleteOutlined, EyeInvisibleOutlined, EyeOutlined, PlusOutlined } from "@ant-design/icons";
+import { BellOutlined, DeleteOutlined, EyeInvisibleOutlined, EyeOutlined, PlusOutlined } from "@ant-design/icons";
 import CommentModal from "./components/CommentModal/CommentModal";
 import { useGetAllUsers } from "../../api/get/getAllMember";
 import MentionModal from "./components/MentionModal/MentionModal";
@@ -968,14 +968,10 @@ const columns :ColumnDef<Doc>[]= [
     cell: (getValue: any) => {
   const { followup, followupTime } = getValue.row.original;
 
-
-
-
-  // if (!followup) return  <span style={{ color: '#888' }}>Set follow up</span>;
-
-  // Combine date and time as a string in local time
   const dateTimeString = `${followup}T${followupTime || '00:00'}`;
   const d = new Date(dateTimeString);
+    const hasTime = Boolean(followupTime && followupTime !== "00:00");
+
 
 
 
@@ -990,7 +986,10 @@ const columns :ColumnDef<Doc>[]= [
         )
       }
     >
-      {formatDisplayDate(d) || <span style={{ color: '#888' }}>Set follow up</span>}
+     {formatDisplayDate(d) || <span style={{ color: '#888' }}>Set follow up</span>}
+{hasTime && d > new Date() && (
+  <BellOutlined style={{ color: '#1890ff', fontSize: 16 }} />
+)}
     </span>
   );
 },
@@ -1465,20 +1464,20 @@ const reminderMutate = useCreateReminder();
    await reminderMutate.mutateAsync([reminderBeforeBody, selectedLeadId]);
   }
 
-  //  if (reminderData?.enabled && reminderData.reminderTime) {
-  //   // Combine date and time into a single dayjs object
-  //   const followupDateTime = dayjs(`${date}T${time || "00:00"}`);
-  //   // Subtract the reminder offset (in minutes)
-  //       const customReminderTime = reminderData.reminderTime || "00:00";
+   if (reminderData?.enabled && reminderData.reminderTime) {
+    // Combine date and time into a single dayjs object
+    const followupDateTime = dayjs(`${date}T${time || "00:00"}`);
+    // Subtract the reminder offset (in minutes)
+        const customReminderTime = reminderData.reminderTime || "00:00";
 
-  //   reminderBody = {
-  //     reminderDate: followupDateTime.format("YYYY-MM-DD"),
-  //   reminderTime: dayjs(`${date}T${customReminderTime}`).format("HH:mm"),
-  //     leadId: leadID,
-  //     userId: userid,
-  //   };
-  //  await reminderMutate.mutateAsync([reminderBody, selectedLeadId]);
-  // }
+    reminderBody = {
+      reminderDate: followupDateTime.format("YYYY-MM-DD"),
+    reminderTime: dayjs(`${date}T${customReminderTime}`).format("HH:mm"),
+      leadId: leadID,
+      userId: userid,
+    };
+   await reminderMutate.mutateAsync([reminderBody, selectedLeadId]);
+  }
      
 
       try {
@@ -2689,7 +2688,6 @@ if (offset + 40 >= totalLeads) return;
 
 
 
-    // Increment your value or fetch more data here
   }}
 
   openFollowupModal={openFollowupModal}
@@ -2698,7 +2696,7 @@ if (offset + 40 >= totalLeads) return;
   openTablesModal={openTablesModal}
   setOpenTablesModal={setOpenTablesModal}
   isTablesLogs={false}
-  showRowLogs={true}
+  showRowLogs={false}
   isWithNewRowButton={true}
   isWithNewRow={false}
     isLoadingMore={isLeadsDataFetching} // or whatever your loading flag is

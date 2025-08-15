@@ -35,7 +35,7 @@ export const HoverMenu = styled(Menu)`
 `;
 
 export const MenuItem = styled.div`
-  padding: 6px 9px;
+  padding: 6px;
   border-radius: 6px;
   display: flex;
   cursor: pointer;
@@ -54,8 +54,6 @@ export const MenuItem = styled.div`
 export const menuChildren = styled.div`
 display: flex;
 flex-direction: column;
-gap: 8px;
+gap: 4px;
   padding-left: 24px;
-
-
   `;

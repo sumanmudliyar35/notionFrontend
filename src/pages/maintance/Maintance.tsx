@@ -27,7 +27,7 @@ import { useUpdateBulkRecursiveTask } from '../../api/put/updateBulkRecursiveTas
 import { useUpdateRecursiveTaskLog } from '../../api/put/updateRecursiveTaskLogs';
 import { useUpdateRecursiveTask } from '../../api/put/updateRecursiveTask';
 import { useCreateAttachment } from '../../api/post/newAttachment';
-import { DateWithThreeMonthletters, formatDisplayDate } from '../../utils/commonFunction';
+import { DateWithThreeMonthletters, formatDisplayDate, formatDurationShort } from '../../utils/commonFunction';
 import CommentCell from './components/CommentCell/CommentCell';
 import { CustomTable } from '../../components/customTable/CustomTable';
 import RecursiveTaskModal from './components/RecursiveTaskModal/RecursiveTaskModal';
@@ -49,6 +49,20 @@ import EditRecursiveTask from './components/EditRecursiveTask/EditRecursiveTask'
 import TagSelector from '../../components/customSelectModal/CustomSelectModal';
 import { useDeleteAttachment } from '../../api/delete/deleteAttachment';
 import BulkUpdateTaskModal from '../../components/BulkUpdateTaskModal/BulkUpdateTaskModal';
+import { useGetAllMaintanceByUser } from '../../api/get/getMaintanceByUser';
+import { useCreateMaintance } from '../../api/post/newMaintance';
+import { useUpdateMaintance } from '../../api/put/updateMaintance';
+import { useUpdateBulkMaintance } from '../../api/put/updateBulkMaintance';
+import TemoraryUserModal from './components/TemporaryUserModal/TemoraryUserModal';
+import { useGetAllTemporaryUsers } from '../../api/get/getAllTemporaryUser';
+import AssigneMaintanceModal from './components/AssignMaintanceModal/AssigneMaintanceModal';
+import { useUpdateMaintanceTaskLogs } from '../../api/put/updateMaintanceTaskLogs';
+import { useGetMaintanceTaskLogs } from '../../api/get/postGetMaintanceTaskLogs';
+import { useGetCommentByMaintanceTaskLogId } from '../../api/get/postGetCommentsByMaintanceTaskLog';
+import { useUpdateMaintanceTaskDate } from '../../api/put/updateMaintanceTaskDate';
+import TagMultiSelector from '../../components/CustomMultiSelectModal/CustomMultiSelectModal';
+import { Label } from '../../components/CustomSearchInput/style';
+import ManageTaskOrder from '../../components/ManageTaskOrder/ManageTaslOrder';
 
 
 
@@ -62,8 +76,7 @@ interface RecursiveTask {
 
 }
 
-const RecursiveTaskTable = ({intervalDays, customFilters, customActiveFilters, isCommentVisible, customSearchText, tableIndex}: RecursiveTask) => {
-  const { userid } = useParams();
+const Maintance = ({intervalDays, customFilters, customActiveFilters, isCommentVisible, customSearchText, tableIndex}: RecursiveTask) => {
     const loggedInUserId = Number(localStorage.getItem('userid'));
 
                const location = useLocation();
@@ -74,12 +87,22 @@ const RecursiveTaskTable = ({intervalDays, customFilters, customActiveFilters, i
 
     const [bulkSelectedTasks, setBulkSelectedTasks] = useState<any[]>([]);
 
+    const [manageColumnOrder, setManageColumnOrder] = useState<string[]>([]);
+
+    const [openTemporaryUserModal, setOpenTemporaryUserModal] = useState(false);
+
     const [openEditRecursiveTaskModal, setOpenEditRecursiveTaskModal] = useState(false);
 
   const [activeInterval, setActiveInterval] = useState<number>(intervalDays || 0);
 
 
   const [openBulkUpdateModal, setOpenBulkUpdateModal] = useState(false);
+
+  const [openAssigneeModal, setOpenAssigneeModal] = useState(false);
+
+  const [selectedMaintenance, setSelectedMaintance] = useState<any>(null);
+
+  const [openOrderChangingModal, setOpenOrderChangingModal] = useState(false);
 
   const [selectedBulkUpdateTasks, setSelectedBulkUpdateTasks] = useState<any[]>([]);
     const [filters, setFilters] = useState<Record<string, string | string[]>>({});
@@ -116,7 +139,23 @@ if (today.date() === 2) {
 
   // const selectedDate = filters.month ? '01' : currentDate;
 
-  console.log('currentDate', currentDate);
+
+  const {data: temporaryUserData, refetch: refetchTemporaryUsers} = useGetAllTemporaryUsers(loggedInUserId);
+
+  const [temporaryUsers, setTemporaryUsers] = useState<any[]>([]);
+
+  useEffect(() => {
+  if (temporaryUserData && Array.isArray(temporaryUserData)) {
+
+    setTemporaryUsers(
+      temporaryUserData.map((user: any) => ({
+        id: user?.id,
+        value: user?.id,
+        label: user?.name,
+      }))
+    );
+  }
+}, [temporaryUserData]);
 
   const selectedDate = filters.month ? '01' : currentDate[0];
    const selectedMonth = filters.month || currentMonth;
@@ -126,6 +165,8 @@ if (today.date() === 2) {
   const [selectedType, setSelectedType] = useState<string>('all');  
   const [startDate, setStartDate] = useState<string>("");
   const [endDate, setEndDate] = useState<string>("");
+
+  const [usersAssignedTime , setUsersAssignedTime] = useState([]);
 
 
 
@@ -137,24 +178,26 @@ if (today.date() === 2) {
     selectedType === "before" ? !!endDate
     : true;
 
-    console.log("shouldFetchRecursiveTasks", shouldFetchRecursiveTasks, startDate, endDate);
 
-  const { data: recursiveTasks = [], isLoading, refetch: refetchRecursiveTasks } = useGetRecursiveTaskByUser(userid || '', Number(selectedDate), Number(selectedMonth), Number(selectedYear), selectedType, startDate, endDate,shouldFetchRecursiveTasks );
+//   const { data: recursiveTasks = [], isLoading, refetch: refetchRecursiveTasks } = useGetRecursiveTaskByUser(loggedInUserId || '', 
+// Number(selectedDate), Number(selectedMonth),
+//  Number(selectedYear), selectedType, startDate, 
+// endDate,shouldFetchRecursiveTasks );
+
+const {data : maintanceData = [], isLoading, refetch: refetchMaintance} = useGetAllMaintanceByUser(Number(loggedInUserId), Number(selectedDate), Number(selectedMonth),Number(selectedYear), selectedType, startDate,endDate,shouldFetchRecursiveTasks );  
+
+//   const {data: recursiveTaskTablePreference} = useGetRecursiveTaskTablePreference(loggedInUserId || '');
 
 
 
-  const {data: recursiveTaskTablePreference} = useGetRecursiveTaskTablePreference(userid || '');
-
-
-
-   const columnWidthMap = useMemo(() => {
-    if (!recursiveTaskTablePreference) return {};
-    return recursiveTaskTablePreference.reduce((acc: any, pref: any) => {
-      acc[pref.accessorKey] = pref.width;
-      acc[pref.orderId] = pref.orderId;
-      return acc;
-    }, {});
-  }, [recursiveTaskTablePreference]);
+//    const columnWidthMap = useMemo(() => {
+//     if (!recursiveTaskTablePreference) return {};
+//     return recursiveTaskTablePreference.reduce((acc: any, pref: any) => {
+//       acc[pref.accessorKey] = pref.width;
+//       acc[pref.orderId] = pref.orderId;
+//       return acc;
+//     }, {});
+//   }, [recursiveTaskTablePreference]);
 
 
 
@@ -205,8 +248,57 @@ if (today.date() === 2) {
 
   // Sync tasks state with fetched data
   useEffect(() => {
-    setTasks(recursiveTasks);
-  }, [recursiveTasks]);
+    setTasks(maintanceData.data);
+  setManageColumnOrder(maintanceData.data);
+    setUsersAssignedTime(maintanceData.totalTimePerUser);
+
+  }, [maintanceData]);
+
+
+    const updateBulkMaintenanceMutate = useUpdateBulkMaintance();
+
+
+const handleOrderChange = async(newOrder: any[]) => {
+  console.log('Neworder:', newOrder);
+  setTasks(prevTasks => {
+    return newOrder
+      .map((orderItem, idx) => {
+        const task = prevTasks.find(task => task.id === orderItem.id);
+        return task ? { ...task, orderId: idx + 1 } : null;
+      })
+      .filter(Boolean);
+  });
+
+  const customNewOrder = newOrder.map((order: any) => ({
+      id: order?.id,
+      data: { orderId: order?.orderId },
+    }));
+
+        await updateBulkMaintenanceMutate.mutateAsync([customNewOrder, loggedInUserId]);
+
+
+
+
+
+
+
+
+};
+
+
+
+  const [maintanceAssignedTo, setMaintanceAssignedTo] = useState<any[]>([]);
+  const [maintanceTime, setMaintanceTime ] = useState<string | null>(null);
+
+  const [maintanceEndTime, setMaintanceEndTime] = useState<string | null>(null);
+
+  const handleAssignMaintance = async(data: any, assignedTo: any[], time: string | null, endTime: string | null)=>{
+    setSelectedTaskId(data);
+    setOpenAssigneeModal(true);
+    setMaintanceAssignedTo(assignedTo);
+    setMaintanceTime(time);
+    setMaintanceEndTime(endTime);
+  }
 
 
 const allDates = useMemo(() => {
@@ -320,14 +412,15 @@ const toggleCommentsVisibility = (
   };
 
 
-  const useCreateRecursiveTaskMutate = useCreateRecursiveTask();
+  const useCreateMaintanceMutate = useCreateMaintance();
 
 
   const handleCreateRecursiveTask = useCallback(async (data: { 
     name: string; 
     startDate: string, 
     endDate: string, 
-    interval: number 
+    time: any,
+    interval: any 
   }) => {
     try {
 
@@ -336,23 +429,24 @@ const toggleCommentsVisibility = (
         return;
 
       }
-      await useCreateRecursiveTaskMutate.mutateAsync([{
-        title: data.name,
+      await useCreateMaintanceMutate.mutateAsync([{
+        name: data.name,
         startDate: data.startDate,
         endDate: data.endDate,
-        intervalDays: data.interval,
-        assignedTo: userid,
-      }, userid]);
+        time: data.time,
+        interval: data.interval,
+      }, loggedInUserId]);
+      refetchMaintance();
       setOpenRecursiveTaskModal(false);
-      refetchRecursiveTasks();
+
     } catch (error) {
       console.error('Error creating recursive task:', error);
     }
-  }, [useCreateRecursiveTaskMutate, userid, refetchRecursiveTasks]);
+  }, [useCreateMaintanceMutate, loggedInUserId]);
 
   
 
-  const UpdateRecursiveTaskDateMutate = useUpdateRecursiveTaskDate();
+  const UpdateMaintanceTaskDateMutate = useUpdateMaintanceTaskDate();
 
   const postGetRecursiveTask = usePostGetRecursiveTaskById();
 
@@ -372,20 +466,20 @@ const toggleCommentsVisibility = (
         currentDate: originalDate,
         newDate: newDate,
       };
-      const response = await UpdateRecursiveTaskDateMutate.mutateAsync([body, taskId, loggedInUserId]);
+      const response = await UpdateMaintanceTaskDateMutate.mutateAsync([body, taskId, loggedInUserId]);
 
-      const taskData = await postGetRecursiveTask.mutateAsync([taskId]);
-      setTasks(prev => prev.map(task => 
-        task.id === taskId ? { ...task, ...taskData } : task
-      ));
+      // const taskData = await postGetRecursiveTask.mutateAsync([taskId]);
+      // setTasks(prev => prev.map(task => 
+      //   task.id === taskId ? { ...task, ...taskData } : task
+      // ));
       console.log('Date change response:', response);
     } catch (error) {
       console.error('Error updating recursive task date:', error);
     }
-  }, [UpdateRecursiveTaskDateMutate, postGetRecursiveTask]);
+  }, [UpdateMaintanceTaskDateMutate, postGetRecursiveTask]);
   
 
-  const postGetComment = useGetCommentByRecursiveTaskLogId();
+  const postGetComment = useGetCommentByMaintanceTaskLogId();
 
   const commentMutate = useCreateComment();
   const handleComment= useCallback(async(data: any) => {
@@ -399,7 +493,7 @@ const toggleCommentsVisibility = (
     const body = {
       comment: data.comment,
       mentionedMembers: data.mentionedMembers || [],
-      recursiveTaskLogId: selectedTaskId,
+      maintanceTaskLogId: selectedTaskId,
       givenBy: loggedInUserId,
     }
 
@@ -408,10 +502,10 @@ const toggleCommentsVisibility = (
     
     setTasks(prev =>
       prev.map(task => {
-        return task.id === commentResponse?.[0]?.recursiveTaskId 
+        return task.id === commentResponse?.[0]?.maintanceId 
           ? { 
               ...task, 
-              recursiveTaskLogs: task.recursiveTaskLogs.map((log: any) => 
+              maintanceTaskLogs: task.maintanceTaskLogs.map((log: any) => 
                 log.id === selectedTaskId 
                   ? { ...log, comments: commentResponse } 
                   : log
@@ -420,7 +514,7 @@ const toggleCommentsVisibility = (
           : task;
       })
     );
-  }, [commentMutate, postGetComment, selectedTaskId, userid]);
+  }, [commentMutate, postGetComment, selectedTaskId, loggedInUserId]);
   
 
   const useUpdateCommentMutate = useUpdateComment();
@@ -447,11 +541,11 @@ const toggleCommentsVisibility = (
     
     setTasks(prev =>
       prev.map(task => {
-        return task.id === commentResponse?.[0]?.recursiveTaskId 
+        return task.id === commentResponse?.[0]?.maintanceId 
           ? { 
               ...task, 
-              recursiveTaskLogs: task.recursiveTaskLogs.map((log: any) => 
-                log.id === commentResponse?.[0]?.recursiveTaskLogId 
+              maintanceTaskLogs: task.maintanceTaskLogs.map((log: any) => 
+                log.id === commentResponse?.[0]?.maintanceTaskLogId 
                   ? { ...log, comments: commentResponse } 
                   : log
               ) 
@@ -460,7 +554,7 @@ const toggleCommentsVisibility = (
       })
     );
     setEditingComment(null);
-  }, [useUpdateCommentMutate, postGetComment, selectedTaskId, userid]);
+  }, [useUpdateCommentMutate, postGetComment, selectedTaskId, loggedInUserId]);
   
 
   const useDeleteCommentMutate = useDeleteComment();
@@ -484,7 +578,7 @@ const toggleCommentsVisibility = (
         return task.id === recursiveTaskId 
           ? { 
               ...task, 
-              recursiveTaskLogs: task.recursiveTaskLogs.map((log: any) => 
+              maintanceTaskLogs: task.maintanceTaskLogs.map((log: any) => 
                 log.id === selectedTaskId 
                   ? { ...log, comments: commentResponse } 
                   : log
@@ -496,7 +590,6 @@ const toggleCommentsVisibility = (
   }, [useDeleteCommentMutate, postGetComment, selectedTaskId]);
   
 
-  const updateBulkRecursiveTaskMutate = useUpdateBulkRecursiveTask();
 
   const handleDeleteRecursiveTask = useCallback(async (allTask: any) => {
     const taskWithDeletedAt = allTask.map((task: any) => ({
@@ -510,14 +603,14 @@ const toggleCommentsVisibility = (
         return;
 
       }
-      await updateBulkRecursiveTaskMutate.mutateAsync([taskWithDeletedAt, loggedInUserId]);
+      await updateBulkMaintenanceMutate.mutateAsync([taskWithDeletedAt, loggedInUserId]);
       setTasks(prev => prev.filter(task => 
         !allTask.some((t: any) => t.original.id === task.id)
       ));
     } catch (error) {
       console.error('Error deleting recursive tasks:', error);
     }
-  }, [updateBulkRecursiveTaskMutate, userid]);
+  }, [updateBulkMaintenanceMutate, loggedInUserId]);
   
 
 
@@ -536,8 +629,8 @@ const toggleCommentsVisibility = (
         return;
 
       }
-      await updateBulkRecursiveTaskMutate.mutateAsync([taskWithUpdatedData, loggedInUserId]);
-      refetchRecursiveTasks();
+      await updateBulkMaintenanceMutate.mutateAsync([taskWithUpdatedData, loggedInUserId]);
+      refetchMaintance();
       // setTasks(prev => prev.map(task => 
       //   taskWithUpdatedData.find(t => t.id === task.id) ? { ...task, ...t.data } : task
       // ));
@@ -546,7 +639,7 @@ const toggleCommentsVisibility = (
     }
 
 
-  }, [updateBulkRecursiveTaskMutate, userid]);  
+  }, [updateBulkMaintenanceMutate, loggedInUserId]);  
   const updateRecursiveTaskLogsMutate = useUpdateRecursiveTaskLog();
 
   const handleCheck = useCallback((checked: boolean, log: any, date: string, taskId: any) => {
@@ -581,19 +674,30 @@ const toggleCommentsVisibility = (
 
   const fileInputRef = React.useRef<HTMLInputElement>(null);
 
-  const updateRecursiveTaskMutate = useUpdateRecursiveTask();
+  const updateMaintanceMutate = useUpdateMaintance();
   const handleEditDateByRecursiveTask = useCallback(async(taskId: any, newDate: any) => {
     const body = {
       endDate: newDate ? dayjs(newDate).format('YYYY-MM-DD') : '',
     };
 
-    const response = await updateRecursiveTaskMutate.mutateAsync([body, taskId, loggedInUserId]);
+    const response = await updateMaintanceMutate.mutateAsync([body, taskId, loggedInUserId]);
      const taskData = await postGetRecursiveTask.mutateAsync([taskId]);
       setTasks(prev => prev.map(task => 
         task.id === taskId ? { ...task, ...taskData } : task
       ));
 
-  },[updateRecursiveTaskMutate]);
+  },[updateMaintanceMutate]);
+
+  const openMaintanceModal = useCallback((maintanceId: any) => {
+    if(accessType=="read"){
+      alert("You do not have permission to update a task.");
+      return;
+    }
+    console.log("Opening maintenance modal for ID:", maintanceId);
+    setSelectedTaskId(maintanceId);
+    setOpenAssigneeModal(true);
+
+  }, []);
 
   const handleRowEdit = useCallback((row: any) => {
 
@@ -604,15 +708,15 @@ const toggleCommentsVisibility = (
       }
     console.log('Editing row:', row);
     const body = {
-      title: row.title,
+      name: row.name,
     }
-    updateRecursiveTaskMutate.mutateAsync([body, row.id, loggedInUserId]);
+    updateMaintanceMutate.mutateAsync([body, row.id, loggedInUserId]);
 
 
     setTasks(prev =>
-      prev.map(task => (task.id === row.id ? { ...task, title: row.title } : task))
+      prev.map(task => (task.id === row.id ? { ...task, name: row.name } : task))
     );  
-  }, [updateRecursiveTaskMutate]);
+  }, [updateMaintanceMutate]);
 
   const createAttachmentMutation = useCreateMultipleAttachments();
 
@@ -723,6 +827,26 @@ const toggleCommentsVisibility = (
           };
 
 
+
+          const updateMaintanceTaskMutate = useUpdateMaintanceTaskLogs();
+          const postGetMaintanceTaskLogs = useGetMaintanceTaskLogs();
+          const handleFinalAssignMaintance= async(userId: any, time: any, endTime: any)=>{
+            console.log("Assigning maintenance to user:", userId, "for task ID:", time, selectedTaskId);
+            const body={
+              assignedTo: userId,
+              startTime: time,
+              endTime: endTime || null
+            }
+            await updateMaintanceTaskMutate.mutateAsync([body, selectedTaskId, loggedInUserId]);
+            refetchMaintance();
+            setMaintanceAssignedTo([]);
+
+           
+            setOpenAssigneeModal(false);
+            setSelectedTaskId(null);
+
+          }
+
            const openDateChangeModal = (e: React.MouseEvent, log: any, date: any) => {
                   const isPastDate = dayjs(date).isBefore(dayjs().startOf('day'));
 
@@ -730,7 +854,7 @@ const toggleCommentsVisibility = (
             
             e.preventDefault();
             e.stopPropagation();
-            setSelectedRecursiveTask(log.recursiveTaskId);
+            setSelectedRecursiveTask(log.maintanceId);
             setSelectedRecursiveTaskLogDate(date);
             setOpenChangeDateModal(true);
           };
@@ -772,10 +896,36 @@ const toggleCommentsVisibility = (
             }
           }, [deleteAttachmentMutation]);
 
+
+
+          const handleDeleteAssignedUser = async (userId: any, maintanceTaskLogId: any) => {
+            console.log("Deleting assigned user:", userId, "for task log ID:", maintanceTaskLogId);
+            const body={
+              removedUserId: userId,
+            }
+            await updateMaintanceTaskMutate.mutateAsync([body, maintanceTaskLogId, loggedInUserId]);
+                        const response = await postGetMaintanceTaskLogs.mutateAsync([maintanceTaskLogId]);
+           setTasks(prev =>
+  prev.map(task => {
+    return task.id === response?.maintanceId 
+      ? { 
+          ...task, 
+          maintanceTaskLogs: task.maintanceTaskLogs.map((log: any) => 
+            log.id === maintanceTaskLogId 
+              ? { ...log, assignedTo: response.assignedTo } 
+              : log
+          ) 
+        } 
+      : task;
+  })
+);
+
+          }
+
   const columns = useMemo(() => [
     {
       header: 'Name',
-      accessorKey: 'title',
+      accessorKey: 'name',
       size: 250,
       headerStyle: { textAlign: 'center', fontSize: 24, display: 'flex', alignItems: 'center', justifyContent: 'center' },
 
@@ -785,10 +935,10 @@ const toggleCommentsVisibility = (
       },
       cell: ({ row }: { row: any }) => (
           <CustomEditableCell
-          value={row.original.title} // or any string value you want to edit
+          value={row.original.name} // or any string value you want to edit
           onSave={newValue => {
 
-            handleRowEdit({ id: row.original.id, title: newValue });
+            handleRowEdit({ id: row.original.id, name: newValue });
             // handle save logic here, e.g. update state or call API
           }}
           opnenEditModal={()=>{setSelectedRecursiveTask(row.original.id); setOpenEditRecursiveTaskModal(true)}}
@@ -798,21 +948,18 @@ const toggleCommentsVisibility = (
       
       ),
     },
-    // {
-    //   header: "Interval",
-    //   accessorKey: 'intervalDays',
-    //   size: 60,
-    //         enableSorting: false,
+    {
+        header: "Time",
+        accessorKey: 'time',
+        size: 100,
+        enableSorting: false,
 
-    //   cell: ({ row }: { row: any }) => {
-    //     const interval = row.original.intervalDays;
-    //     return (
-    //       <span>
-    //         {interval} {interval === 1 ? 'day' : 'days'}
-    //       </span>
-    //     );
-    //   },
-    // },
+        cell: ({ row }: { row: any }) => {
+          const time = row.original.time;
+          return <span>{formatDurationShort(time)}</span>;
+        },
+    },
+    
     ...allDates.map(date => {
       // Check if the date is in the past
       const isPastDate = dayjs(date).isBefore(dayjs().startOf('day'));
@@ -820,12 +967,13 @@ const toggleCommentsVisibility = (
       return {
         header: DateWithThreeMonthletters(date),
         accessorKey: date,
-        size:115,
+        size:250,
               enableSorting: false,
 cell: ({ row }: { row: any }) => {
-    const log = (row.original.recursiveTaskLogs || []).find((l: any) => l.date === date);
+    const log = (row.original.maintanceTaskLogs || []).find((l: any) => l.date === date);
   if (!log) return null;
 
+  const taskTime = row.original.time || '';
   const checked = log.status === 'completed';
   const attachments = log.files || [];
   const comments = log.comments || [];
@@ -837,6 +985,7 @@ cell: ({ row }: { row: any }) => {
       row={row}
       isPastDate={isPastDate}
       checked={checked}
+      temporaryUsers={temporaryUsers}
       attachments={attachments}
       comments={comments}
       handleCheck={handleCheck}
@@ -851,6 +1000,10 @@ cell: ({ row }: { row: any }) => {
       assigneeOptions={assigneeOptions}
       commentsVisible={commentsVisible}
       onDeleteAttachment={handleDeleteAttachment}
+      onAssignMaintance={ handleAssignMaintance}
+      onDeleteAssignedUser={ handleDeleteAssignedUser}
+      tasktime={taskTime}
+
     />
   );
 
@@ -870,7 +1023,7 @@ cell: ({ row }: { row: any }) => {
     handleDeleteComment, 
     editingComment, 
     createAttachmentMutation, 
-    userid, 
+    loggedInUserId, 
     hiddenCommentRows, // Add this dependency
     toggleCommentsVisibility, // And this one
     
@@ -896,27 +1049,31 @@ cell: ({ row }: { row: any }) => {
  
   {header: 'Date', accessorKey: 'taskDate'},
   { header: 'Month/Year', accessorKey: 'monthYear' },
+  { header: 'Assignee', accessorKey: 'assignee' },
 ];
 
 
- const columnsWithWidth = columns
-  .map((col: any) => ({
-    ...col,
-    size: columnWidthMap[col.accessorKey as string] || col.size || 200,
-    orderId: recursiveTaskTablePreference?.find((p: any) => p.accessorKey === col.accessorKey)?.orderId ?? col.orderId,
-    isVisible: recursiveTaskTablePreference?.find((p: any) => p.accessorKey === col.accessorKey)?.isVisible ?? col.isVisible,
+//  const columnsWithWidth = columns
+//   .map((col: any) => ({
+//     ...col,
+//     size: columnWidthMap[col.accessorKey as string] || col.size || 200,
+//     orderId: recursiveTaskTablePreference?.find((p: any) => p.accessorKey === col.accessorKey)?.orderId ?? col.orderId,
+//     isVisible: recursiveTaskTablePreference?.find((p: any) => p.accessorKey === col.accessorKey)?.isVisible ?? col.isVisible,
 
 
-  }))
-  .sort((a, b) => {
-    // If both have orderId, sort numerically; otherwise, keep original order
-    if (typeof a.orderId === "number" && typeof b.orderId === "number") {
-      return a.orderId - b.orderId;
-    }
-    return 0;
-  });
+//   }))
+//   .sort((a, b) => {
+//     // If both have orderId, sort numerically; otherwise, keep original order
+//     if (typeof a.orderId === "number" && typeof b.orderId === "number") {
+//       return a.orderId - b.orderId;
+//     }
+//     return 0;
+//   });
+
+const columnsWithWidth = columns;
 
 const handleFilterChange = (key: string, value: string) => {
+  console.log("Filter changed:", key, value);
   setFilters((prev) => ({
     ...prev,
     [key]: value,
@@ -938,7 +1095,7 @@ const handleFilterChange = (key: string, value: string) => {
     }
 
     if(columnId === 'title') {
-    updateTablePreferences.mutateAsync([body, columnId,"recursiveTask",  userid]);
+    updateTablePreferences.mutateAsync([body, columnId,"recursiveTask",  loggedInUserId]);
 
     }
 
@@ -997,7 +1154,7 @@ const handleRemoveFilter = (key: string) => {
   if (!tasks || tasks.length === 0) return [];
 
   // Sort tasks by intervalDays (optional, if not already sorted)
-  const sortedTasks = [...tasks].sort((a, b) => a.intervalDays - b.intervalDays);
+  const sortedTasks = [...tasks].sort((a, b) => a.interval - b.interval);
 
   let lastInterval: number | null = null;
   const result: any[] = [];
@@ -1013,41 +1170,56 @@ const handleRemoveFilter = (key: string) => {
   // }
 
   for (const task of sortedTasks) {
-  let intervalLabel = `${task.intervalDays} days`;
+  let intervalLabel = `${task.interval} days`;
   // Map specific intervals to months/years
-  switch (task.intervalDays) {
+  switch (task.interval) {
     case 1:
-      intervalLabel = 'Every Day';
+      case "1":
+      intervalLabel = 'Shoot';
       break;
     case 30:
+      case "30":
       intervalLabel = '1 Month';
       break;
     case 60:
+      case "60":
       intervalLabel = '2 Months';
       break;
     case 90:
+      case "90":
       intervalLabel = '3 Months';
       break;
     case 180:
+      case "180":
       intervalLabel = '6 Months';
       break;
     case 365:
+      case "365":
       intervalLabel = '1 Year';
       break;
+    case "s1":
+      intervalLabel = 'Shift 1- 9am to 6pm';
+      break;
+    case "s2":
+      intervalLabel = 'Shift 2- 3pm to 12pm';
+      break;
     default:
-      intervalLabel = `${task.intervalDays} days`;
+      intervalLabel = `${task.interval} days`;
   }
 
-  if (task.intervalDays !== lastInterval) {
+  console.log('Mapped interval:', task.interval, intervalLabel);
+
+  if (task.interval !== lastInterval) {
     // Insert a divider row
     result.push({ __divider: true, title: intervalLabel });
-    lastInterval = task.intervalDays;
+    lastInterval = task.interval;
   }
   result.push(task);
 }
 
   return result;
-}, [tasks]);
+}, [tasks, handleOrderChange]);
+
 
 
 
@@ -1101,7 +1273,7 @@ const handleRemoveFilter = (key: string) => {
 
 
      return [
-  ...columnsWithWidth.slice(0, 1),
+  ...columnsWithWidth.slice(0, 2),
   ...filteredDateColumns.filter(
     col =>
       !columnsWithWidth
@@ -1121,8 +1293,27 @@ const columnsWithSizing = filteredColumns.map(col =>{
 })});
 
 
-
-
+const filteredData = React.useMemo(() => {
+  const todayStr = dayjs().format('YYYY-MM-DD');
+  const result = filteredTasks?.filter((task) => {
+    return Object.entries(filters).every(([key, val]) => {
+      if (key === "assignee") {
+        if (!val) return true;
+        // Find the log for today
+        const todayLog = Array.isArray(task.maintanceTaskLogs)
+          ? task.maintanceTaskLogs.find((log: any) => log.date === todayStr)
+          : null;
+        if (!todayLog || !Array.isArray(todayLog.assignedTo)) return false;
+        // Check if any assigned user matches the filter value
+        return todayLog.assignedTo.some((user: any) =>
+          String(user.id ?? user.value ?? user).includes(String(val))
+        );
+      }
+      return true;
+    });
+  });
+  return result;
+}, [filteredTasks, filters]);
 
 
 
@@ -1141,7 +1332,6 @@ const columnsWithSizing = filteredColumns.map(col =>{
 
 
   
-
 
 
   return (
@@ -1283,24 +1473,19 @@ Date
     // Add Month-Year filter
     if (key === 'monthYear') {
       const monthOptions = [
-        { label: 'January', value: '01' }, { label: 'February', value: '02' },
-        { label: 'March', value: '03' }, { label: 'April', value: '04' },
-        { label: 'May', value: '05' }, { label: 'June', value: '06' },
-        { label: 'July', value: '07' }, { label: 'August', value: '08' },
-        { label: 'September', value: '09' }, { label: 'October', value: '10' },
-        { label: 'November', value: '11' }, { label: 'December', value: '12' },
+        { id: "01", label: 'January', value: '01' }, { id:"02",  label: 'February', value: '02' },
+        { id: '03', label: 'March', value: '03' }, {  id: '04', label: 'April', value: '04' },
+        { id: '05' , label: 'May', value: '05' }, {  id: '06', label: 'June', value: '06' },
+        {  id: '07' , label: 'July', value: '07' }, {  id: '08', label: 'August', value: '08' },
+        { id: '09' ,  label: 'September', value: '09' }, { id: '10',  label: 'October', value: '10' },
+        { id: '11',  label: 'November', value: '11' }, { id: '12',  label: 'December', value: '12' },
       ];
-      // Generate years from 2020 to current year + 2
-      // const currentYear = dayjs().year();
-      // const yearOptions = Array.from({ length: 7 }, (_, i) => {
-      //   const year = 2020 + i;
-      //   return { label: String(year), value: String(year) };
-      // });
+  
 
       const currentYear = dayjs().year();
 const yearOptions = Array.from({ length: 5 }, (_, i) => {
   const year = currentYear - 1 + i; // 1 before, current, and 3 after
-  return { label: String(year), value: String(year) };
+  return {id:String(year), label: String(year), value: String(year) };
 });
 
       return (
@@ -1308,22 +1493,20 @@ const yearOptions = Array.from({ length: 5 }, (_, i) => {
           <span style={{ color: '#bbb', marginRight: 6, fontWeight: 500, minWidth: "fit-content" }}>
             Month/Year
           </span>
-          <CustomSelect
-            size="small"
-            style={{ width: 110, marginRight: 8 }}
-            value={monthOptions.find(opt => opt.value === filters.month) || null}
-            onChange={val => setFilters(prev => ({ ...prev, month: val.value }))}
+          <TagSelector
+            value={Array.isArray(filters.month) ? filters.month[0] : filters.month || null}
+  onChange={val => setFilters(prev => ({ ...prev, month: val ? String(val) : '' }))}  
             options={monthOptions}
             placeholder="Month"
           />
-          <CustomSelect
-            size="small"
-            style={{ width: 90, marginRight: 8 }}
-            value={yearOptions.find(opt => opt.value === filters.year) || null}
-            onChange={val => setFilters(prev => ({ ...prev, year: val.value }))}
-            options={yearOptions}
+
+          <TagSelector
+            value={Array.isArray(filters.year) ? filters.year[0] : filters.year || null}
+  onChange={val => setFilters(prev => ({ ...prev, year: val ? String(val) : '' }))}           
+   options={yearOptions}
             placeholder="Year"
           />
+          
           <span
             onClick={() => {
               handleRemoveFilter('monthYear');
@@ -1341,6 +1524,51 @@ const yearOptions = Array.from({ length: 5 }, (_, i) => {
         </styled.FilterTag>
       );
     }
+
+
+
+if (key === "assignee") {
+  // Ensure value is a number to match option.value
+  const selectedValue =
+    Array.isArray(filters[key])
+      ? Number(filters[key][0]) ?? undefined
+      : filters[key]
+      ? Number(filters[key])
+      : undefined;
+
+  return (
+            <styled.FilterTag key={key} active={!!filters[key]} style={{ background: 'rgb(25, 25, 25)' }}>
+
+    <TagSelector
+      options={temporaryUsers || []}
+      value={selectedValue}
+      onChange={newVal =>
+        handleFilterChange(key, newVal !== undefined && newVal !== null ? String(newVal) : "")
+      }
+      placeholder="Assignee"
+      allowCreate={false}
+      horizontalOptions={false}
+    />
+    <span
+        onClick={() => {
+          handleRemoveFilter('assignee');
+        }}
+        style={{
+          cursor: 'pointer',
+          padding: '0 6px',
+          fontSize: 16,
+          color: 'white',
+        }}
+      >
+        ×
+      </span>
+
+    </styled.FilterTag>
+  );
+}
+
+
+    
 
   // Default rendering for other filters
   return (
@@ -1386,20 +1614,7 @@ const yearOptions = Array.from({ length: 5 }, (_, i) => {
 })}
 
 
-   {/* <CustomSelect
-    placeholder="+ Filter"
-    size="small"
-    width="150px"
-    value={null}
-    onChange={handleAddFilter}
-    options={[
-      ...availableFilterColumns.map((col: any) => ({
-        label: col.header,
-        value: col.accessorKey,
-      })),
-       // Add this line
-    ]}
-  /> */}
+   
 
   <TagSelector
   placeholder="+ Filter"
@@ -1425,18 +1640,44 @@ const yearOptions = Array.from({ length: 5 }, (_, i) => {
                     >
                       {commentsVisible ? 'Hide Comments' : 'Show Comments'}
                     </styled.CommentToggleButton>
-  
-  
-      
-  
+
+                    <Button
+                    type="primary"
+                      onClick={() => setOpenTemporaryUserModal(true)}
+                      style={{ marginLeft: 8 }}
+                      
+                      >Add User</Button>
+
+                      <Button
+                      type="primary"
+                      onClick={() => setOpenOrderChangingModal(true)}
+                      style={{ marginLeft: 8 }}
+                      >
+                        Change Order
+                      </Button>
+
 
 
   </styled.FiltersDiv>
+
+    <styled.usersAssignedTimeDiv>
+  {usersAssignedTime?.map((user: any, idx: number) => {
+    const hours = Math.floor(user?.time / 60);
+    const minutes = Math.round(user?.time % 60);
+    return (
+      <div key={idx}>
+        {user?.name}: {hours > 0 ? `${hours} hr${hours > 1 ? 's' : ''} ` : ''}
+        {minutes > 0 ? `${minutes} min` : hours === 0 ? '0 min' : ''}
+      </div>
+    );
+  })}
+</styled.usersAssignedTimeDiv>
+  
       
 
       <TaskCustomTable
-          // data={tasks}
-        data={filteredTasks}
+        // data={filteredTasks}
+       data={filteredData}
         // columns={filteredColumns}
                 columns={columnsWithSizing}
                 isColumnHeaderCentered={true}
@@ -1447,7 +1688,6 @@ const yearOptions = Array.from({ length: 5 }, (_, i) => {
         onDataChange={() => {}  }
         isDownloadable={false}
         createEmptyRow={() => {
-          console.log('Creating empty row');
           setOpenRecursiveTaskModal(true);
           return{}
         }}
@@ -1491,7 +1731,7 @@ const yearOptions = Array.from({ length: 5 }, (_, i) => {
       <RecursiveTaskModal
         open={openRecursiveTaskModal}
         onClose={() => setOpenRecursiveTaskModal(false)}
-        title="Add Recursive Task"
+        title="Add Cleaning Task"
         onSave={(data) => {
           handleCreateRecursiveTask(data);
         }}
@@ -1528,10 +1768,26 @@ const yearOptions = Array.from({ length: 5 }, (_, i) => {
           <EditRecursiveTask
             open={openEditRecursiveTaskModal}
             onClose={() => setOpenEditRecursiveTaskModal(false)}
-            title="Edit Recursive Task"
+            title="Edit Maintance Task"
             taskId={selectedRecursiveTask}
             onSave={handleEditDateByRecursiveTask}
             width={600}
+          />
+        )}
+
+        {openAssigneeModal && (
+          <AssigneMaintanceModal
+            open={openAssigneeModal}
+            onClose={() => setOpenAssigneeModal(false)}
+            title="Assign Task"
+            taskId={selectedTaskId}
+            assigneeOptions={temporaryUsers}
+            // onSave={handleAssignMaintance}
+            assignedUsers={maintanceAssignedTo}
+            onAssign={handleFinalAssignMaintance}
+            time={maintanceTime}
+            endTime={maintanceEndTime}
+
           />
         )}
 
@@ -1540,9 +1796,30 @@ const yearOptions = Array.from({ length: 5 }, (_, i) => {
           <BulkUpdateTaskModal
             open={openBulkUpdateModal}
             onClose={() => setOpenBulkUpdateModal(false)}
-            title="Bulk Update Recursive Tasks"
+            title="Bulk Update Cleaning Tasks"
             selectedIds={selectedBulkUpdateTasks}
             onSave={handleBulkUpdateRecursiveTask}
+          />
+        )}
+
+        {openOrderChangingModal && (
+          <ManageTaskOrder
+            isOpen={openOrderChangingModal}
+            onClose={() => setOpenOrderChangingModal(false)}
+            columnManagerOrder={manageColumnOrder}
+            table={tasks}
+            onOrderChange={handleOrderChange}
+          />
+        )}
+
+        {openTemporaryUserModal && (
+          <TemoraryUserModal
+            open={openTemporaryUserModal}
+            onClose={() => setOpenTemporaryUserModal(false)}
+            title="Add User"
+            tempporaryUsers={temporaryUsers}
+            refetchUsers={refetchTemporaryUsers}
+
           />
         )}
 
@@ -1552,5 +1829,5 @@ const yearOptions = Array.from({ length: 5 }, (_, i) => {
 
 
 
-export default RecursiveTaskTable
+export default Maintance
 

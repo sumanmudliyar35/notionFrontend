@@ -9,6 +9,8 @@ import { useGetRecursiveTask } from '../../../../api/get/getRecursiveTask'
 import { useGetPreviousRecursiveTaskLogsByRecursiveId } from '../../../../api/get/getRecursiveTaskLogByDateAndRecursiveTask'
 import { formatDisplayDate } from '../../../../utils/commonFunction'
 import { Badge, Tabs } from "antd";
+import { useGetPreviousMaintanceTaskLogsByMaintance } from '../../../../api/get/getPreviousMaintanceTaskLogByMaintance'
+import { useGetMaintanceTask } from '../../../../api/get/getMaintanceTask'
 
 interface EditRecursiveTaskProps {
   open: boolean;
@@ -25,16 +27,16 @@ const validationSchema = Yup.object().shape({
 });
 
 const EditRecursiveTask = ({ open, onClose, title, width, taskId, onSave }: EditRecursiveTaskProps) => {
-  const { data: RecursiveTaskData, isLoading: taskLoading } = useGetRecursiveTask(taskId);
+  const { data: MaintanceTaskData, isLoading: taskLoading } = useGetMaintanceTask(taskId);
 
-  const {data: LastPrecursiveTaskLogs}= useGetPreviousRecursiveTaskLogsByRecursiveId(taskId);
+  const {data: LastPrecursiveTaskLogs}= useGetPreviousMaintanceTaskLogsByMaintance(taskId);
 
     const [showFullName, setShowFullName] = useState(false);
 
   const formik = useFormik({
     enableReinitialize: true,
     initialValues: {
-      endDate: RecursiveTaskData?.endDate || '',
+      endDate: MaintanceTaskData?.endDate || '',
       // Add other fields if needed
     },
     validationSchema,
@@ -61,14 +63,14 @@ const EditRecursiveTask = ({ open, onClose, title, width, taskId, onSave }: Edit
           <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
             <div style={{ fontWeight: 600 }}>
               Name:&nbsp;
-              {RecursiveTaskData?.title
+              {MaintanceTaskData?.name
                 ? (
                   <>
-                    {showFullName || RecursiveTaskData.title.length <= 100
-                      ? RecursiveTaskData.title
-                      : `${RecursiveTaskData.title.slice(0, 100)}...`
+                    {showFullName || MaintanceTaskData.name.length <= 100
+                      ? MaintanceTaskData.name
+                      : `${MaintanceTaskData.name.slice(0, 100)}...`
                     }
-                    {RecursiveTaskData.title.length > 100 && (
+                    {MaintanceTaskData.name.length > 100 && (
                       <span
                         style={{ color: "#1677ff", cursor: "pointer", marginLeft: 8, fontWeight: 400, fontSize: 13 }}
                         onClick={() => setShowFullName(v => !v)}
@@ -81,7 +83,7 @@ const EditRecursiveTask = ({ open, onClose, title, width, taskId, onSave }: Edit
                 : 'Loading...'}
             </div>
              <div style={{ fontWeight: 600 }}>
-                        Next Task on <span style={{color:"red"}}>{formatDisplayDate(LastPrecursiveTaskLogs?.nextRecursiveTask) || 'N/A'}</span>
+                        Next Task on <span style={{color:"red"}}>{formatDisplayDate(LastPrecursiveTaskLogs?.nextMaintanceTask) || 'N/A'}</span>
                       </div>
             <DateInput
               label="End Date"
@@ -106,7 +108,7 @@ const EditRecursiveTask = ({ open, onClose, title, width, taskId, onSave }: Edit
         <div style={{display: 'flex', flexDirection: 'column', gap: 8}}>
            
                       <div style={{ fontWeight: 600 }}>
-                        Last Task on {formatDisplayDate(LastPrecursiveTaskLogs?.previousRecursiveTask?.date) || 'N/A'}
+                        Last Task on {formatDisplayDate(LastPrecursiveTaskLogs?.previousMaintanceTask?.date) || 'N/A'}
                       </div>
 
         
@@ -137,31 +139,31 @@ const EditRecursiveTask = ({ open, onClose, title, width, taskId, onSave }: Edit
                   )
                 ),
               },
-              {
-                key: "attachments",
-                label: <Badge count={LastPrecursiveTaskLogs?.files?.length} size="small" color="#1677ff"><div style={{color: "white"}}>Attachments</div></Badge>,
-                children: (
-                  LastPrecursiveTaskLogs?.files?.length > 0 ? (
-                    <ul style={{ paddingLeft: 16 }}>
-                      {LastPrecursiveTaskLogs.files.map((file: any) => (
-                        <li key={file.id} style={{ marginBottom: 8 }}>
-                          <a
-                            href={file.downloadUrl}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            style={{ color: "#1677ff", textDecoration: "underline" }}
-                            download={file.fileName}
-                          >
-                            {file.fileName}
-                          </a>
-                        </li>
-                      ))}
-                    </ul>
-                  ) : (
-                    <div style={{ color: "#888" }}>No attachments available.</div>
-                  )
-                ),
-              },
+              // {
+              //   key: "attachments",
+              //   label: <Badge count={LastPrecursiveTaskLogs?.files?.length} size="small" color="#1677ff"><div style={{color: "white"}}>Attachments</div></Badge>,
+              //   children: (
+              //     LastPrecursiveTaskLogs?.files?.length > 0 ? (
+              //       <ul style={{ paddingLeft: 16 }}>
+              //         {LastPrecursiveTaskLogs.files.map((file: any) => (
+              //           <li key={file.id} style={{ marginBottom: 8 }}>
+              //             <a
+              //               href={file.downloadUrl}
+              //               target="_blank"
+              //               rel="noopener noreferrer"
+              //               style={{ color: "#1677ff", textDecoration: "underline" }}
+              //               download={file.fileName}
+              //             >
+              //               {file.fileName}
+              //             </a>
+              //           </li>
+              //         ))}
+              //       </ul>
+              //     ) : (
+              //       <div style={{ color: "#888" }}>No attachments available.</div>
+              //     )
+              //   ),
+              // },
             ]}
           />
         </div>
